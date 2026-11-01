@@ -113,20 +113,23 @@
   <!-- MAIN SCROLLABLE CONTENT -->
   <main class="max-w-md mx-auto w-full px-4 pt-3 space-y-4">
 
-    <!-- 1. ANALYTICS FUNNEL DASHBOARD -->
-    <div class="bg-card border border-border rounded-2xl p-4 shadow-xl">
-      <div class="flex items-center justify-between mb-3">
+    <!-- 1. ANALYTICS FUNNEL DASHBOARD WITH MANUAL TRIGGER -->
+    <div class="bg-card border border-border rounded-2xl p-4 shadow-xl space-y-3">
+      <div class="flex items-center justify-between">
         <div>
           <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400">Pipeline Performance</h2>
           <p class="text-sm font-extrabold text-white">Funnel & Dispatch Velocity</p>
         </div>
-        <span class="px-2 py-1 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold">
-          Live Synced
-        </span>
+        <!-- Manual Scout Trigger Button -->
+        <button onclick="triggerScout()" id="btnRunScout"
+                class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition active:scale-95">
+          <i class="fa-solid fa-bolt text-amber-300"></i>
+          <span>Run Scout</span>
+        </button>
       </div>
 
       <!-- Quick Metrics Counters -->
-      <div class="grid grid-cols-3 gap-2 mb-3 text-center">
+      <div class="grid grid-cols-3 gap-2 text-center">
         <div class="bg-surface p-2 rounded-xl border border-border">
           <div id="statScraped" class="text-base font-black text-indigo-400 mono">18</div>
           <div class="text-[9px] text-gray-400 uppercase font-semibold">Scraped</div>
@@ -171,7 +174,7 @@
         </div>
       </div>
 
-      <!-- Swipe Buttons for Non-Touch Devices -->
+      <!-- Swipe Action Buttons (Decline / Accept) -->
       <div class="grid grid-cols-2 gap-3 pt-1">
         <button onclick="triggerSwipe('left')" class="flex items-center justify-center gap-2 py-3 rounded-xl bg-red-950/40 hover:bg-red-900/50 text-red-400 border border-red-800/40 text-xs font-extrabold shadow-sm active:scale-95 transition">
           <i class="fa-solid fa-xmark text-sm"></i>
@@ -180,6 +183,16 @@
         <button onclick="triggerSwipe('right')" class="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-800/40 text-xs font-extrabold shadow-sm active:scale-95 transition">
           <i class="fa-solid fa-heart text-sm"></i>
           <span>ACCEPT (Right)</span>
+        </button>
+      </div>
+
+      <!-- Undo Last Swipe Button -->
+      <div class="pt-1">
+        <button onclick="undoLastSwipe()" id="btnUndo"
+                class="w-full py-2.5 rounded-xl bg-card hover:bg-border text-gray-300 border border-border text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-95">
+          <i class="fa-solid fa-rotate-left text-indigo-400"></i>
+          <span>Undo Last Swipe</span>
+          <span id="undoCount" class="text-[10px] px-1.5 py-0.5 rounded-full bg-surface text-gray-400 border border-border hidden">0</span>
         </button>
       </div>
     </section>
@@ -330,10 +343,13 @@
   <!-- CLIENT LOGIC & PWA SCRIPT -->
   <script>
     const SHEET_ID = '18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E';
+    const GITHUB_REPO = 'SoumitroDas/PhD-Pipeline-v3';
 
     // Optional Google Apps Script Web App Endpoint for Direct Cloud Sync
-    // (If left empty, PWA generates verified clipboard payloads + direct Sheet links)
     const APPS_SCRIPT_WEBHOOK = localStorage.getItem('PHD_APPS_SCRIPT_WEBHOOK') || '';
+
+    // History stack for Undo functionality
+    let swipeHistory = [];
 
     // 1. Navigation View Switcher
     function switchView(viewName) {
@@ -395,13 +411,70 @@
       }
     });
 
-    // 3. Tinder-Style Swipe Deck Logic
+    // 3. Manual Scout Trigger via GitHub API
+    async function triggerScout() {
+      let pat = localStorage.getItem('GITHUB_PAT');
+      if (!pat) {
+        pat = prompt('Enter your GitHub Personal Access Token (PAT with actions:write scope):');
+        if (!pat || !pat.trim()) {
+          showToast('⚠️ Scout trigger cancelled. Token required.');
+          return;
+        }
+        pat = pat.trim();
+        localStorage.setItem('GITHUB_PAT', pat);
+      }
+
+      const btn = document.getElementById('btnRunScout');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Triggering...`;
+
+      showToast('⏳ Dispatching Scout workflow on GitHub Actions (Smain)...');
+
+      try {
+        const resp = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/phd_pipeline_v3.yml/dispatches`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${pat}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ref: 'Smain',
+            inputs: {
+              daemon: 'scout',
+              dry_run: 'false'
+            }
+          })
+        });
+
+        if (resp.status === 204 || resp.ok) {
+          showToast('🚀 Scout successfully triggered on Smain! Check GitHub Actions tab.');
+        } else if (resp.status === 401) {
+          localStorage.removeItem('GITHUB_PAT');
+          showToast('❌ 401 Unauthorized: Invalid PAT. Cleared saved token. Tap again to re-enter.');
+        } else if (resp.status === 404) {
+          showToast(`❌ 404 Not Found: Check repo (${GITHUB_REPO}) or PAT workflow scope.`);
+        } else {
+          const errText = await resp.text();
+          showToast(`❌ Trigger failed (${resp.status}): ${errText.slice(0, 70)}`);
+        }
+      } catch (err) {
+        showToast('❌ Network error contacting GitHub API: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    // 4. Tinder-Style Swipe Deck Logic
     let mockLeads = [
       {
         prof: "Prof. Christian Borgs",
         inst: "UC Berkeley / Department of Mathematics",
         opp: "Funded PhD Studentship: Compartmental Graph Epidemiology & Dynamical Systems",
-        paper: "Nonlinear Dynamics in Hypergraph Network Epidemics (DOI: 10.1038/s41567-024)",
+        paper: "Nonlinear Dynamics in Hypergraph Network Epidemics",
+        posting_link: "https://doi.org/10.1038/s41567-024",
         fit: "9/10",
         deadline: "Dec 15, 2026"
       },
@@ -409,7 +482,8 @@
         prof: "Dr. Laura P. Schaposnik",
         inst: "University of Illinois Chicago",
         opp: "Doctoral Position: Mathematical Biology & Geometric Vector ODE Models",
-        paper: "Fractional Geometric Dynamics in Dengue Transmission (DOI: 10.1016/j.jde.2025)",
+        paper: "Fractional Geometric Dynamics in Dengue Transmission",
+        posting_link: "https://doi.org/10.1016/j.jde.2025",
         fit: "10/10",
         deadline: "Rolling / Fall 2027"
       },
@@ -418,6 +492,7 @@
         inst: "UC Riverside / Interdisciplinary Mathematical Biology",
         opp: "Graduate Research Fellowship: Physics-Informed Neural Networks for Multiscale ODEs",
         paper: "PINNs Parameter Identifiability in Carrying-Capacity Biological Systems",
+        posting_link: "https://doi.org/10.1016/j.jcp.2025",
         fit: "9/10",
         deadline: "Jan 10, 2027"
       }
@@ -427,10 +502,21 @@
     const container = document.getElementById('swipeContainer');
     const counterElem = document.getElementById('cardCounter');
 
+    function updateUndoUI() {
+      const undoBadge = document.getElementById('undoCount');
+      if (swipeHistory.length > 0) {
+        undoBadge.innerText = swipeHistory.length;
+        undoBadge.classList.remove('hidden');
+      } else {
+        undoBadge.classList.add('hidden');
+      }
+    }
+
     function renderDeck() {
       container.querySelectorAll('.swipe-card').forEach(c => c.remove());
       const activeLeads = mockLeads.slice(currentCardIndex);
       counterElem.innerText = `Remaining: ${activeLeads.length}`;
+      updateUndoUI();
 
       if (activeLeads.length === 0) {
         document.getElementById('emptyDeck').classList.remove('hidden');
@@ -448,22 +534,31 @@
             <span class="badge-decline absolute top-0 left-0 px-3 py-1 bg-red-500/20 border-2 border-red-400 text-red-300 font-extrabold text-xs rounded-lg uppercase">DECLINE</span>
           </div>
 
-          <div class="space-y-2 mt-2">
+          <!-- Card Content (Scrollable with overflow-y-auto to prevent text truncation) -->
+          <div class="space-y-2 mt-2 overflow-y-auto max-h-[225px] pr-1">
             <div class="flex items-center justify-between">
               <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold">Fit: ${lead.fit}</span>
               <span class="text-[10px] text-gray-400 mono">📅 ${lead.deadline}</span>
             </div>
             <div>
-              <h4 class="text-base font-extrabold text-white tracking-tight leading-tight">${lead.prof}</h4>
+              <a href="${lead.posting_link || '#'}" target="_blank" rel="noopener noreferrer" class="group inline-flex items-center gap-1.5 hover:underline">
+                <h4 class="text-base font-extrabold text-white tracking-tight leading-tight group-hover:text-indigo-300 transition">${lead.prof}</h4>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-indigo-400"></i>
+              </a>
               <p class="text-xs text-indigo-300 font-medium">${lead.inst}</p>
             </div>
             <div class="p-2.5 rounded-lg bg-surface border border-border/80 space-y-1">
               <div class="text-[10px] uppercase font-bold text-gray-400">Opportunity:</div>
-              <p class="text-xs text-gray-200 line-clamp-2">${lead.opp}</p>
+              <p class="text-xs text-gray-200 leading-relaxed">${lead.opp}</p>
             </div>
             <div class="p-2.5 rounded-lg bg-surface/50 border border-border/60 space-y-1">
-              <div class="text-[10px] uppercase font-bold text-emerald-400">Verified PI Paper:</div>
-              <p class="text-[11px] text-gray-300 italic line-clamp-2">${lead.paper}</p>
+              <div class="text-[10px] uppercase font-bold text-emerald-400 flex items-center justify-between">
+                <span>Verified PI Paper:</span>
+                <span class="text-[9px] text-gray-500 font-normal">Tap to read paper</span>
+              </div>
+              <a href="${lead.posting_link || '#'}" target="_blank" rel="noopener noreferrer" class="text-[11px] text-gray-300 italic leading-snug hover:underline hover:text-emerald-300 block">
+                ${lead.paper} <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-1 text-emerald-400"></i>
+              </a>
             </div>
           </div>
 
@@ -486,11 +581,11 @@
       mc.on('pan', (e) => {
         el.style.transition = 'none';
         el.style.transform = `translate(${e.deltaX}px, ${e.deltaY * 0.4}px) rotate(${e.deltaX * 0.05}deg)`;
-        if (e.deltaX > 40) {
-          badgeAccept.style.opacity = Math.min(1, (e.deltaX - 40) / 70);
+        if (e.deltaX > 60) {
+          badgeAccept.style.opacity = Math.min(1, (e.deltaX - 60) / 100);
           badgeDecline.style.opacity = 0;
-        } else if (e.deltaX < -40) {
-          badgeDecline.style.opacity = Math.min(1, (-e.deltaX - 40) / 70);
+        } else if (e.deltaX < -60) {
+          badgeDecline.style.opacity = Math.min(1, (-e.deltaX - 60) / 100);
           badgeAccept.style.opacity = 0;
         } else {
           badgeAccept.style.opacity = 0;
@@ -500,9 +595,10 @@
 
       mc.on('panend', (e) => {
         el.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.25s ease';
-        if (e.deltaX > 110) {
+        // Accidental Swipe Protection: Increased threshold to 160px
+        if (e.deltaX > 160) {
           handleDecision(el, 'right');
-        } else if (e.deltaX < -110) {
+        } else if (e.deltaX < -160) {
           handleDecision(el, 'left');
         } else {
           el.style.transform = 'translate(0px, 0px) rotate(0deg)';
@@ -519,12 +615,31 @@
       cardEl.style.opacity = '0';
 
       const action = direction === 'right' ? 'ACCEPT' : 'DECLINE';
+      
+      // Push to swipe history for Undo
+      swipeHistory.push({
+        lead: lead,
+        direction: direction,
+        index: currentCardIndex
+      });
+
       showToast(`${action === 'ACCEPT' ? '✅ ACCEPTED' : '❌ DECLINED'}: ${lead.prof}`);
 
       setTimeout(() => {
         currentCardIndex++;
         renderDeck();
       }, 250);
+    }
+
+    function undoLastSwipe() {
+      if (swipeHistory.length === 0 || currentCardIndex === 0) {
+        showToast('⚠️ No swipes to undo.');
+        return;
+      }
+      const last = swipeHistory.pop();
+      currentCardIndex--;
+      renderDeck();
+      showToast(`↩️ Undid decision for ${last.lead.prof}`);
     }
 
     function triggerSwipe(direction) {
@@ -534,11 +649,12 @@
 
     function reloadLeads() {
       currentCardIndex = 0;
+      swipeHistory = [];
       renderDeck();
       showToast('Deck reloaded with latest scraped queue.');
     }
 
-    // 4. Smart Drop Submission Engine (Tab 5: Manual_Ingest)
+    // 5. Smart Drop Submission Engine (Tab 5: Manual_Ingest)
     function submitSmartDrop() {
       const text = document.getElementById('smartDropText').value.trim();
       if (!text) {
@@ -565,7 +681,7 @@
       document.getElementById('smartDropText').value = '';
     }
 
-    // 5. Out-of-Band Sent Email Logger (Tab 2: Direct SENT)
+    // 6. Out-of-Band Sent Email Logger (Tab 2: Direct SENT)
     function submitManualSent() {
       const profName = document.getElementById('manualPiName').value.trim();
       const email = document.getElementById('manualPiEmail').value.trim();
@@ -581,7 +697,6 @@
       const f1Date = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
       const f2Date = new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10);
 
-      // Tab 2 Row Schema
       const rowValues = [
         todayStr, profName, email, subject, body,
         "Out-of-band manual dispatch", "SENT", "No Reply", "", f1Date, f2Date
@@ -610,7 +725,7 @@
       document.getElementById('manualBody').value = '';
     }
 
-    // 6. Quick Reply Logger Engine
+    // 7. Quick Reply Logger Engine
     function logReply(category) {
       const profName = document.getElementById('quickPiName').value.trim() || 'Target Professor';
       const notes = document.getElementById('quickReplyNotes').value.trim() || 'No additional notes provided.';
@@ -618,7 +733,7 @@
       document.getElementById('quickReplyNotes').value = '';
     }
 
-    // 7. Toast & Clipboard Utility
+    // 8. Toast & Clipboard Utility
     function showToast(msg) {
       const toast = document.getElementById('quickToast');
       const toastMsg = document.getElementById('toastMsg');
@@ -636,7 +751,7 @@
     // Initialize Card Deck
     renderDeck();
 
-    // 8. Service Worker Registration
+    // 9. Service Worker Registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
