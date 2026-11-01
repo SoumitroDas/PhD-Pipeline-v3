@@ -1,0 +1,126 @@
+name: Autonomous PhD Pipeline & Literature Radar v3.1
+
+concurrency:
+  group: phd-pipeline-singleton
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - Smain
+  schedule:
+    # 1. Weekly PhD & LinkedIn Scout: Every Friday at 06:00 AM Dhaka (00:00 UTC)
+    - cron: '0 0 * * 5'
+    # 2. Daily Gmail Drafter: Every Day at 08:00 AM Dhaka (02:00 UTC)
+    - cron: '0 2 * * *'
+    # 3. Daily Sent-Monitor & Follow-Up Nagger: Every Day at 09:00 AM Dhaka (03:00 UTC)
+    - cron: '0 3 * * *'
+    # 4. Weekly Literature Radar: Every Sunday at 07:00 AM Dhaka (01:00 UTC)
+    - cron: '0 1 * * 0'
+
+  workflow_dispatch:
+    inputs:
+      daemon:
+        description: 'Which daemon to execute manually'
+        required: true
+        type: choice
+        options:
+          - scout
+          - drafter
+          - nagger
+          - radar
+          - all
+        default: 'all'
+      dry_run:
+        description: 'Run in dry-run mode (do not write to Google Sheets)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Execute Autonomous Daemon
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_TOKEN_JSON_B64: ${{ secrets.GOOGLE_TOKEN_JSON_B64 }}
+          PHD_SHEET_ID: ${{ secrets.PHD_SHEET_ID }}
+          PHD_DRIVE_FOLDER_ID: ${{ secrets.PHD_DRIVE_FOLDER_ID }}
+          GOOGLE_CSE_API_KEY: ${{ secrets.GOOGLE_CSE_API_KEY }}
+          GOOGLE_CSE_CX: ${{ secrets.GOOGLE_CSE_CX }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CV_PATH: ${{ secrets.CV_PATH || 'assets/Soumitro_Kumar_Das_CV.md' }}
+          INPUT_DAEMON: ${{ inputs.daemon }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "$INPUT_DRY_RUN" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET="$INPUT_DAEMON"
+            echo "Executing manually requested daemon: $TARGET"
+            if [ "$TARGET" = "scout" ] || [ "$TARGET" = "all" ]; then
+              python src/scout_v3.py $DRY_RUN_FLAG
+            fi
+            if [ "$TARGET" = "drafter" ] || [ "$TARGET" = "all" ]; then
+              python src/drafter_v3.py $DRY_RUN_FLAG
+            fi
+            if [ "$TARGET" = "nagger" ] || [ "$TARGET" = "all" ]; then
+              python src/nagger_v3.py $DRY_RUN_FLAG
+            fi
+            if [ "$TARGET" = "radar" ] || [ "$TARGET" = "all" ]; then
+              python src/scholar_radar_v3.py $DRY_RUN_FLAG
+            fi
+
+          elif [ "${{ github.event.schedule }}" = "0 0 * * 5" ]; then
+            echo "Cron Trigger: Weekly Friday Scout (06:00 AM Dhaka / 00:00 UTC)"
+            python src/scout_v3.py
+
+          elif [ "${{ github.event.schedule }}" = "0 2 * * *" ]; then
+            echo "Cron Trigger: Daily Gmail Drafter (08:00 AM Dhaka / 02:00 UTC)"
+            python src/drafter_v3.py
+
+          elif [ "${{ github.event.schedule }}" = "0 3 * * *" ]; then
+            echo "Cron Trigger: Daily Sent & Follow-Up Nagger (09:00 AM Dhaka / 03:00 UTC)"
+            python src/nagger_v3.py
+
+          elif [ "${{ github.event.schedule }}" = "0 1 * * 0" ]; then
+            echo "Cron Trigger: Sunday Literature Radar (07:00 AM Dhaka / 01:00 UTC)"
+            python src/scholar_radar_v3.py
+          fi
+
+      - name: Commit and Push Outreach Markdown Log
+        if: always()
+        run: |
+          git config user.name "Pipeline Bot"
+          git config user.email "bot@phd-pipeline.local"
+          if [ -f "assets/PhD_Outreach_Full_Log_V3.md" ]; then
+            git add assets/PhD_Outreach_Full_Log_V3.md
+            if ! git diff --staged --quiet; then
+              git commit -m "chore(log): auto-commit outreach & reply log [skip ci]"
+              git push origin Smain
+            else
+              echo "No new updates in PhD_Outreach_Full_Log_V3.md to commit."
+            fi
+          fi
