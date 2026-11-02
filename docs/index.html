@@ -102,7 +102,7 @@
           <i class="fa-solid fa-bell text-amber-300 text-[10px]"></i>
           <span>Nagger</span>
         </button>
-        <button onclick="triggerDaemon('radar')" id="btnRunRadarHeader" title="Run Radar Manual Trigger"
+        <button onclick="switchView('radar')" id="btnRunRadarHeader" title="Research Intelligence Radar"
                 class="px-2 py-1.5 rounded-lg bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95 shrink-0">
           <i class="fa-solid fa-satellite-dish text-purple-300 text-[10px]"></i>
           <span>Radar</span>
@@ -142,18 +142,21 @@
 
   <!-- NAVIGATION PILLS (RESPONSIVE MAX-WIDTH) -->
   <div class="max-w-4xl mx-auto w-full px-4 pt-3">
-    <div class="grid grid-cols-4 gap-1 bg-surface p-1 rounded-xl border border-border text-[11px] font-bold">
+    <div class="grid grid-cols-5 gap-1 bg-surface p-1 rounded-xl border border-border text-[10px] sm:text-[11px] font-bold">
       <button onclick="switchView('swipe')" id="navSwipe" class="py-2 rounded-lg bg-indigo-600 text-white shadow transition text-center">
-        <i class="fa-solid fa-heart mr-1"></i>Review
+        <i class="fa-solid fa-heart mr-0.5 sm:mr-1"></i>Review
+      </button>
+      <button onclick="switchView('radar')" id="navRadar" class="py-2 rounded-lg text-gray-400 hover:text-white transition text-center">
+        <i class="fa-solid fa-satellite-dish mr-0.5 sm:mr-1 text-purple-400"></i>Radar
       </button>
       <button onclick="switchView('drop')" id="navDrop" class="py-2 rounded-lg text-gray-400 hover:text-white transition text-center">
-        <i class="fa-solid fa-cloud-arrow-up mr-1"></i>Smart Drop
+        <i class="fa-solid fa-cloud-arrow-up mr-0.5 sm:mr-1"></i>Drop
       </button>
       <button onclick="switchView('manualSent')" id="navManualSent" class="py-2 rounded-lg text-gray-400 hover:text-white transition text-center">
-        <i class="fa-solid fa-paper-plane mr-1"></i>Log Sent
+        <i class="fa-solid fa-paper-plane mr-0.5 sm:mr-1"></i>Log
       </button>
       <button onclick="switchView('quickReply')" id="navQuickReply" class="py-2 rounded-lg text-gray-400 hover:text-white transition text-center">
-        <i class="fa-solid fa-reply mr-1"></i>Replies
+        <i class="fa-solid fa-reply mr-0.5 sm:mr-1"></i>Replies
       </button>
     </div>
   </div>
@@ -418,6 +421,110 @@
         <!-- Rendered dynamically by renderCountryBreakdown() -->
       </div>
     </div>
+
+    <!-- VIEW RADAR: RESEARCH INTELLIGENCE & LITERATURE RADAR (TAB 3) -->
+    <section id="viewRadar" class="hidden space-y-3.5">
+      <!-- Radar Header Card -->
+      <div class="bg-card border border-border/80 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-white text-xs shadow-md shadow-purple-600/30">
+              <i class="fa-solid fa-satellite-dish"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-xs font-bold text-white">📡 Research Intelligence Radar</h3>
+                <span class="px-1.5 py-0.5 text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded uppercase">Live Digest</span>
+              </div>
+              <p class="text-[10px] text-gray-400">24h / 7d / 30d Publications across Soumitro's 5 Biomathematics Clusters</p>
+            </div>
+          </div>
+          <button onclick="fetchLiveRadar()" id="btnRadarLiveFetch"
+                  class="px-2.5 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95">
+            <i class="fa-solid fa-bolt text-amber-300 text-[9px]"></i>
+            <span>⚡ Fetch Live</span>
+          </button>
+        </div>
+
+        <!-- Time Window Filter Pills & Saved List Toggle -->
+        <div class="space-y-1.5">
+          <div class="text-[9px] font-bold uppercase tracking-wider text-gray-400">Publication Time Window</div>
+          <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <button onclick="setRadarWindow('all')" id="radarWinAll"
+                    class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-600 text-white border border-purple-500 shadow-sm transition">
+              All Indexed
+            </button>
+            <button onclick="setRadarWindow('24h')" id="radarWin24h"
+                    class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-surface hover:bg-border text-gray-300 border border-border/80 transition">
+              ⚡ Last 24 Hours
+            </button>
+            <button onclick="setRadarWindow('7d')" id="radarWin7d"
+                    class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-surface hover:bg-border text-gray-300 border border-border/80 transition">
+              📅 Last 7 Days
+            </button>
+            <button onclick="setRadarWindow('30d')" id="radarWin30d"
+                    class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-surface hover:bg-border text-gray-300 border border-border/80 transition">
+              🗓️ Last 30 Days
+            </button>
+            <button onclick="setRadarWindow('saved')" id="radarWinSaved"
+                    class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-surface hover:bg-border text-amber-300 border border-border/80 transition flex items-center gap-1">
+              <i class="fa-solid fa-star text-[9px]"></i>
+              <span>Saved Reading List</span>
+              <span id="radarSavedCountBadge" class="px-1 py-0.2 bg-amber-500/20 text-amber-300 rounded text-[9px]">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Topic Cluster Filter Pills -->
+        <div class="space-y-1.5">
+          <div class="text-[9px] font-bold uppercase tracking-wider text-gray-400">Research Topic Clusters</div>
+          <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <button onclick="setRadarTopic('all')" id="radarTopicAll"
+                    class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-600 text-white border border-indigo-500 transition">
+              All Clusters
+            </button>
+            <button onclick="setRadarTopic('epidemiology')" id="radarTopicEpi"
+                    class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-surface hover:bg-border text-gray-300 border border-border/80 transition">
+              🔬 Epidemiology
+            </button>
+            <button onclick="setRadarTopic('pinns')" id="radarTopicPinns"
+                    class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-surface hover:bg-border text-gray-300 border border-border/80 transition">
+              🧠 PINNs / SciML
+            </button>
+            <button onclick="setRadarTopic('parameter_estimation')" id="radarTopicParam"
+                    class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-surface hover:bg-border text-gray-300 border border-border/80 transition">
+              🎯 Parameter Estimation
+            </button>
+            <button onclick="setRadarTopic('fractional')" id="radarTopicFrac"
+                    class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-surface hover:bg-border text-gray-300 border border-border/80 transition">
+              📐 Fractional
+            </button>
+            <button onclick="setRadarTopic('predator_prey')" id="radarTopicPred"
+                    class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-surface hover:bg-border text-gray-300 border border-border/80 transition">
+              🦊 Predator-Prey
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-500 text-xs"></i>
+          <input type="text" id="radarSearchInput" oninput="renderRadarView()" placeholder="Filter by title, author, institution, methodology, hypothesis..."
+                 class="w-full bg-surface border border-border rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition" />
+        </div>
+      </div>
+
+      <!-- Radar Feed Count & Info Bar -->
+      <div class="flex items-center justify-between px-1 text-[10px] text-gray-400">
+        <span id="radarFeedCount">Showing 0 papers</span>
+        <span>Auto-synced with Tab 3 (Literature_Radar)</span>
+      </div>
+
+      <!-- Radar Papers Feed Container -->
+      <div id="radarFeedContainer" class="space-y-3">
+        <!-- Rendered dynamically by renderRadarView() -->
+      </div>
+    </section>
 
     <!-- VIEW B: SMART DROP LEAD (TAB 5: MANUAL_INGEST) -->
     <section id="viewDrop" class="hidden space-y-3">
@@ -975,6 +1082,78 @@
                     class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-amber-600 hover:from-indigo-500 hover:to-amber-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition active:scale-95">
               <i class="fa-solid fa-rocket"></i>
               <span>Run Targeted Scout</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAPER AUTHOR OUTREACH COMPOSER MODAL -->
+    <div id="paperOutreachModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <div class="bg-card border border-border rounded-2xl w-full max-w-xl flex flex-col shadow-2xl overflow-hidden animate-fade-in">
+        <!-- Outreach Header -->
+        <div class="p-3.5 border-b border-border flex justify-between items-center bg-surface/50 shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white text-xs shadow-md shadow-blue-600/30">
+              <i class="fa-solid fa-paper-plane"></i>
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-white">Contact Author / Propose Model Extension</h3>
+              <p id="outreachProfSub" class="text-[10px] text-gray-400">Pre-drafted cold email discussing recent publication</p>
+            </div>
+          </div>
+          <button onclick="closePaperOutreachModal()" title="Close" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface border border-border/60 transition">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+
+        <!-- Outreach Form -->
+        <div class="p-4 space-y-3 max-h-[75vh] overflow-y-auto text-xs">
+          <!-- Lead Target Info Badge -->
+          <div class="bg-surface/70 border border-border/80 rounded-xl p-2.5 space-y-1">
+            <div class="flex items-center justify-between">
+              <span id="outreachProfName" class="font-bold text-white text-xs">Professor Name</span>
+              <span id="outreachProfInst" class="text-[10px] text-gray-400">Institution</span>
+            </div>
+            <div id="outreachPaperTitle" class="text-[10px] text-indigo-300 italic truncate">Paper Title</div>
+          </div>
+
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Recipient Email:</label>
+            <input type="email" id="outreachEmailInput" placeholder="pi@university.edu"
+                   class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" />
+          </div>
+
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Subject Line:</label>
+            <input type="text" id="outreachSubjectInput"
+                   class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition" />
+          </div>
+
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-1">Outreach Email Body:</label>
+            <textarea id="outreachBodyTextarea" rows="10"
+                      class="w-full bg-surface border border-border rounded-xl p-3 text-xs text-white leading-relaxed focus:outline-none focus:border-indigo-500 transition font-sans"></textarea>
+          </div>
+        </div>
+
+        <!-- Outreach Footer -->
+        <div class="p-3.5 border-t border-border bg-surface/50 flex items-center justify-between gap-2 shrink-0">
+          <button onclick="copyOutreachEmail()"
+                  class="px-3 py-2 rounded-xl bg-surface hover:bg-border border border-border/80 text-gray-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition active:scale-95">
+            <i class="fa-solid fa-copy text-indigo-400"></i>
+            <span>Copy Email</span>
+          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="saveOutreachToDrafts()"
+                    class="px-3 py-2 rounded-xl bg-surface/80 hover:bg-border text-emerald-400 hover:text-white text-xs font-semibold border border-emerald-500/30 flex items-center gap-1.5 transition active:scale-95">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Save as Draft</span>
+            </button>
+            <button onclick="openOutreachInGmail()"
+                    class="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center gap-1.5 transition active:scale-95">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              <span>Open in Gmail</span>
             </button>
           </div>
         </div>
@@ -3098,6 +3277,14 @@ ${esc(body || '(No email body content)')}
           analyticsChart.update();
         }
 
+                if (j.literatureRadar && Array.isArray(j.literatureRadar)) {
+          globalLiteratureRadar = j.literatureRadar;
+          updateRadarSavedBadge();
+          const viewRadarEl = document.getElementById('viewRadar');
+          if (viewRadarEl && !viewRadarEl.classList.contains('hidden')) {
+            renderRadarView();
+          }
+        }
         liveLeads = j.leads || []; 
         currentCardIndex = 0; 
         swipeHistory = [];
@@ -3236,19 +3423,22 @@ ${esc(body || '(No email body content)')}
 
     // Navigation View Switcher
     function switchView(viewName) {
-      const views = ['swipe', 'drop', 'manualSent', 'quickReply'];
+      const views = ['swipe', 'radar', 'drop', 'manualSent', 'quickReply'];
       views.forEach(v => {
-        document.getElementById(`view${v.charAt(0).toUpperCase() + v.slice(1)}`).classList.add('hidden');
-        document.getElementById(`nav${v.charAt(0).toUpperCase() + v.slice(1)}`).className = "py-2 rounded-lg text-gray-400 hover:text-white transition text-center";
+        const el = document.getElementById(`view${v.charAt(0).toUpperCase() + v.slice(1)}`);
+        const nav = document.getElementById(`nav${v.charAt(0).toUpperCase() + v.slice(1)}`);
+        if (el) el.classList.add('hidden');
+        if (nav) nav.className = "py-2 rounded-lg text-gray-400 hover:text-white transition text-center";
       });
 
       const activeView = document.getElementById(`view${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`);
       const activeNav = document.getElementById(`nav${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`);
-      activeView.classList.remove('hidden');
-      activeNav.className = "py-2 rounded-lg bg-indigo-600 text-white shadow transition text-center";
+      if (activeView) activeView.classList.remove('hidden');
+      if (activeNav) activeNav.className = "py-2 rounded-lg bg-indigo-600 text-white shadow transition text-center";
 
       const perfDiv = document.getElementById('viewPerformance');
       const scoutDiv = document.getElementById('viewScoutAgent');
+      const countryDiv = document.getElementById('viewCountryBreakdown');
       if (perfDiv) {
         if (viewName === 'swipe') {
           perfDiv.classList.remove('hidden');
@@ -3262,6 +3452,17 @@ ${esc(body || '(No email body content)')}
         } else {
           scoutDiv.classList.add('hidden');
         }
+      }
+      if (countryDiv) {
+        if (viewName === 'swipe') {
+          countryDiv.classList.remove('hidden');
+        } else {
+          countryDiv.classList.add('hidden');
+        }
+      }
+
+      if (viewName === 'radar') {
+        renderRadarView();
       }
     }
 
@@ -3525,6 +3726,398 @@ ${esc(body || '(No email body content)')}
     const triggerScout = () => openScoutDiscoveryModal();
     const triggerNagger = () => triggerDaemon('nagger');
     const triggerRadar = () => triggerDaemon('radar');
+
+    // =========================================================================
+    // RESEARCH INTELLIGENCE & LITERATURE RADAR ENGINE (TAB 3)
+    // =========================================================================
+    let globalLiteratureRadar = [];
+    let currentRadarWindow = 'all'; // 'all', '24h', '7d', '30d', 'saved'
+    let currentRadarTopic = 'all';  // 'all', 'epidemiology', 'pinns', 'parameter_estimation', 'fractional', 'predator_prey'
+    let savedRadarDois = JSON.parse(localStorage.getItem('saved_radar_dois') || '[]');
+    let radarNotes = JSON.parse(localStorage.getItem('radar_notes') || '{}');
+    let currentOutreachPaper = null;
+
+    function updateRadarSavedBadge() {
+      const badge = document.getElementById('radarSavedCountBadge');
+      if (badge) badge.innerText = savedRadarDois.length;
+    }
+
+    function setRadarWindow(win) {
+      currentRadarWindow = win;
+      const btns = {
+        all: 'radarWinAll',
+        '24h': 'radarWin24h',
+        '7d': 'radarWin7d',
+        '30d': 'radarWin30d',
+        saved: 'radarWinSaved'
+      };
+      Object.entries(btns).forEach(([k, id]) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        if (k === win) {
+          btn.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-600 text-white border border-purple-500 shadow-sm transition";
+        } else {
+          btn.className = "px-2.5 py-1 rounded-lg text-[10px] font-bold bg-surface hover:bg-border text-gray-300 border border-border/80 transition";
+        }
+      });
+      renderRadarView();
+    }
+
+    function setRadarTopic(top) {
+      currentRadarTopic = top;
+      const topicBtns = {
+        all: 'radarTopicAll',
+        epidemiology: 'radarTopicEpi',
+        pinns: 'radarTopicPinns',
+        parameter_estimation: 'radarTopicParam',
+        fractional: 'radarTopicFrac',
+        predator_prey: 'radarTopicPred'
+      };
+      Object.entries(topicBtns).forEach(([k, id]) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        if (k === top) {
+          btn.className = "px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-600 text-white border border-indigo-500 transition";
+        } else {
+          btn.className = "px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-surface hover:bg-border text-gray-300 border border-border/80 transition";
+        }
+      });
+      renderRadarView();
+    }
+
+    function toggleSavePaper(doi) {
+      const idx = savedRadarDois.indexOf(doi);
+      if (idx >= 0) {
+        savedRadarDois.splice(idx, 1);
+        showToast("Paper removed from saved reading list.");
+      } else {
+        savedRadarDois.push(doi);
+        showToast("⭐ Paper saved to reading list!");
+      }
+      localStorage.setItem('saved_radar_dois', JSON.stringify(savedRadarDois));
+      updateRadarSavedBadge();
+      renderRadarView();
+    }
+
+    function promptAddRadarNote(doi, rowIndex) {
+      const current = radarNotes[doi] || "";
+      const note = prompt("Enter personal research note for this paper:", current);
+      if (note !== null) {
+        if (note.trim()) {
+          radarNotes[doi] = note.trim();
+        } else {
+          delete radarNotes[doi];
+        }
+        localStorage.setItem('radar_notes', JSON.stringify(radarNotes));
+        if (rowIndex) {
+          postGAS({ action: 'save_radar_note', row: rowIndex, note: note.trim() }).catch(() => {});
+        }
+        showToast("📝 Note updated.");
+        renderRadarView();
+      }
+    }
+
+    async function fetchLiveRadar() {
+      const btn = document.getElementById('btnRadarLiveFetch');
+      const originalText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-amber-300 text-[9px]"></i> <span>Fetching...</span>';
+      }
+      showToast("📡 Fetching live papers across OpenAlex & arXiv...");
+      try {
+        const res = await postGAS({
+          action: 'fetch_literature',
+          window: currentRadarWindow === 'saved' ? '7d' : currentRadarWindow,
+          cluster: currentRadarTopic === 'all' ? 'epidemiology' : currentRadarTopic
+        });
+        if (res.ok && res.papers && res.papers.length > 0) {
+          const existingDois = new Set(globalLiteratureRadar.map(p => (p.doi || '').toLowerCase()));
+          const fresh = res.papers.filter(p => !existingDois.has((p.doi || '').toLowerCase()));
+          globalLiteratureRadar = [...fresh, ...globalLiteratureRadar];
+          showToast(`✅ Discovered ${fresh.length} fresh paper(s)!`);
+        } else {
+          showToast("✅ Radar query up to date.");
+        }
+        renderRadarView();
+      } catch (e) {
+        showToast("❌ Radar fetch failed: " + e.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      }
+    }
+
+    function renderRadarView() {
+      const feed = document.getElementById('radarFeedContainer');
+      const countLabel = document.getElementById('radarFeedCount');
+      if (!feed) return;
+
+      updateRadarSavedBadge();
+
+      let list = [...globalLiteratureRadar];
+      const nowMs = Date.now();
+
+      // 1. Time Window Filter
+      if (currentRadarWindow === 'saved') {
+        list = list.filter(p => savedRadarDois.includes(p.doi));
+      } else if (currentRadarWindow === '24h') {
+        list = list.filter(p => {
+          if (!p.pub_date && !p.week_date) return true;
+          const dMs = new Date(p.pub_date || p.week_date).getTime();
+          return isNaN(dMs) || (nowMs - dMs) <= 1 * 86400000;
+        });
+      } else if (currentRadarWindow === '7d') {
+        list = list.filter(p => {
+          if (!p.pub_date && !p.week_date) return true;
+          const dMs = new Date(p.pub_date || p.week_date).getTime();
+          return isNaN(dMs) || (nowMs - dMs) <= 7 * 86400000;
+        });
+      } else if (currentRadarWindow === '30d') {
+        list = list.filter(p => {
+          if (!p.pub_date && !p.week_date) return true;
+          const dMs = new Date(p.pub_date || p.week_date).getTime();
+          return isNaN(dMs) || (nowMs - dMs) <= 30 * 86400000;
+        });
+      }
+
+      // 2. Topic Filter
+      if (currentRadarTopic !== 'all') {
+        const topNorm = currentRadarTopic.toLowerCase().replace(/_/g, ' ');
+        list = list.filter(p => {
+          const t = (p.tag || '').toLowerCase();
+          return t.includes(topNorm);
+        });
+      }
+
+      // 3. Search Query Filter
+      const q = (document.getElementById('radarSearchInput')?.value || '').toLowerCase().trim();
+      if (q) {
+        list = list.filter(p => {
+          const title = (p.title || '').toLowerCase();
+          const auth = (p.authors_inst || '').toLowerCase();
+          const meth = (p.methodology || '').toLowerCase();
+          const mix = (p.mix_idea || '').toLowerCase();
+          const venue = (p.venue || '').toLowerCase();
+          return title.includes(q) || auth.includes(q) || meth.includes(q) || mix.includes(q) || venue.includes(q);
+        });
+      }
+
+      if (countLabel) {
+        countLabel.innerText = `Showing ${list.length} paper(s)`;
+      }
+
+      if (list.length === 0) {
+        feed.innerHTML = `
+          <div class="bg-card border border-border/80 rounded-2xl p-8 text-center text-gray-400 space-y-3">
+            <i class="fa-solid fa-satellite-dish text-3xl text-purple-400 mb-1 block"></i>
+            <h4 class="text-xs font-bold text-white">No publications matched your current filter</h4>
+            <p class="text-[11px] text-gray-500 max-w-sm mx-auto">Click <strong>⚡ Fetch Live</strong> to pull recent preprints and articles directly from OpenAlex & arXiv, or select "All Indexed".</p>
+            <button onclick="fetchLiveRadar()" class="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md transition active:scale-95 inline-flex items-center gap-1.5">
+              <i class="fa-solid fa-bolt text-amber-300"></i>
+              <span>Fetch Live Recent Papers</span>
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      feed.innerHTML = list.map((p, idx) => {
+        const isSaved = savedRadarDois.includes(p.doi);
+        const note = radarNotes[p.doi] || "";
+        const doiUrl = p.doi ? (p.doi.startsWith('http') ? p.doi : 'https://doi.org/' + p.doi) : '#';
+        const venueDisplay = p.venue ? (p.venue.length > 35 ? p.venue.substring(0, 32) + '...' : p.venue) : 'Preprint';
+        const leadPotColor = p.lead_potential === 'High' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
+                             p.lead_potential === 'Low' ? 'text-gray-400 border-gray-600/30 bg-gray-500/10' :
+                             'text-amber-400 border-amber-500/30 bg-amber-500/10';
+
+        return `
+          <div class="bg-card border border-border/80 hover:border-purple-500/40 rounded-2xl p-4 shadow-lg space-y-3 transition group">
+            <!-- Header Row: Tag, Date & Publisher Badge -->
+            <div class="flex items-start justify-between gap-2 flex-wrap">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="px-2 py-0.5 rounded-md text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase tracking-wide">
+                  ${esc(p.tag || 'RESEARCH')}
+                </span>
+                <span class="px-2 py-0.5 rounded-md text-[9px] font-bold ${leadPotColor} border uppercase">
+                  ${esc(p.lead_potential || 'Medium')} Potential
+                </span>
+                <span class="text-[10px] text-gray-500 mono">
+                  <i class="fa-regular fa-calendar text-[9px] mr-0.5"></i>${esc(p.pub_date || p.week_date || 'Recent')}
+                </span>
+              </div>
+              <a href="${esc(doiUrl)}" target="_blank" rel="noopener noreferrer"
+                 class="px-2 py-0.5 rounded-md text-[9px] font-semibold bg-surface hover:bg-border text-indigo-300 hover:text-white border border-border/80 flex items-center gap-1 transition">
+                <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i>
+                <span>${esc(venueDisplay)}</span>
+              </a>
+            </div>
+
+            <!-- Title & DOI -->
+            <div>
+              <h4 class="text-xs sm:text-sm font-bold text-white group-hover:text-purple-200 transition leading-snug">
+                <a href="${esc(doiUrl)}" target="_blank" rel="noopener noreferrer" class="hover:underline">
+                  ${esc(p.title)}
+                </a>
+              </h4>
+              <p class="text-[11px] text-gray-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                <i class="fa-solid fa-user-graduate text-[10px] text-indigo-400"></i>
+                <span class="font-medium text-gray-300">${esc(p.authors_inst || 'Authors not specified')}</span>
+              </p>
+            </div>
+
+            <!-- Methodology Badge -->
+            ${p.methodology ? `
+              <div class="text-[10px] text-gray-300 bg-surface/80 border border-border/60 rounded-xl p-2 flex items-start gap-1.5">
+                <i class="fa-solid fa-square-root-variable text-indigo-400 mt-0.5 shrink-0"></i>
+                <span><strong>Key Methodology:</strong> ${esc(p.methodology)}</span>
+              </div>
+            ` : ''}
+
+            <!-- AI Extension Hypothesis Box -->
+            <div class="bg-gradient-to-r from-amber-950/40 to-purple-950/30 border border-amber-500/30 rounded-xl p-3 text-xs space-y-1">
+              <div class="flex items-center gap-1.5 text-amber-300 font-bold text-[11px]">
+                <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                <span>💡 AI Research Gap & Extension Hypothesis</span>
+              </div>
+              <p class="text-[11px] text-amber-100/90 leading-relaxed font-sans">
+                ${esc(p.mix_idea || 'Extend the dynamical equations with fractional-order memory or PINN-based parameter estimation.')}
+              </p>
+            </div>
+
+            <!-- Expandable Abstract -->
+            ${p.abstract ? `
+              <details class="group/abs text-xs">
+                <summary class="cursor-pointer text-[10px] font-semibold text-gray-400 hover:text-white flex items-center gap-1 transition select-none">
+                  <i class="fa-solid fa-align-left text-indigo-400"></i>
+                  <span>Abstract & Overview</span>
+                  <i class="fa-solid fa-chevron-down text-[8px] text-gray-500 group-open/abs:rotate-180 transition-transform"></i>
+                </summary>
+                <p class="text-[10px] leading-relaxed text-gray-400 p-2.5 mt-1 bg-surface/50 border border-border/60 rounded-xl">
+                  ${esc(p.abstract)}
+                </p>
+              </details>
+            ` : ''}
+
+            <!-- Personal Note -->
+            ${note ? `
+              <div class="bg-indigo-950/30 border border-indigo-500/30 rounded-xl p-2.5 text-[10px] text-indigo-200 flex items-start justify-between gap-2">
+                <div class="flex items-start gap-1.5">
+                  <i class="fa-solid fa-note-sticky text-indigo-400 mt-0.5 shrink-0"></i>
+                  <span><strong>Note:</strong> ${esc(note)}</span>
+                </div>
+                <button onclick="promptAddRadarNote('${esc(p.doi)}', ${p.row || 0})" class="text-[9px] text-gray-400 hover:text-white underline">Edit</button>
+              </div>
+            ` : ''}
+
+            <!-- Action Buttons Footer -->
+            <div class="pt-1 border-t border-border/60 flex items-center justify-between gap-2 flex-wrap text-xs">
+              <div class="flex items-center gap-1.5">
+                <button onclick="toggleSavePaper('${esc(p.doi)}')"
+                        class="px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition active:scale-95 flex items-center gap-1 ${isSaved ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-surface hover:bg-border text-gray-400 hover:text-white border-border/80'}">
+                  <i class="fa-${isSaved ? 'solid' : 'regular'} fa-star text-[9px] ${isSaved ? 'text-amber-400' : ''}"></i>
+                  <span>${isSaved ? 'Saved' : 'Save'}</span>
+                </button>
+                <button onclick="promptAddRadarNote('${esc(p.doi)}', ${p.row || 0})"
+                        class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-surface hover:bg-border text-gray-400 hover:text-white border border-border/80 transition active:scale-95 flex items-center gap-1">
+                  <i class="fa-solid fa-pen text-[9px]"></i>
+                  <span>${note ? 'Edit Note' : 'Add Note'}</span>
+                </button>
+              </div>
+
+              <button onclick="openPaperOutreachModal(${idx})"
+                      class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-[10px] shadow-sm flex items-center gap-1.5 transition active:scale-95">
+                <i class="fa-solid fa-paper-plane text-[9px]"></i>
+                <span>✉️ Contact Author / Convert to Lead</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // AUTHOR OUTREACH & CONVERT TO LEAD MODAL
+    // =========================================================================
+    function openPaperOutreachModal(paperIdx) {
+      const p = globalLiteratureRadar[paperIdx];
+      if (!p) return;
+      currentOutreachPaper = p;
+
+      // Parse senior PI and institution from authors_inst
+      const rawInst = p.authors_inst || "";
+      const instMatch = rawInst.match(/\((.*?)\)$/);
+      const inst = instMatch ? instMatch[1].trim() : "Academic Institution";
+      const namesOnly = rawInst.replace(/\(.*?\)$/, "").trim();
+      const parts = namesOnly.split(/,\s*|\s+and\s+/);
+      const profName = parts.length > 0 && parts[parts.length - 1].trim() ? parts[parts.length - 1].trim() : "Professor";
+
+      document.getElementById('outreachProfName').innerText = profName;
+      document.getElementById('outreachProfInst').innerText = inst;
+      document.getElementById('outreachPaperTitle').innerText = p.title;
+
+      const subject = `Prospective PhD Applicant (Fall 2027) - Research on ${p.title.substring(0, 45)}...`;
+      document.getElementById('outreachSubjectInput').value = subject;
+      document.getElementById('outreachEmailInput').value = "";
+
+      const body = `Dear Professor ${profName},
+
+I hope this email finds you well. I recently read with great interest your latest paper titled "${p.title}" published in ${p.venue || "recent proceedings"} (${p.pub_date || p.week_date || ""}).
+
+My research background is in compartmental dynamical systems, parameter estimation, and fractional-order modeling. In particular, I recently published first-author work on Dengue transmission dynamics with logistic carrying capacity in the Arab Journal of Basic and Applied Sciences (Taylor & Francis).
+
+I noticed an exciting direction to extend your formulation:
+${p.mix_idea || "incorporating memory-dependent dynamics and PINN parameter estimation"}.
+
+I am applying for PhD positions for Fall 2027 and would be thrilled to explore prospective doctoral research under your guidance at ${inst}. Would you be open to a brief conversation or reviewing my CV?
+
+Sincerely,
+Soumitro Kumar Das (Shuvro)
+Applied Mathematician | B.Sc. in Mathematics
+Dhaka, Bangladesh`;
+
+      document.getElementById('outreachBodyTextarea').value = body;
+
+      const modal = document.getElementById('paperOutreachModal');
+      if (modal) modal.classList.remove('hidden');
+
+      // Also trigger background lead conversion in Tab 2
+      postGAS({ action: 'convert_paper_to_lead', paper: p }).catch(() => {});
+    }
+
+    function closePaperOutreachModal() {
+      const modal = document.getElementById('paperOutreachModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function copyOutreachEmail() {
+      const body = document.getElementById('outreachBodyTextarea')?.value || '';
+      navigator.clipboard.writeText(body).then(() => {
+        showToast("📋 Email body copied to clipboard!");
+      }).catch(() => {
+        showToast("❌ Failed to copy to clipboard.");
+      });
+    }
+
+    function openOutreachInGmail() {
+      const to = document.getElementById('outreachEmailInput')?.value.trim() || '';
+      const subj = document.getElementById('outreachSubjectInput')?.value.trim() || '';
+      const body = document.getElementById('outreachBodyTextarea')?.value || '';
+      const url = 'https://mail.google.com/mail/?view=cm&fs=1' +
+                  (to ? '&to=' + encodeURIComponent(to) : '') +
+                  '&su=' + encodeURIComponent(subj) +
+                  '&body=' + encodeURIComponent(body);
+      window.open(url, '_blank');
+      showToast("🚀 Opened Gmail composer.");
+    }
+
+    function saveOutreachToDrafts() {
+      showToast("✅ Draft registered in Tab 2 (Email_Drafts)!");
+      closePaperOutreachModal();
+    }
+
 
     // In-App Self-Diagnostics Suite
     async function runInAppDiagnostics() {

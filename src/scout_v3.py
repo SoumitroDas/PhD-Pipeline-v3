@@ -22,10 +22,12 @@ import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Tuple, Optional
 import requests
 
-if sys.platform == "win32":
+if sys.platform == "win32" and not getattr(sys.stdout, "_is_utf8_wrapped", False):
     try:
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stdout._is_utf8_wrapped = True
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+        sys.stderr._is_utf8_wrapped = True
     except Exception:
         pass
 

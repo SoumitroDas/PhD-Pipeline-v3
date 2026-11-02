@@ -378,6 +378,30 @@ function doPost(e) {
         processOutreachRow(r, idx + 2, "Archive_History");
       });
 
+      // Tab 3: Literature_Radar (Research Intelligence)
+      const tab3 = getSheetCaseInsensitive(ss, "Literature_Radar") || getSheetCaseInsensitive(ss, "Radar");
+      const literatureRadar = [];
+      if (tab3) {
+        getSheetDataRows(tab3).forEach((r, idx) => {
+          const pTitle = String(r[1] || "").trim();
+          if (!pTitle) return;
+          literatureRadar.push({
+            row: idx + 2,
+            week_date: formatCellDate(r[0]) || String(r[0] || "").trim(),
+            title: pTitle,
+            authors_inst: String(r[2] || "").trim(),
+            venue: String(r[3] || "").trim(),
+            pub_date: formatCellDate(r[4]) || String(r[4] || "").trim(),
+            doi: String(r[5] || "").trim(),
+            tag: String(r[6] || "").trim(),
+            methodology: String(r[7] || "").trim(),
+            mix_idea: String(r[8] || "").trim(),
+            lead_potential: String(r[9] || "Medium").trim(),
+            abstract: String(r[10] || "").trim()
+          });
+        });
+      }
+
       return ContentService.createTextOutput(JSON.stringify({
         ok: true,
         backend_version: BACKEND_VERSION,
@@ -398,7 +422,8 @@ function doPost(e) {
         draftsReady: draftsReady,
         sentProfs: sentProfs,
         actionNeeded: actionNeeded,
-        snoozed: snoozed
+        snoozed: snoozed,
+        literatureRadar: literatureRadar
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -752,6 +777,212 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 13. ACTION: fetch_literature (Live Multi-Window Literature Fetch across 24h / 7d / 30d)
+    if (data.action === "fetch_literature") {
+      const windowStr = String(data.window || "7d").toLowerCase();
+      let days = 7;
+      if (windowStr === "24h") days = 1;
+      else if (windowStr === "30d") days = 30;
+
+      const d = new Date();
+      d.setDate(d.getDate() - days);
+      const fromDate = Utilities.formatDate(d, "UTC", "yyyy-MM-dd");
+
+      const clusterQueries = {
+        epidemiology: '("compartmental model" OR "SEIR" OR "SIR model" OR "dengue" OR "basic reproduction number")',
+        parameter_estimation: '("parameter estimation" OR "identifiability") AND ("differential equations" OR "epidemic")',
+        pinns: '("Physics-Informed Neural Networks" OR "PINNs" OR "Neural ODEs") AND ("epidemiology" OR "dynamical")',
+        fractional: '("fractional differential equations" OR "Caputo") AND ("epidemic" OR "mathematical biology")',
+        predator_prey: '("predator-prey" OR "harvesting model") AND ("bifurcation" OR "stability")'
+      };
+
+      const selectedCluster = data.cluster && clusterQueries[data.cluster] ? data.cluster : "epidemiology";
+      const q = clusterQueries[selectedCluster];
+
+      const url = "https://api.openalex.org/works?search=" + encodeURIComponent(q) +
+                  "&filter=from_publication_date:" + fromDate + ",type:article&per-page=8&sort=publication_date:desc";
+
+      const headers = { "User-Agent": "PhDPipelineV34/3.4 (mailto:dassoumitrokumar@gmail.com)" };
+      const res = UrlFetchApp.fetch(url, { headers: headers, muteHttpExceptions: true });
+      const newPapers = [];
+
+      if (res.getResponseCode() === 200) {
+        const json = JSON.parse(res.getContentText());
+        const results = json.results || [];
+        const tab3 = getSheetCaseInsensitive(ss, "Literature_Radar") || getSheetCaseInsensitive(ss, "Radar");
+
+        for (let i = 0; i < Math.min(results.length, 6); i++) {
+          const w = results[i];
+          const title = String(w.title || "").trim();
+          if (!title) continue;
+
+          const doi = String(w.doi || w.id || "").trim();
+          const pubDate = String(w.publication_date || "").trim();
+          const venue = (w.primary_location && w.primary_location.source && w.primary_location.source.display_name) || "OpenAlex / Academic Venue";
+
+          const auths = w.authorships || [];
+          const authorNames = auths.slice(0, 3).map(function(a) { return (a.author && a.author.display_name) || ""; }).filter(Boolean);
+          let instName = "";
+          if (auths.length > 0 && auths[auths.length - 1].institutions && auths[auths.length - 1].institutions.length > 0) {
+            instName = auths[auths.length - 1].institutions[0].display_name || "";
+          }
+          const authorsInst = (authorNames.join(", ") + (instName ? " (" + instName + ")" : "")).trim();
+
+          // Reconstruct inverted index abstract
+          let abstract = "";
+          if (w.abstract_inverted_index) {
+            const wordsWithPos = [];
+            for (const word in w.abstract_inverted_index) {
+              const positions = w.abstract_inverted_index[word];
+              for (let p = 0; p < positions.length; p++) {
+                wordsWithPos.push({ pos: positions[p], word: word });
+              }
+            }
+            wordsWithPos.sort(function(a, b) { return a.pos - b.pos; });
+            abstract = wordsWithPos.map(function(item) { return item.word; }).join(" ").substring(0, 1000);
+          }
+
+          let methodology = "Dynamical systems modeling and differential equations analysis.";
+          let mixIdea = "Extend the proposed compartmental system with Caputo fractional-order memory and PINN parameter estimation.";
+          let leadPotential = "Medium";
+
+          try {
+            const prompt = "Paper Title: " + title + "\nAuthors: " + authorsInst + "\nAbstract: " + abstract + "\n\n" +
+              "You are an academic researcher assisting Soumitro Kumar Das (expert in Compartmental ODEs, Dengue carrying capacity, Caputo Fractional Calculus, and PINNs/parameter identifiability).\n" +
+              "Return strictly valid JSON:\n" +
+              '{"key_methodology": "1-2 sentences on mathematical/numerical methods", "mix_idea": "Concrete idea on extending this model via Fractional-Order Memory, PINN Parameter Estimation, Optimal Control, or Hybrid Mechanistic-ML", "lead_potential": "High/Medium/Low"}';
+
+            const geminiRes = callGeminiAPI(prompt, "You are a research synthesis specialist. Respond in JSON only.");
+            const parsed = JSON.parse(geminiRes);
+            if (parsed.key_methodology) methodology = parsed.key_methodology;
+            if (parsed.mix_idea) mixIdea = parsed.mix_idea;
+            if (parsed.lead_potential) leadPotential = parsed.lead_potential;
+          } catch (e) {}
+
+          const paperObj = {
+            week_date: todayDhaka,
+            title: title,
+            authors_inst: authorsInst,
+            venue: venue,
+            pub_date: pubDate,
+            doi: doi,
+            tag: selectedCluster.replace(/_/g, ' ').toUpperCase(),
+            methodology: methodology,
+            mix_idea: mixIdea,
+            lead_potential: leadPotential,
+            abstract: abstract
+          };
+
+          newPapers.push(paperObj);
+
+          if (tab3) {
+            tab3.appendRow([
+              todayDhaka,
+              title,
+              authorsInst,
+              venue,
+              pubDate,
+              doi,
+              paperObj.tag,
+              methodology,
+              mixIdea,
+              leadPotential,
+              abstract
+            ]);
+          }
+        }
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        ok: true,
+        window: windowStr,
+        cluster: selectedCluster,
+        papers: newPapers
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 14. ACTION: convert_paper_to_lead (Converts literature radar paper to CRM lead & generates cold outreach draft)
+    if (data.action === "convert_paper_to_lead") {
+      const p = data.paper || {};
+      if (!p.title) throw new Error("Missing paper title");
+
+      // Extract PI name and institution
+      let piName = "Professor";
+      let piInst = "Academic Institution";
+      const authorsInst = String(p.authors_inst || "");
+      const instMatch = authorsInst.match(/\((.*?)\)$/);
+      if (instMatch) {
+        piInst = instMatch[1].trim();
+      }
+      const namesOnly = authorsInst.replace(/\(.*?\)$/, "").trim();
+      const nameParts = namesOnly.split(/,\s*|\s+and\s+/);
+      if (nameParts.length > 0 && nameParts[0].trim()) {
+        piName = nameParts[nameParts.length - 1].trim() || nameParts[0].trim();
+      }
+
+      const subject = "Prospective PhD Applicant (Fall 2027) - Research Discussion on " + p.title.substring(0, 50);
+      let emailBody = "";
+
+      try {
+        const prompt = "Candidate: Soumitro Kumar Das (Shuvro)\n" +
+          "Background: First-author Q1 paper in Arab Journal of Basic and Applied Sciences (Taylor & Francis) on Dengue Transmission with Carrying Capacity ODEs, Fractional Calculus (Caputo), and Physics-Informed Neural Networks (PINNs).\n" +
+          "Professor: " + piName + " (" + piInst + ")\n" +
+          "Recent Paper: " + p.title + " (" + (p.venue || "") + ", " + (p.pub_date || "") + ")\n" +
+          "DOI: " + (p.doi || "") + "\n" +
+          "Extension Hypothesis: " + (p.mix_idea || "") + "\n\n" +
+          "Write a concise, professional cold email (under 250 words) from Soumitro to Professor " + piName + ".\n" +
+          "Guidelines: Mention their recent paper specifically, express interest in doctoral supervision for Fall 2027, propose the extension hypothesis concisely, and reference his published Dengue model. No generic flattery or banned clichés.";
+
+        emailBody = callGeminiAPI(prompt, "You are a professional academic cold outreach writer.");
+      } catch (e) {}
+
+      if (!emailBody) {
+        emailBody = "Dear Professor " + piName + ",\n\n" +
+          "I hope this email finds you well. I recently read with great interest your latest paper titled \"" + p.title + "\" published in " + (p.venue || "recent proceedings") + ".\n\n" +
+          "My research background is in compartmental dynamical systems, parameter estimation, and fractional-order modeling. In particular, I recently published first-author work on Dengue transmission dynamics with logistic carrying capacity in the Arab Journal of Basic and Applied Sciences (Taylor & Francis).\n\n" +
+          "I noticed an exciting direction to extend your formulation: " + (p.mix_idea || "incorporating memory-dependent dynamics and PINN parameter estimation") + ".\n\n" +
+          "I am applying for PhD positions for Fall 2027 and would be thrilled to explore prospective doctoral research under your guidance at " + piInst + ". Would you be open to a brief conversation or reviewing my CV?\n\n" +
+          "Sincerely,\nSoumitro Kumar Das (Shuvro)\nApplied Mathematician | B.Sc. in Mathematics";
+      }
+
+      // Append to Tab 2 (Email_Drafts)
+      const tab2 = getSheetCaseInsensitive(ss, "Email_Drafts") || getSheetCaseInsensitive(ss, "Drafts");
+      if (tab2) {
+        tab2.appendRow([
+          todayDhaka,
+          piName,
+          p.email || "",
+          subject,
+          emailBody,
+          "Radar Conversion from Paper: " + p.title.substring(0, 100),
+          "DRAFT",
+          "Pending",
+          "Converted from Tab 3 Literature Radar (" + (p.doi || "") + ")",
+          "",
+          ""
+        ]);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        ok: true,
+        prof: piName,
+        inst: piInst,
+        email: p.email || "",
+        subject: subject,
+        body: emailBody
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 15. ACTION: save_radar_note (Persists personal note on a literature radar item)
+    if (data.action === "save_radar_note") {
+      const tab3 = getSheetCaseInsensitive(ss, "Literature_Radar") || getSheetCaseInsensitive(ss, "Radar");
+      const row = Number(data.row);
+      if (tab3 && row >= 2 && data.note !== undefined) {
+        tab3.getRange(row, 11).setValue(String(data.note));
+      }
+      return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     throw new Error("Unknown action: " + data.action);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({
@@ -795,4 +1026,34 @@ function triggerGitHubWorkflow(daemonName, extraInputs) {
   if (res.getResponseCode() >= 400) {
     throw new Error("GitHub API Error (" + res.getResponseCode() + "): " + res.getContentText());
   }
+}
+
+function callGeminiAPI(prompt, systemInstruction) {
+  const apiKey = (PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY") || "").trim();
+  if (!apiKey) return "";
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+  for (let m = 0; m < models.length; m++) {
+    try {
+      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[m] + ":generateContent?key=" + encodeURIComponent(apiKey);
+      const payload = {
+        contents: [{ role: "user", parts: [{ text: (systemInstruction ? systemInstruction + "\n\n" : "") + prompt }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 2048 }
+      };
+      const res = UrlFetchApp.fetch(url, {
+        method: "POST",
+        contentType: "application/json",
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      });
+      if (res.getResponseCode() === 200) {
+        const json = JSON.parse(res.getContentText());
+        if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts) {
+          const parts = json.candidates[0].content.parts;
+          const answer = parts.filter(function(p) { return !p.thought && p.text; }).map(function(p) { return p.text; }).join("\n").trim();
+          if (answer) return answer;
+        }
+      }
+    } catch (e) {}
+  }
+  return "";
 }
