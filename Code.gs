@@ -283,10 +283,11 @@ function doPost(e) {
       const t4Data = getSheetDataRows(tab4);
 
       let scraped = 0, scrapedToday = 0, scrapedWeek = 0, approved = 0, rejected = 0, pending = 0;
+      let drafted = 0, sent = 0, positive = 0; // FIXED ReferenceError: drafted is not defined
       const pendingLeads = [], allScrapedLeads = [];
       const nowMs = new Date(todayDhaka + "T00:00:00Z").getTime();
 
-      getSheetDataRows(getSheetCaseInsensitive(ss, "Scraped_Leads")).forEach((r, idx) => {
+      t1Data.forEach((r, idx) => {
         const profName = String(r[1] || "").trim();
         if (!profName) return;
         scraped++;
@@ -361,7 +362,7 @@ function doPost(e) {
           if (isCurrentlySnoozed) {
             snoozed.push(item);
           } else {
-            if (isPos || isNeut || !item.status || /no reply|pending|sent/i.test(item.status)) {
+            if (isPos || isNeut || !item.status || /no reply|pending|sent|follow-up/i.test(item.status)) {
               actionNeeded.push(item);
             }
           }
@@ -563,9 +564,9 @@ function doPost(e) {
       const existingNotes = String(tab2.getRange(row, 9).getValue() || "").trim();
       const entryPrefix = `[${commDate} ${direction}]:`;
       const fullEntry = commNotes ? `${entryPrefix} ${commNotes}` : `${entryPrefix} (Logged in CRM)`;
-      const updatedNotes = existingNotes ? `${existingNotes}\n${fullEntry}` : fullEntry;
+      const updatedNotes = existingNotes ? `${existingNotes}\n\n${fullEntry}` : fullEntry;
 
-      tab2.getRange(row, 8).setValue(newStatus);      // Col H (Col 8): Reply Status
+      if (data.status) tab2.getRange(row, 8).setValue(data.status);      // Col H (Col 8): Reply Status (if provided)
       tab2.getRange(row, 9).setValue(updatedNotes);  // Col I (Col 9): Notes
       tab2.getRange(row, 15).setValue(commDate);     // Col O (Col 15): Last Contact Date
 
@@ -996,7 +997,7 @@ function triggerGitHubWorkflow(daemonName, extraInputs) {
   const sp = PropertiesService.getScriptProperties();
   const token = sp.getProperty("GITHUB_PAT");
   if (!token) throw new Error("GITHUB_PAT not configured in Script Properties");
-  const repo = sp.getProperty("GITHUB_REPO") || "shuvro-das/phd-pipeline-v3";
+  const repo = sp.getProperty("GITHUB_REPO") || "SoumitroDas/PhD-Pipeline-v3";
   const url = "https://api.github.com/repos/" + repo + "/actions/workflows/phd_pipeline_v3.yml/dispatches";
   const inputs = { daemon: daemonName, dry_run: false };
   if (extraInputs && typeof extraInputs === "object") {

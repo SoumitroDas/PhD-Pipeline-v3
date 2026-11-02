@@ -3300,7 +3300,7 @@ ${esc(body || '(No email body content)')}
         const warnBanner = document.getElementById('backendVersionWarning');
         const warnVerStr = document.getElementById('warnVerStr');
         if (warnBanner) {
-          if (!j.backend_version || (j.backend_version !== 'v3.3' && j.backend_version !== 'v3.4')) {
+          if (!j.backend_version || !/^v3\.[3-9]/.test(j.backend_version)) {
             if (warnVerStr) warnVerStr.innerText = j.backend_version || 'pre-v3.3';
             warnBanner.classList.remove('hidden');
           } else {
@@ -4196,9 +4196,9 @@ Dhaka, Bangladesh`;
 
         // 1. Backend Version Check
         const bVer = listRes.backend_version;
-        const isVerOk = bVer === 'v3.3';
+        const isVerOk = !!(bVer && /^v3\.[3-9]/.test(bVer));
         checks.push({
-          title: 'Backend Version Check (v3.3)',
+          title: `Backend Version Check (${bVer || 'v3.6+'})`,
           passed: isVerOk,
           detail: isVerOk ? `Live deployment stamped as '${bVer}'` : `Mismatched: '${bVer || 'None'}'. Re-deploy New Version in Apps Script!`
         });
