@@ -146,31 +146,40 @@ function doPost(e) {
       const t2Data = getSheetDataRows(tab2);
       const t4Data = getSheetDataRows(tab4);
 
-      const pendingLeads = [];
-      let scraped = 0, approved = 0, rejected = 0, drafted = 0, sent = 0, positive = 0;
+      let scraped = 0, scrapedToday = 0, scrapedWeek = 0, approved = 0, rejected = 0, pending = 0;
+      const pendingLeads = [], allScrapedLeads = [];
+      const nowMs = new Date(todayDhaka + "T00:00:00Z").getTime();
 
-      // Tab 1: Scraped Leads triage
-      t1Data.forEach((r, idx) => {
+      getSheetDataRows(getSheetCaseInsensitive(ss, "Scraped_Leads")).forEach((r, idx) => {
+        const profName = String(r[1] || "").trim();
+        if (!profName) return;
         scraped++;
-        const status = String(r[6] || "").trim(); // Col G: Status
-        if (status === "PENDING_APPROVAL" || !status) {
-          pendingLeads.push({
-            row: idx + 2,
-            prof: r[0],
-            institution: r[1],
-            email: r[2],
-            paper_title: r[3],
-            field_match: r[4],
-            paper_doi: r[5],
-            status: status || "PENDING_APPROVAL",
-            paper_2_doi: r[7] || "",
-            profile_url: r[12] || ""
-          });
-        } else if (status === "APPROVED") {
-          approved++;
-        } else if (status === "REJECTED" || status === "DECLINED") {
-          rejected++;
+        const dateFound = formatCellDate(r[0]);
+        if (dateFound === todayDhaka) scrapedToday++;
+        if (dateFound) {
+          const dMs = new Date(dateFound + "T00:00:00Z").getTime();
+          if (!isNaN(dMs) && (nowMs - dMs) >= 0 && (nowMs - dMs) <= 7 * 86400000) scrapedWeek++;
         }
+        const rawDecision = String(r[10] || "PENDING_APPROVAL").trim().toUpperCase();
+        let normStatus = "PENDING_APPROVAL";
+        if (rawDecision === "APPROVED" || rawDecision === "ACCEPT" || rawDecision === "PROCESSED_DRAFT_READY") {
+          normStatus = "APPROVED"; approved++;
+        } else if (rawDecision === "REJECTED" || rawDecision === "DECLINE" || rawDecision === "DECLINED") {
+          normStatus = "REJECTED"; rejected++;
+        } else {
+          pending++;
+        }
+        const leadObj = {
+          row: idx + 2, tab: "Scraped_Leads", date: dateFound, prof: profName,
+          inst: String(r[2] || "").trim(), dept: String(r[3] || "").trim(),
+          opp: String(r[4] || "").trim(), link: String(r[5] || "").trim(),
+          paper: String(r[6] || "").trim(), paper2: String(r[7] || "").trim(),
+          fit: String(r[8] || "").trim(), deadline: String(r[9] || "Rolling").trim(),
+          status: normStatus, email: String(r[11] || "").trim(),
+          profile_url: String(r[12] || "").trim()
+        };
+        allScrapedLeads.push(leadObj);
+        if (normStatus === "PENDING_APPROVAL") pendingLeads.push(leadObj);
       });
 
       const draftsReady = [];
@@ -224,14 +233,18 @@ function doPost(e) {
         backend_version: BACKEND_VERSION,
         stats: {
           scraped: scraped,
+          scrapedToday: scrapedToday,
+          scrapedWeek: scrapedWeek,
           approved: approved,
           rejected: rejected,
+          pending: pending,
           drafted: drafted,
           sent: sent,
           positive: positive,
           snoozed: snoozed.length
         },
         leads: pendingLeads,
+        allScrapedLeads: allScrapedLeads,
         draftsReady: draftsReady,
         sentProfs: sentProfs,
         actionNeeded: actionNeeded,
@@ -305,22 +318,15 @@ function doPost(e) {
       const tab1 = getSheetCaseInsensitive(ss, "Scraped_Leads");
       const row = Number(data.row);
       if (!row || row < 2) throw new Error("Invalid row index");
-
       if (data.expect_prof) {
-        const curProf = String(tab1.getRange(row, 1).getValue()).trim();
+        const curProf = String(tab1.getRange(row, 2).getValue()).trim(); // Col B is PI Name
         if (curProf && curProf.toLowerCase() !== String(data.expect_prof).trim().toLowerCase()) {
           throw new Error("Row mismatch: expected " + data.expect_prof + " but found " + curProf);
         }
       }
-
       const targetStatus = data.decision === "ACCEPT" ? "APPROVED" : (data.decision === "DECLINE" ? "REJECTED" : "PENDING_APPROVAL");
-      tab1.getRange(row, 7).setValue(targetStatus); // Col G: Status
-
-      return ContentService.createTextOutput(JSON.stringify({
-        ok: true,
-        row: row,
-        decision: targetStatus
-      })).setMimeType(ContentService.MimeType.JSON);
+      tab1.getRange(row, 11).setValue(targetStatus); // Col K (11) is Your Decision
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, row: row, decision: targetStatus })).setMimeType(ContentService.MimeType.JSON);
     }
 
     // 5. ACTION: manual_ingest (Appends raw lead text to Tab 5: Manual_Ingest)
@@ -441,87 +447,37 @@ function doPost(e) {
 
     // 10. ACTION: chat (Gemini AI Chatbot Proxy)
     if (data.action === "chat") {
-      const sp = PropertiesService.getScriptProperties();
-      const apiKey = sp.getProperty("GEMINI_API_KEY");
-      if (!apiKey) {
-        throw new Error("GEMINI_API_KEY not configured. Add it to Script Properties in Apps Script Project Settings.");
-      }
-
-      const userMsg = String(data.message || "").trim();
-      if (!userMsg) throw new Error("Missing message parameter");
-
-      const crmJson = typeof data.crm_data === "string" ? data.crm_data : JSON.stringify(data.crm_data || {});
-      const systemInstruction = "You are a ruthless, highly efficient PhD CRM Assistant. Here is the user's current outreach pipeline: " + crmJson + ". Answer the user's query concisely and directly, extracting the exact names and details they need.";
-
-      let model = "gemini-2.5-flash";
-      let url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
-
-      const payload = {
-        systemInstruction: {
-          parts: [{ text: systemInstruction }]
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: userMsg }]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 1500
-        }
-      };
-
-      const options = {
-        method: "POST",
-        contentType: "application/json",
-        payload: JSON.stringify(payload),
-        muteHttpExceptions: true
-      };
-
-      let res = UrlFetchApp.fetch(url, options);
-      let resCode = res.getResponseCode();
-      let resText = res.getContentText();
-
-      // If gemini-2.5-flash fails, fallback to gemini-2.0-flash
-      if (resCode !== 200) {
-        model = "gemini-2.0-flash";
-        url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
-        res = UrlFetchApp.fetch(url, options);
-        resCode = res.getResponseCode();
-        resText = res.getContentText();
-      }
-
-      // Fallback: If systemInstruction format is rejected, prepend prompt directly
-      if (resCode !== 200) {
-        const fallbackPayload = {
-          contents: [{
-            parts: [{ text: systemInstruction + "\n\nUser Query: " + userMsg }]
-          }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 1500 }
-        };
-        const fbRes = UrlFetchApp.fetch(url, {
+      const apiKey = (PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY") || "").trim();
+      if (!apiKey) throw new Error("GEMINI_API_KEY is missing in Script Properties.");
+      const sysPrompt = "You are the AI Academic Intelligence Assistant for Soumitro Kumar Das (M.Sc. Applied Mathematics, researching Compartmental Epidemiological Modeling, Parameter Estimation, PINNs/Neural ODEs, Fractional Calculus, and Predator-Prey/Harvesting systems).\n" +
+        "Use his live CRM & Scraped Leads database below to answer questions about professors, compatibility, follow-ups, email drafting, and literature:\n" +
+        JSON.stringify(data.crm_data || {});
+      const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+      let lastErr = "";
+      for (let m = 0; m < models.length; m++) {
+        const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[m] + ":generateContent?key=" + encodeURIComponent(apiKey);
+        const res = UrlFetchApp.fetch(url, {
           method: "POST",
           contentType: "application/json",
-          payload: JSON.stringify(fallbackPayload),
+          payload: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: sysPrompt + "\n\nUser Question: " + String(data.message || "") }] }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+          }),
           muteHttpExceptions: true
         });
-        if (fbRes.getResponseCode() === 200) {
-          resCode = 200;
-          resText = fbRes.getContentText();
-        } else {
-          throw new Error("Gemini API Error (" + resCode + "): " + resText);
+        const txt = res.getContentText();
+        let json = {};
+        try { json = JSON.parse(txt); } catch (e) {}
+        if (res.getResponseCode() === 200 && json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts) {
+          const parts = json.candidates[0].content.parts;
+          const answer = parts.filter(function(p) { return !p.thought && p.text; }).map(function(p) { return p.text; }).join("\n").trim();
+          if (answer) {
+            return ContentService.createTextOutput(JSON.stringify({ ok: true, reply: answer, model: models[m] })).setMimeType(ContentService.MimeType.JSON);
+          }
         }
+        lastErr = (json.error && json.error.message) ? json.error.message : ("HTTP " + res.getResponseCode() + ": " + txt.slice(0, 200));
       }
-
-      const json = JSON.parse(resText);
-      const reply = json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts && json.candidates[0].content.parts[0] ? json.candidates[0].content.parts[0].text : "No response generated.";
-
-      return ContentService.createTextOutput(JSON.stringify({
-        ok: true,
-        reply: reply,
-        text: reply
-      })).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Gemini API Error: " + lastErr })).setMimeType(ContentService.MimeType.JSON);
     }
 
     throw new Error("Unknown action: " + data.action);
