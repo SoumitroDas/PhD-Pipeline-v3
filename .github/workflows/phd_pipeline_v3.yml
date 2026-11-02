@@ -61,6 +61,8 @@ jobs:
       - name: Execute Autonomous Daemon
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_FAST_MODEL: "gemini-3.5-flash"
+          GEMINI_PRO_MODEL: "gemini-3.1-pro-preview"
           GOOGLE_TOKEN_JSON_B64: ${{ secrets.GOOGLE_TOKEN_JSON_B64 }}
           PHD_SHEET_ID: ${{ secrets.PHD_SHEET_ID }}
           PHD_DRIVE_FOLDER_ID: ${{ secrets.PHD_DRIVE_FOLDER_ID }}

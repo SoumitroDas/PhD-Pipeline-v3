@@ -29,7 +29,20 @@ from cloud_shared_core import (
     AcademicVerifier
 )
 
-EMAIL_REGEX = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
+EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+")
+EMAIL_REGEX = EMAIL
+
+
+def extract_doi_from_meta(paper1_meta: str) -> str:
+    """Extracts DOI URL from paper metadata string, stripping trailing parenthesis."""
+    if not paper1_meta:
+        return ""
+    m = re.search(r"\((https?://\S+?)\)\s*$", paper1_meta.strip())
+    doi_url = m.group(1).rstrip(')') if m else ""
+    return doi_url
+
+
+extract_doi = extract_doi_from_meta
 
 
 class ScoutVerifier:
@@ -70,9 +83,8 @@ class ScoutVerifier:
                         best_match = None
                         best_score = -1
 
-                        inst_tokens = set(re.findall(r"\b\w{3,}\b", clean_inst.lower()))
-                        stops = {"university", "college", "institute", "department", "school", "the", "and", "for", "of"}
-                        inst_tokens -= stops
+                        stop_words = {"university", "of", "institute", "technology", "college", "national", "the", "for", "and"}
+                        inst_tokens = set(re.findall(r"\b\w{3,}\b", clean_inst.lower())) - stop_words
 
                         for cand in candidates:
                             cand_insts = cand.get("last_known_institutions") or []
@@ -80,14 +92,15 @@ class ScoutVerifier:
                                 cand_insts = [cand.get("last_known_institution")]
 
                             cand_text = " ".join([ci.get("display_name", "") for ci in cand_insts]).lower()
-                            cand_tokens = set(re.findall(r"\b\w{3,}\b", cand_text)) - stops
+                            cand_tokens = set(re.findall(r"\b\w{3,}\b", cand_text)) - stop_words
                             overlap = len(inst_tokens & cand_tokens)
 
                             if overlap > best_score:
                                 best_score = overlap
                                 best_match = cand
 
-                        if best_score > 0 and best_match:
+                        # Require at least 50% of the non-stop tokens to match to set "INST-MATCHED"
+                        if inst_tokens and best_match and (best_score / len(inst_tokens) >= 0.5):
                             author_data = best_match
                             identity = "INST-MATCHED"
                         elif candidates:
@@ -436,9 +449,9 @@ Return strictly a valid JSON array of objects with keys:
 
             # Extract and validate email regex
             raw_email = cand.get("email", "")
-            email_match = EMAIL_REGEX.search(raw_email)
+            email_match = EMAIL.search(raw_email)
             if not email_match:
-                email_match = EMAIL_REGEX.search(cand.get("raw_context", ""))
+                email_match = EMAIL.search(cand.get("raw_context", ""))
             validated_email = email_match.group(0).lower() if email_match else ""
 
             # Deduplication check across Tab 1, Tab 2, and Tab 4
@@ -510,20 +523,18 @@ Return JSON in this exact structure:
                 continue
 
             try:
-                funding_s = int(eval_res.get("funding", {}).get("score", 0))
-                eligibility_s = int(eval_res.get("eligibility", {}).get("score", 0))
-                timeline_s = int(eval_res.get("timeline", {}).get("score", 0))
-                methods_s = int(eval_res.get("methods", {}).get("score", 0))
-                total_score = min(10, max(0, funding_s + eligibility_s + timeline_s + methods_s + activity_score))
+                c = lambda x: max(0, min(2, int(x)))
+                f, e = c(eval_res["funding"]["score"]), c(eval_res["eligibility"]["score"])
+                t, m = c(eval_res["timeline"]["score"]), c(eval_res["methods"]["score"])
+                total = f + e + t + m + activity_score
             except Exception:
-                total_score = 0
+                continue
 
-            # Bypass threshold for manual drops and citing PIs; otherwise require score >= 6
-            if not is_manual and total_score < 6:
+            if not is_manual and (f < 1 or e < 1 or total < 6):
                 continue
 
             if not validated_email and eval_res.get("email"):
-                e_match = EMAIL_REGEX.search(eval_res.get("email", ""))
+                e_match = EMAIL.search(eval_res.get("email", ""))
                 if e_match:
                     validated_email = e_match.group(0).lower()
 
@@ -539,7 +550,7 @@ Return JSON in this exact structure:
                 posting_link,                                                          # Col F: Posting Link
                 p1_str,                                                                # Col G: Paper 1
                 p2_str,                                                                # Col H: Paper 2
-                f"{total_score}/10",                                                   # Col I: Fit Score
+                f"{total}/10",                                                         # Col I: Fit Score
                 sanitize_input(eval_res.get("deadline", "Rolling"), max_len=50),       # Col J: Deadline
                 ST_PENDING,                                                            # Col K: Status ("PENDING_APPROVAL")
                 validated_email                                                        # Col L: Email
@@ -553,23 +564,23 @@ Return JSON in this exact structure:
                 existing_emails.add(validated_email)
 
         print(f"[SCOUT V3.1] Depositing {len(qualified_rows)} leads into Tab 1: Scraped_Leads via batch append.")
-        if not self.dry_run and self.ws and qualified_rows:
-            # Batch append all new leads into a single append_rows call
-            self.ws.append_rows(qualified_rows, tab_name="Scraped_Leads")
+        if not self.dry_run and self.ws:
+            if qualified_rows:
+                # Batch append all new leads into a single append_rows call
+                self.ws.append_rows(qualified_rows, tab_name="Scraped_Leads")
+                CloudNotifier.notify(
+                    f"🔭 *PhD Scout v3.1 Update*\n"
+                    f"Deposited *{len(qualified_rows)}* new vetted opportunities into *Tab 1 (Scraped_Leads)*.\n"
+                    f"Open the Mobile PWA or Google Sheet to tap *ACCEPT* or *DECLINE*."
+                )
 
-            # Only after Tab 1 batch append succeeds, mark specific Manual_Ingest rows as PROCESSED
+            # Mark processed Tab 5 rows even if zero leads were extracted or all were duplicates
             if manual_row_indices:
                 for r_idx in manual_row_indices:
                     try:
                         self.ws.update_cell_range(f"C{r_idx}", [["PROCESSED"]], tab_name="Manual_Ingest")
                     except Exception as e:
                         print(f"[WARN] Failed to mark Manual_Ingest row {r_idx} as PROCESSED: {e}")
-
-            CloudNotifier.notify(
-                f"🔭 *PhD Scout v3.1 Update*\n"
-                f"Deposited *{len(qualified_rows)}* new vetted opportunities into *Tab 1 (Scraped_Leads)*.\n"
-                f"Open the Mobile PWA or Google Sheet to tap *ACCEPT* or *DECLINE*."
-            )
 
 
 if __name__ == "__main__":

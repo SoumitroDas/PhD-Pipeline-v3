@@ -502,11 +502,12 @@
         analyticsChart.update();
 
         liveLeads = (data.leads || []).map((l, idx) => ({
-          row: l.row || (idx + 2),
+          row: l.row,
           prof: l.prof || l.name || 'Target Professor',
           inst: l.inst || l.institution || 'University',
           opp: l.opp || l.opportunity || l.field_match || 'PhD Opportunity',
           paper: l.paper || l.paper_title || '',
+          paper_link: l.paper_link || l.paper_doi || l.doi || '',
           link: l.link || l.posting_link || '#',
           email: l.email || '',
           fit: l.fit || l.field_match || '',
@@ -520,7 +521,12 @@
         const piSelect = document.getElementById('quickPiName');
         if (piSelect && Array.isArray(data.sentProfs)) {
           piSelect.innerHTML = '<option value="">-- Select Target Professor --</option>' +
-            data.sentProfs.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+            data.sentProfs.map(p => {
+              if (typeof p === 'object' && p !== null) {
+                return `<option value="${esc(p.row)}" data-prof="${esc(p.prof)}">${esc(p.prof)}${p.status && p.status !== 'No Reply' ? ' — ' + esc(p.status) : ''}</option>`;
+              }
+              return `<option value="${esc(p)}" data-prof="${esc(p)}">${esc(p)}</option>`;
+            }).join('');
         }
 
         showToast("✅ Cloud sync complete!");
@@ -695,7 +701,7 @@
                 <span>Verified PI Paper:</span>
                 <span class="text-[9px] text-gray-500 font-normal">Tap to inspect</span>
               </div>
-              <span data-open="${esc(safeUrl(lead.link))}" class="text-xs font-semibold text-gray-200 underline decoration-indigo-500 cursor-pointer block italic">
+              <span data-open="${esc(safeUrl(lead.paper_link || lead.link))}" class="text-xs font-semibold text-gray-200 underline decoration-indigo-500 cursor-pointer block italic">
                 ${esc(paperDisplay)} ↗
               </span>
             </div>
@@ -790,13 +796,12 @@
         showToast(`⚠️ Sync failed: ${err.message}. Row copied.`);
         const rowText = `${timestamp}\t${text.replace(/\t|\n/g, ' ')}\tPending Scout Parse`;
         navigator.clipboard.writeText(rowText);
-        document.getElementById('smartDropText').value = '';
       }
     }
 
     // Out-of-Band Sent Email Logger (Tab 2: Email_Drafts)
     async function submitManualSent() {
-      const sentDate = document.getElementById('manualSentDate').value || getDhakaDate();
+      const sentDateStr = document.getElementById('manualSentDate').value || getDhakaDate();
       const profName = document.getElementById('manualPiName').value.trim();
       const email = document.getElementById('manualPiEmail').value.trim();
       const subject = document.getElementById('manualSubject').value.trim();
@@ -807,11 +812,12 @@
         return;
       }
 
-      const f1 = new Date(Date.now() + 10 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
-      const f2 = new Date(Date.now() + 21 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
+      const base = new Date(sentDateStr + 'T00:00:00+06:00').getTime();
+      const f1 = new Date(base + 10 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
+      const f2 = new Date(base + 21 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
 
       const rowValues = [
-        sentDate, profName, email, subject, body,
+        sentDateStr, profName, email, subject, body,
         "Out-of-band manual dispatch", "SENT", "No Reply", "", f1, f2
       ];
 
@@ -836,26 +842,14 @@
     // Quick Reply Logger Engine
     async function logReply(category) {
       const profSelect = document.getElementById('quickPiName');
-      const profName = profSelect ? profSelect.value.trim() : '';
-      if (!profName) {
-        alert('Please select a target professor from the dropdown.');
-        return;
-      }
-      const notes = document.getElementById('quickReplyNotes').value.trim() || 'No additional notes provided.';
-
+      const opt = profSelect && profSelect.selectedOptions[0];
+      if (!opt || !opt.value) { alert('Please select a target professor from the dropdown.'); return; }
+      const notes = document.getElementById('quickReplyNotes').value.trim(); 
       try {
-        await postGAS({
-          action: 'log_reply',
-          prof_name: profName,
-          status: category,
-          notes: notes,
-          timestamp: getDhakaISOString()
-        });
-        showToast(`✅ Logged '${category}' for ${profName}`);
+        await postGAS({ action:'log_reply', row:Number(opt.value), expect_prof:opt.dataset.prof, status:category, notes });
+        showToast(`✅ Logged ${category}`);
         document.getElementById('quickReplyNotes').value = '';
-      } catch (err) {
-        showToast(`❌ Reply log error: ${err.message}`);
-      }
+      } catch (e) { showToast(`❌ Failed: ${e.message}`); }
     }
 
     // Toast Utility
