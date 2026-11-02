@@ -330,21 +330,6 @@ D:\AI\phd-pipeline-v3\
 ├── cleanup.ps1                         # PowerShell temporary cache and compiler purger
 ├── README.md                           # Master technical specification & architecture manual
 └── requirements.txt                    # Cloud execution dependencies
-```
-
----
-
-## 14. GitHub Secrets Reference Guide
-
-Configure these secrets in your repository settings (**Settings ➔ Secrets and variables ➔ Actions**):
-
-| Secret Name | Required By | Purpose |
-|---|---|---|
-| `GEMINI_API_KEY` | Scout, Drafter, Nagger | Google Gemini LLM API authentication |
-| `GOOGLE_SHEET_ID` | All Daemons | ID of Master Google Sheet (`18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E`) |
-| `GWORKSPACE_REFRESH_TOKEN_B64` | All Daemons | Base64-encoded `token.json` for Google Sheets & Drive API |
-| `TELEGRAM_BOT_TOKEN` | All Daemons | Instant notifications for approved leads, sent drafts, and replies |
-| `TELEGRAM_CHAT_ID` | All Daemons | Target Telegram Chat / Channel ID |
 
 ---
 *Autonomous PhD Outreach & Literature Radar Pipeline v3.1 — Guarded Human-in-the-Loop Architecture.*
