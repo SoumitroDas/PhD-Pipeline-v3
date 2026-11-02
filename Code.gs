@@ -11,7 +11,7 @@
  */
 
 const SHEET_ID = PropertiesService.getScriptProperties().getProperty("SHEET_ID") || "YOUR_SHEET_ID_HERE";
-const BACKEND_VERSION = "v3.3";
+const BACKEND_VERSION = "v3.4";
 
 function getStoredSecret() {
   const sp = PropertiesService.getScriptProperties();
@@ -65,6 +65,133 @@ function getSheetDataRows(sheet) {
 }
 
 /**
+ * Extracts Country from institution and email domain.
+ */
+function extractCountry(inst, email) {
+  const e = String(email || "").toLowerCase();
+  const i = String(inst || "").toLowerCase();
+
+  if (e.endsWith(".uk") || e.includes(".ac.uk")) return "UK";
+  if (e.endsWith(".de")) return "Germany";
+  if (e.endsWith(".ca")) return "Canada";
+  if (e.endsWith(".au")) return "Australia";
+  if (e.endsWith(".se")) return "Sweden";
+  if (e.endsWith(".fi")) return "Finland";
+  if (e.endsWith(".nl")) return "Netherlands";
+  if (e.endsWith(".ch")) return "Switzerland";
+  if (e.endsWith(".it")) return "Italy";
+  if (e.endsWith(".es")) return "Spain";
+  if (e.endsWith(".fr")) return "France";
+  if (e.endsWith(".be")) return "Belgium";
+  if (e.endsWith(".no")) return "Norway";
+  if (e.endsWith(".dk")) return "Denmark";
+  if (e.endsWith(".at")) return "Austria";
+  if (e.endsWith(".ie")) return "Ireland";
+  if (e.endsWith(".cn")) return "China";
+  if (e.endsWith(".kr")) return "South Korea";
+  if (e.endsWith(".sg")) return "Singapore";
+  if (e.endsWith(".jp")) return "Japan";
+  if (e.endsWith(".nz")) return "New Zealand";
+
+  if (/oxford|cambridge|imperial|warwick|edinburgh|manchester|bristol|glasgow|exeter|southampton|leeds|sheffield|york|bath|queen mary|king's college|nottingham|lancaster|liverpool|cardiff|ucl\b/i.test(i)) return "UK";
+  if (/heidelberg|munich|lmu|tum|bonn|humboldt|berlin|gottingen|freiburg|tubingen|rwth|aachen|darmstadt|potsdam|max planck/i.test(i)) return "Germany";
+  if (/toronto|ubc|british columbia|mcgill|waterloo|alberta|mcmaster|montreal|calgary|ottawa|western\b|simon fraser/i.test(i)) return "Canada";
+  if (/melbourne|sydney|unsw|queensland|monash|anu\b|australian national|adelaide|curtin|deakin/i.test(i)) return "Australia";
+  if (/karolinska|uppsala|lund|stockholm|kth|gothenburg|umea|linkoping/i.test(i)) return "Sweden";
+  if (/helsinki|aalto|turku|oulu|jyvaskyla|tampere/i.test(i)) return "Finland";
+  if (/amsterdam|delft|utrecht|leiden|erasmus|groningen|wageningen|eindhoven/i.test(i)) return "Netherlands";
+  if (/eth zurich|epfl|zurich|basel|geneva|bern|lausanne/i.test(i)) return "Switzerland";
+  if (/barcelona|madrid|valencia|autonoma|pompeu fabra/i.test(i)) return "Spain";
+  if (/bologna|sapienza|milan|padua|pisa|politecnico di milano/i.test(i)) return "Italy";
+  if (/sorbonne|ens\b|polytechnique|inria|pasteur|lyon|marseille|toulouse|strasbourg/i.test(i)) return "France";
+  if (/leuven|ghent|antwerp|ulb\b|vub\b|louvain/i.test(i)) return "Belgium";
+  if (/oslo|bergen|ntnu|tromso/i.test(i)) return "Norway";
+  if (/copenhagen|aarhus|dtu|danmarks/i.test(i)) return "Denmark";
+  if (/vienna|innsbruck|graz/i.test(i)) return "Austria";
+  if (/trinity college dublin|university college dublin|ucd|galway|cork/i.test(i)) return "Ireland";
+  if (/singapore|nus\b|ntu\b/i.test(i)) return "Singapore";
+  if (/tsinghua|peking|fudan|zhejiang|shanghai|cas\b/i.test(i)) return "China";
+  if (/seoul|kaist|postech|yonsei|korea university/i.test(i)) return "South Korea";
+  if (/tokyo|kyoto|osaka|tohoku|nagoya/i.test(i)) return "Japan";
+  if (/stanford|harvard|mit\b|berkeley|caltech|princeton|columbia|yale|cornell|michigan|washington|wisconsin|illinois|texas|purdue|georgia tech|johns hopkins|northwestern|penn state|upenn|ohio state|minnesota|duke|maryland|arizona|florida|virginia|north carolina|rutgers|indiana|pittsburgh|colorado|utah|iowa|vanderbilt|notre dame|emory|rice|georgetown|dartmouth|brown|tufts|nyu|ucla|ucsd|uc davis|uc irvine|ucsb|uc santa barbara|uc riverside|uc santa cruz|carnegie mellon|asu\b|georgia/i.test(i)) return "USA";
+
+  if (e.endsWith(".edu")) return "USA";
+  return "USA";
+}
+
+/**
+ * Assigns evidence-based Priority (P1-P4).
+ */
+function extractPriority(status, notes, f1, deadline) {
+  const s = String(status || "").toLowerCase();
+  const n = String(notes || "");
+
+  const pMatch = n.match(/\[Priority:\s*(P[1-4])\]/i) || n.match(/\b(P[1-4])\b/i);
+  if (pMatch) return pMatch[1].toUpperCase();
+
+  if (/pos|accept|interview|call|apply immediately/i.test(s)) return "P1";
+  if (/funded vacancy|full funding|ra available/i.test(n) && deadline && deadline !== "Rolling") return "P1";
+
+  if (/declined|rejected|closed|do not contact/i.test(s)) return "P4";
+
+  if (/neut|redir|apply|portal/i.test(s)) return "P2";
+  if (/pinn|parameter estimation|inverse problem|fractional/i.test(n)) return "P2";
+
+  if (/home students only|uk home fees|unfunded|self-funded/i.test(n)) return "P3";
+
+  return "P2";
+}
+
+/**
+ * Assigns standard Funding Tag.
+ */
+function extractFunding(notes, opp, inst) {
+  const text = (String(notes || "") + " " + String(opp || "") + " " + String(inst || "")).toLowerCase();
+  if (/home students only|uk\/eu only|uk fees only|home fees only/i.test(text)) {
+    return "UK Home Fees Only";
+  }
+  if (/verified funded|fully funded|fellowship available|stipend provided|funded vacancy/i.test(text)) {
+    return "Verified Funded Vacancy";
+  }
+  if (/self-funded|external funding required|csc scholarship|bring own funding|unfunded/i.test(text)) {
+    return "Unfunded / External Req";
+  }
+  if (/ta\/ra|teaching assistant|research assistant|grad assistantship|department funding/i.test(text)) {
+    return "Dept TA/RA Available";
+  }
+  return "Dept TA/RA Available";
+}
+
+/**
+ * Formats evaluation notes into clear 3-part structured breakdown.
+ */
+function structureNotes(existingNotes, status, inst, opp) {
+  const n = String(existingNotes || "").trim();
+  if (n.includes("📌 Evidence & Reply Summary:")) {
+    return n;
+  }
+
+  let comp = "Direct: SEIR & Mathematical Epidemiology modeling (Dengue, Vector-borne dynamics).";
+  const lower = (n + " " + String(opp || "") + " " + String(inst || "")).toLowerCase();
+  if (/pinn|neural ode|machine learning|inverse problem|parameter estimation|data-driven/i.test(lower)) {
+    comp = "Methodological: Parameter Estimation, Inverse Problems & PINNs / Neural ODEs.";
+  } else if (/predator|prey|harvesting|ecology|conservation|trophic/i.test(lower)) {
+    comp = "Ecological: Non-local Predator-Prey dynamics & Bioeconomic Optimal Harvesting.";
+  }
+
+  const fundingTag = extractFunding(n, opp, inst);
+  let pathway = fundingTag + " • Standard Graduate Admission Portal.";
+  if (lower.includes("portal")) pathway = "Department Application Portal submission required • " + fundingTag;
+  if (lower.includes("deadline")) pathway = "Upcoming Admission Deadline • " + fundingTag;
+
+  const summary = n ? n.replace(/^\[Priority:\s*P[1-4]\]\s*/i, "") : ("Status: " + (status || "No Reply") + " • Lead under active tracking.");
+
+  return "📌 Evidence & Reply Summary: " + summary + "\n" +
+         "🧬 Research Compatibility: " + comp + "\n" +
+         "💰 Funding & Admission Pathway: " + pathway;
+}
+
+/**
  * Parses a single 15-to-16 column outreach row using exact 0-indexed column schema (A:O / A:P).
  */
 function parseOutreachRow(r, rowNum, tabName) {
@@ -76,7 +203,7 @@ function parseOutreachRow(r, rowNum, tabName) {
   const inst = String(r[5] || "").trim();                   // inst = r[5] (Institution & Dept)
   const dStat = String(r[6] || "").trim().toUpperCase();    // dStat = r[6] (Dispatch Status: DRAFT / SENT)
   const rStat = String(r[7] || "No Reply").trim();          // rStat = r[7] (PI Reply Status)
-  const notes = String(r[8] || "").trim();                  // notes = r[8] (Reply Summary / Notes)
+  const rawNotes = String(r[8] || "").trim();               // rawNotes = r[8] (Reply Summary / Notes)
   const f1 = formatCellDate(r[9]);                          // f1 = r[9] (F1 Due)
   const f2 = formatCellDate(r[10]);                         // f2 = r[10] (F2 Due)
   const deadline = String(r[11] || "Rolling").trim();       // deadline = r[11] (Application Deadline & Reqs)
@@ -84,6 +211,11 @@ function parseOutreachRow(r, rowNum, tabName) {
   const profile_url = String(r[13] || "").trim();           // profile_url = r[13] (Direct Profile URL)
   const last_contact = formatCellDate(r[14]) || dateStr;    // last_contact = r[14] (Last Contact Date)
   const snoozeUntil = formatCellDate(r[15]);                // snoozeUntil = r[15] (Optional Snooze Until Date)
+
+  const country = extractCountry(inst, email);
+  const priority = extractPriority(rStat, rawNotes, f1, deadline);
+  const funding = extractFunding(rawNotes, "", inst);
+  const structuredNotes = structureNotes(rawNotes, rStat, inst, "");
 
   return {
     row: rowNum,
@@ -106,8 +238,12 @@ function parseOutreachRow(r, rowNum, tabName) {
     dispatch_status: dStat,
     status: rStat || "No Reply",
     reply_status: rStat || "No Reply",
-    notes: notes,
-    reply_notes: notes,
+    notes: structuredNotes,
+    reply_notes: structuredNotes,
+    raw_notes: rawNotes,
+    country: country,
+    priority: priority,
+    funding: funding,
     f1: f1,
     f1_due: f1,
     f2: f2,
@@ -169,14 +305,28 @@ function doPost(e) {
         } else {
           pending++;
         }
+        const leadInst = String(r[2] || "").trim();
+        const leadEmail = String(r[11] || "").trim();
+        const leadOpp = String(r[4] || "").trim();
+        const leadFit = String(r[8] || "").trim();
+        const leadDeadline = String(r[9] || "Rolling").trim();
+        const leadCountry = extractCountry(leadInst, leadEmail);
+        const leadPriority = extractPriority(normStatus, leadFit, null, leadDeadline);
+        const leadFunding = extractFunding(leadOpp, leadFit, leadInst);
+        const leadNotes = structureNotes(leadFit, normStatus, leadInst, leadOpp);
+
         const leadObj = {
           row: idx + 2, tab: "Scraped_Leads", date: dateFound, prof: profName,
-          inst: String(r[2] || "").trim(), dept: String(r[3] || "").trim(),
-          opp: String(r[4] || "").trim(), link: String(r[5] || "").trim(),
+          inst: leadInst, dept: String(r[3] || "").trim(),
+          opp: leadOpp, link: String(r[5] || "").trim(),
           paper: String(r[6] || "").trim(), paper2: String(r[7] || "").trim(),
-          fit: String(r[8] || "").trim(), deadline: String(r[9] || "Rolling").trim(),
-          status: normStatus, email: String(r[11] || "").trim(),
-          profile_url: String(r[12] || "").trim()
+          fit: leadFit, deadline: leadDeadline,
+          status: normStatus, email: leadEmail,
+          profile_url: String(r[12] || "").trim(),
+          country: leadCountry,
+          priority: leadPriority,
+          funding: leadFunding,
+          notes: leadNotes
         };
         allScrapedLeads.push(leadObj);
         if (normStatus === "PENDING_APPROVAL") pendingLeads.push(leadObj);
@@ -519,6 +669,83 @@ function doPost(e) {
         lastErr = (json.error && json.error.message) ? json.error.message : ("HTTP " + res.getResponseCode() + ": " + txt.slice(0, 200));
       }
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Gemini API Error: " + lastErr })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 11. ACTION: set_priority (Updates Priority Classification P1-P4 in Column I)
+    if (data.action === "set_priority") {
+      const tabName = data.tab || "Email_Drafts";
+      const tab = getSheetCaseInsensitive(ss, tabName) || getSheetCaseInsensitive(ss, "Email_Drafts");
+      if (!tab) throw new Error("Tab not found: " + tabName);
+      const row = Number(data.row);
+      if (!row || row < 2) throw new Error("Invalid row: " + row);
+
+      const expectProf = String(data.expect_prof || "").trim();
+      if (expectProf) {
+        const actualProf = String(tab.getRange(row, 2).getValue()).trim();
+        if (actualProf.toLowerCase() !== expectProf.toLowerCase()) {
+          throw new Error("Row mismatch: expected '" + expectProf + "', found '" + actualProf + "'");
+        }
+      }
+
+      const newPriority = String(data.priority || "P1").toUpperCase();
+      const currentNotes = String(tab.getRange(row, 9).getValue() || "").trim();
+      const cleanedNotes = currentNotes.replace(/\[Priority:\s*P[1-4]\]\s*/i, "");
+      const updatedNotes = "[Priority: " + newPriority + "] " + cleanedNotes;
+      tab.getRange(row, 9).setValue(updatedNotes);
+
+      return ContentService.createTextOutput(JSON.stringify({
+        ok: true,
+        row: row,
+        prof: expectProf,
+        priority: newPriority,
+        notes: updatedNotes
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 12. ACTION: optimize_sheet (Applies Deep Navy / Light Slate Visual Hierarchy & Contrast Fix)
+    if (data.action === "optimize_sheet") {
+      const targetTabs = ["Scraped_Leads", "Email_Drafts", "Literature_Radar", "Archive_History", "Manual_Ingest"];
+      const formatted = [];
+
+      targetTabs.forEach(function(name) {
+        const sheet = getSheetCaseInsensitive(ss, name);
+        if (!sheet) return;
+        const lr = sheet.getLastRow();
+        const lc = sheet.getLastColumn();
+        if (lc < 1) return;
+
+        sheet.setFrozenRows(1);
+
+        const headerRange = sheet.getRange(1, 1, 1, lc);
+        headerRange.setBackground("#1E293B")
+                   .setFontColor("#FFFFFF")
+                   .setFontWeight("bold")
+                   .setFontFamily("Roboto")
+                   .setFontSize(10)
+                   .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+
+        if (lr > 1) {
+          const dataRange = sheet.getRange(2, 1, lr - 1, lc);
+          dataRange.setBackground("#FFFFFF")
+                   .setFontColor("#0F172A")
+                   .setFontFamily("Roboto")
+                   .setFontSize(10)
+                   .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+        }
+
+        const widths = [110, 180, 220, 260, 340, 220, 120, 120, 320, 110, 110, 130, 180, 180, 110, 110];
+        for (let c = 1; c <= Math.min(lc, widths.length); c++) {
+          sheet.setColumnWidth(c, widths[c - 1]);
+        }
+
+        formatted.push(sheet.getName());
+      });
+
+      return ContentService.createTextOutput(JSON.stringify({
+        ok: true,
+        message: "Google Sheet contrast and visual hierarchy optimized successfully!",
+        formattedTabs: formatted
+      })).setMimeType(ContentService.MimeType.JSON);
     }
 
     throw new Error("Unknown action: " + data.action);

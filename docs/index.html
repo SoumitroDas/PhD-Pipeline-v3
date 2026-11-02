@@ -396,6 +396,29 @@
       </div>
     </div>
 
+    <!-- 🌍 GLOBAL OUTREACH BY COUNTRY (Task 27D & Section 7.1) -->
+    <div id="viewCountryBreakdown" class="bg-card border border-border/80 rounded-2xl p-4 shadow-xl space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs">
+            <i class="fa-solid fa-earth-americas"></i>
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>🌍 Global Outreach by Country</span>
+            </h3>
+            <p class="text-[9px] text-gray-400">Institutional Distribution & Reply Ratio</p>
+          </div>
+        </div>
+        <span id="countryTotalBadge" class="px-2 py-0.5 rounded-full bg-surface border border-border text-[9px] font-mono text-gray-300">150 Leads</span>
+      </div>
+
+      <!-- Country Breakdown Grid -->
+      <div id="countryBreakdownGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <!-- Rendered dynamically by renderCountryBreakdown() -->
+      </div>
+    </div>
+
     <!-- VIEW B: SMART DROP LEAD (TAB 5: MANUAL_INGEST) -->
     <section id="viewDrop" class="hidden space-y-3">
       <div class="bg-card border border-border rounded-2xl p-4 shadow-xl space-y-3">
@@ -540,6 +563,18 @@
         <div class="p-3 border-b border-border flex justify-between items-center bg-surface/40 gap-2">
           <h3 id="listTitle" class="font-bold text-sm text-white flex items-center truncate"></h3>
           <div class="flex items-center gap-2 shrink-0">
+            <!-- Sleek Single Dropdown Country Selector (Task 27D) -->
+            <div id="modalCountryContainer" class="relative flex items-center gap-1">
+              <label for="modalCountrySelect" class="text-[10px] font-bold text-gray-400 shrink-0 hidden sm:inline">🌍 Country:</label>
+              <div class="relative">
+                <select id="modalCountrySelect" onchange="setModalCountry(this.value)"
+                        class="bg-surface hover:bg-border text-gray-200 border border-border rounded-lg text-[10px] font-semibold pl-2 pr-6 py-1 focus:outline-none focus:border-indigo-500 cursor-pointer transition appearance-none shadow-sm max-w-[125px] sm:max-w-none truncate">
+                  <option value="ALL">🌍 All Countries</option>
+                </select>
+                <i class="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-gray-400 pointer-events-none"></i>
+              </div>
+            </div>
+
             <!-- Sleek Single Dropdown Sort Selector -->
             <div id="modalSortContainer" class="relative flex items-center gap-1.5">
               <label for="modalSortSelect" class="text-[10px] font-bold text-gray-400 shrink-0 hidden sm:inline">⇅ Sort By:</label>
@@ -580,6 +615,15 @@
           <button id="tabFilter-scraped-approved" onclick="showList('scraped_approved')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0 hidden">💚 Approved</button>
           <button id="tabFilter-scraped-rejected" onclick="showList('scraped_rejected')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0 hidden">❌ Declined</button>
           <button id="tabFilter-switch-outreach" onclick="showList('sent')" class="px-2.5 py-1 rounded-lg font-bold text-indigo-300 hover:text-white bg-indigo-950/40 border border-indigo-700/50 text-[10px] transition shrink-0 hidden">📨 Outreach CRM</button>
+        </div>
+        <!-- Priority Sub-Filter (P1–P4) Bar (Task 27D) -->
+        <div id="modalPriorityBar" class="px-3 py-1.5 bg-surface/50 border-b border-border/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[10px]">
+          <span class="text-gray-400 font-bold shrink-0 hidden sm:inline">⚡ Priority:</span>
+          <button id="prioFilter-ALL" onclick="setModalPriority('ALL')" class="px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-indigo-600 text-white shadow-sm">All</button>
+          <button id="prioFilter-P1" onclick="setModalPriority('P1')" class="px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/60">🔥 P1 High</button>
+          <button id="prioFilter-P2" onclick="setModalPriority('P2')" class="px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/60">⚡ P2 Med</button>
+          <button id="prioFilter-P3" onclick="setModalPriority('P3')" class="px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/60">💤 P3 Low</button>
+          <button id="prioFilter-P4" onclick="setModalPriority('P4')" class="px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/60">❄️ P4 Dormant</button>
         </div>
         <div id="listContent" class="p-3 overflow-y-auto space-y-2 text-xs text-gray-300 flex-1"></div>
       </div>
@@ -894,6 +938,138 @@
       onOmniSearchChange('');
     }
 
+    // Country & Priority Taxonomy (Task 27D)
+    const COUNTRY_FLAGS = {
+      USA: '🇺🇸', UK: '🇬🇧', Germany: '🇩🇪', Canada: '🇨🇦', Australia: '🇦🇺',
+      Sweden: '🇸🇪', Finland: '🇫🇮', Netherlands: '🇳🇱', Switzerland: '🇨🇭',
+      Italy: '🇮🇹', Spain: '🇪🇸', France: '🇫🇷', Belgium: '🇧🇪', Norway: '🇳🇴',
+      Denmark: '🇩🇰', Austria: '🇦🇹', Ireland: '🇮🇪', China: '🇨🇳',
+      'South Korea': '🇰🇷', Singapore: '🇸🇬', Japan: '🇯🇵', 'New Zealand': '🇳🇿'
+    };
+    function getCountryFlag(country) {
+      return COUNTRY_FLAGS[country] || '🌐';
+    }
+
+    function extractCountry(inst, email) {
+      const e = String(email || '').toLowerCase().trim();
+      const i = String(inst || '').toLowerCase().trim();
+
+      if (e.endsWith('.uk') || e.includes('.ac.uk')) return 'UK';
+      if (e.endsWith('.de')) return 'Germany';
+      if (e.endsWith('.ca')) return 'Canada';
+      if (e.endsWith('.au')) return 'Australia';
+      if (e.endsWith('.se')) return 'Sweden';
+      if (e.endsWith('.fi')) return 'Finland';
+      if (e.endsWith('.nl')) return 'Netherlands';
+      if (e.endsWith('.ch')) return 'Switzerland';
+      if (e.endsWith('.it')) return 'Italy';
+      if (e.endsWith('.es')) return 'Spain';
+      if (e.endsWith('.fr')) return 'France';
+      if (e.endsWith('.be')) return 'Belgium';
+      if (e.endsWith('.no')) return 'Norway';
+      if (e.endsWith('.dk')) return 'Denmark';
+      if (e.endsWith('.at')) return 'Austria';
+      if (e.endsWith('.ie')) return 'Ireland';
+      if (e.endsWith('.cn')) return 'China';
+      if (e.endsWith('.kr')) return 'South Korea';
+      if (e.endsWith('.sg')) return 'Singapore';
+      if (e.endsWith('.jp')) return 'Japan';
+      if (e.endsWith('.nz')) return 'New Zealand';
+
+      if (/oxford|cambridge|imperial|warwick|edinburgh|manchester|bristol|glasgow|exeter|southampton|leeds|sheffield|york|bath|queen mary|king's college|nottingham|lancaster|liverpool|cardiff|\bucl\b/i.test(i)) return 'UK';
+      if (/heidelberg|munich|lmu|tum|bonn|humboldt|berlin|gottingen|freiburg|tubingen|rwth|aachen|darmstadt|potsdam|max planck/i.test(i)) return 'Germany';
+      if (/toronto|ubc|british columbia|mcgill|waterloo|alberta|mcmaster|montreal|calgary|ottawa|\bwestern\b|simon fraser/i.test(i)) return 'Canada';
+      if (/melbourne|sydney|unsw|queensland|monash|\banu\b|australian national|adelaide|curtin|deakin/i.test(i)) return 'Australia';
+      if (/karolinska|uppsala|lund|stockholm|kth|gothenburg|umea|linkoping/i.test(i)) return 'Sweden';
+      if (/helsinki|aalto|turku|oulu|jyvaskyla|tampere/i.test(i)) return 'Finland';
+      if (/amsterdam|delft|utrecht|leiden|erasmus|groningen|wageningen|eindhoven/i.test(i)) return 'Netherlands';
+      if (/eth zurich|epfl|zurich|basel|geneva|bern|lausanne/i.test(i)) return 'Switzerland';
+      if (/barcelona|madrid|valencia|autonoma|pompeu fabra/i.test(i)) return 'Spain';
+      if (/bologna|sapienza|milan|padua|pisa|politecnico di milano/i.test(i)) return 'Italy';
+      if (/sorbonne|\bens\b|polytechnique|inria|pasteur|lyon|marseille|toulouse|strasbourg/i.test(i)) return 'France';
+      if (/leuven|ghent|antwerp|\bulb\b|\bvub\b|louvain/i.test(i)) return 'Belgium';
+      if (/oslo|bergen|ntnu|tromso/i.test(i)) return 'Norway';
+      if (/copenhagen|aarhus|dtu|danmarks/i.test(i)) return 'Denmark';
+      if (/vienna|innsbruck|graz/i.test(i)) return 'Austria';
+      if (/trinity college dublin|university college dublin|\bucd\b|galway|cork/i.test(i)) return 'Ireland';
+      if (/singapore|\bnus\b|\bntu\b/i.test(i)) return 'Singapore';
+      if (/tsinghua|peking|fudan|zhejiang|shanghai|\bcas\b/i.test(i)) return 'China';
+      if (/seoul|kaist|postech|yonsei|korea university/i.test(i)) return 'South Korea';
+      if (/tokyo|kyoto|osaka|tohoku|nagoya/i.test(i)) return 'Japan';
+      if (/stanford|harvard|\bmit\b|berkeley|caltech|princeton|columbia|yale|cornell|michigan|washington|wisconsin|illinois|texas|purdue|georgia tech|johns hopkins|northwestern|penn state|upenn|ohio state|minnesota|duke|maryland|arizona|florida|virginia|north carolina|rutgers|indiana|pittsburgh|colorado|utah|iowa|vanderbilt|notre dame|emory|rice|georgetown|dartmouth|brown|tufts|nyu|ucla|ucsd|uc davis|uc irvine|ucsb|uc santa barbara|uc riverside|uc santa cruz|carnegie mellon|\basu\b|georgia/i.test(i)) return 'USA';
+
+      if (e.endsWith('.edu')) return 'USA';
+      return 'USA';
+    }
+
+    function extractPriority(status, notes, deadline) {
+      const s = String(status || '').toLowerCase();
+      const n = String(notes || '');
+
+      const pMatch = n.match(/\[Priority:\s*(P[1-4])\]/i) || n.match(/\b(P[1-4])\b/i);
+      if (pMatch) return pMatch[1].toUpperCase();
+
+      if (/pos|accept|interview|call|apply immediately/i.test(s)) return 'P1';
+      if (/funded vacancy|full funding|ra available/i.test(n) && deadline && deadline !== 'Rolling') return 'P1';
+      if (/declined|rejected|closed|do not contact/i.test(s)) return 'P4';
+      if (/neut|redir|apply|portal/i.test(s)) return 'P2';
+      if (/pinn|parameter estimation|inverse problem|fractional/i.test(n)) return 'P2';
+      if (/home students only|uk home fees|unfunded|self-funded/i.test(n)) return 'P3';
+      return 'P2';
+    }
+
+    function extractFunding(notes, opp, inst) {
+      const text = (String(notes || '') + ' ' + String(opp || '') + ' ' + String(inst || '')).toLowerCase();
+      if (/home students only|uk\/eu only|uk fees only|home fees only/i.test(text)) return 'UK Home Fees Only';
+      if (/verified funded|fully funded|fellowship available|stipend provided|funded vacancy/i.test(text)) return 'Verified Funded Vacancy';
+      if (/self-funded|external funding required|csc scholarship|bring own funding|unfunded/i.test(text)) return 'Unfunded / External Req';
+      if (/ta\/ra|teaching assistant|research assistant|grad assistantship|department funding/i.test(text)) return 'Dept TA/RA Available';
+      return 'Dept TA/RA Available';
+    }
+
+    function parseEvaluationNotes(rawNotes, status, inst, opp) {
+      const n = String(rawNotes || '').trim();
+      let evidence = '';
+      let compatibility = '';
+      let pathway = '';
+
+      const evMatch = n.match(/📌\s*Evidence\s*&?\s*Reply\s*Summary:\s*([^🧬💰]+)/i);
+      const compMatch = n.match(/🧬\s*Research\s*Compatibility:\s*([^📌💰]+)/i);
+      const pathMatch = n.match(/💰\s*Funding\s*&?\s*Admission\s*Pathway:\s*([^📌🧬]+)/i);
+
+      if (evMatch) evidence = evMatch[1].trim();
+      if (compMatch) compatibility = compMatch[1].trim();
+      if (pathMatch) pathway = pathMatch[1].trim();
+
+      if (!evidence) {
+        const cleanNotes = n.replace(/\[Priority:\s*P[1-4]\]\s*/i, '').trim();
+        evidence = cleanNotes || `Status: ${status || 'No Reply'} • Active outreach monitoring.`;
+      }
+      if (!compatibility) {
+        const lower = (n + ' ' + (inst || '') + ' ' + (opp || '')).toLowerCase();
+        if (/pinn|neural ode|machine learning|inverse problem|parameter estimation|data-driven/i.test(lower)) {
+          compatibility = 'Methodological: Parameter Estimation, Inverse Problems & PINNs / Neural ODEs.';
+        } else if (/predator|prey|harvesting|ecology|conservation|trophic/i.test(lower)) {
+          compatibility = 'Ecological: Non-local Predator-Prey dynamics & Bioeconomic Optimal Harvesting.';
+        } else {
+          compatibility = 'Direct: SEIR & Mathematical Epidemiology modeling (Dengue, Vector-borne dynamics).';
+        }
+      }
+      if (!pathway) {
+        const funding = extractFunding(n, opp, inst);
+        const lower = (n + ' ' + (inst || '') + ' ' + (opp || '')).toLowerCase();
+        if (lower.includes('portal')) {
+          pathway = `Department Application Portal submission required • ${funding}`;
+        } else if (lower.includes('deadline')) {
+          pathway = `Upcoming Admission Deadline • ${funding}`;
+        } else {
+          pathway = `${funding} • Standard Graduate Admission Portal.`;
+        }
+      }
+
+      return { evidence, compatibility, pathway };
+    }
+
     // CRM Color-Coded Badges & Taxonomy Mapping
     function getStatusBadge(status) {
       const s = String(status || '').trim().toLowerCase();
@@ -933,6 +1109,23 @@
       const deadline = (typeof p === 'object' && p !== null ? (p.deadline || p.app_deadline || '') : '') || 'Rolling';
       const portal = (typeof p === 'object' && p !== null ? (p.portal || p.portal_link || p.dept_link || '') : '') || '';
       const lastContact = (typeof p === 'object' && p !== null ? (p.last_contact || p.last_contact_date || p.date || '') : '') || '';
+
+      const country = (typeof p === 'object' && p !== null && p.country) ? p.country : extractCountry(inst, email);
+      const priority = (typeof p === 'object' && p !== null && p.priority) ? p.priority : extractPriority(statusRaw, notes, deadline);
+      const funding = (typeof p === 'object' && p !== null && p.funding) ? p.funding : extractFunding(notes, '', inst);
+      const { evidence: parsedEvidence, compatibility: parsedCompatibility, pathway: parsedPathway } = parseEvaluationNotes(notes, statusRaw, inst, '');
+
+      let prioBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40 inline-flex items-center gap-1 shrink-0">⚡ P2</span>`;
+      if (priority === 'P1') {
+        prioBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40 inline-flex items-center gap-1 shrink-0">🔥 P1</span>`;
+      } else if (priority === 'P3') {
+        prioBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/40 inline-flex items-center gap-1 shrink-0">💤 P3</span>`;
+      } else if (priority === 'P4') {
+        prioBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-extrabold bg-zinc-800 text-zinc-400 border border-zinc-700 inline-flex items-center gap-1 shrink-0">❄️ P4</span>`;
+      }
+
+      const countryBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-surface border border-border text-gray-300 inline-flex items-center gap-1 shrink-0" title="Institution Country: ${esc(country)}">${getCountryFlag(country)} ${esc(country)}</span>`;
+      const fundingBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-emerald-950/40 text-emerald-300 border border-emerald-700/40 truncate max-w-[150px] inline-flex items-center gap-1 shrink-0" title="${esc(funding)}">💰 ${esc(funding)}</span>`;
 
       const today = getDhakaDate();
       let daysSinceLastContact = null;
@@ -1044,6 +1237,9 @@
                 </a>
                 <i class="fa-solid fa-chevron-down text-[9px] text-gray-500 transition-transform duration-200" id="chev-${idx}"></i>
                 ${unansweredBadge}
+                ${prioBadge}
+                ${countryBadge}
+                ${fundingBadge}
                 ${isDeadlineActive ? `
                 <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 truncate max-w-[140px] inline-flex items-center gap-1 shrink-0" title="${esc(deadline)}">
                   <i class="fa-regular fa-calendar-days text-[8px]"></i> ${esc(deadline)}
@@ -1118,9 +1314,28 @@
               <div><span class="text-gray-500 block uppercase">Last Contact</span><span class="text-indigo-400 font-mono font-bold">${esc(lastContact || 'N/A')}</span></div>
             </div>
 
-            <div class="p-2 bg-card/50 rounded-lg border border-border/30">
-              <span class="text-gray-500 block uppercase font-bold text-[8px] mb-0.5">Reply Notes / Summary</span>
-              <p class="text-[11px] text-gray-300 italic leading-snug">${esc(notes || 'No reply notes logged yet.')}</p>
+            <!-- Deep Evaluation & Research Compatibility Breakdown (Section 5.1 & 5.2) -->
+            <div class="p-2.5 bg-card/70 rounded-xl border border-border/60 space-y-2 text-xs">
+              <div class="flex items-center justify-between">
+                <span class="text-indigo-400 uppercase font-bold text-[8px] flex items-center gap-1">
+                  <i class="fa-solid fa-brain"></i> Deep Evaluation & Compatibility Breakdown
+                </span>
+                <span class="text-[8px] text-gray-400 font-mono">Priority: <span class="font-bold text-gray-200">${priority}</span> • ${esc(country)}</span>
+              </div>
+              <div class="space-y-1.5 text-[11px] leading-relaxed">
+                <div class="p-2 bg-surface/80 rounded-lg border border-border/40">
+                  <span class="text-amber-300 font-bold block text-[10px]">📌 Evidence & Reply Summary</span>
+                  <p class="text-gray-200 mt-0.5">${esc(parsedEvidence)}</p>
+                </div>
+                <div class="p-2 bg-surface/80 rounded-lg border border-border/40">
+                  <span class="text-indigo-300 font-bold block text-[10px]">🧬 Research Compatibility</span>
+                  <p class="text-gray-200 mt-0.5">${esc(parsedCompatibility)}</p>
+                </div>
+                <div class="p-2 bg-surface/80 rounded-lg border border-border/40">
+                  <span class="text-emerald-300 font-bold block text-[10px]">💰 Funding & Admission Pathway</span>
+                  <p class="text-gray-200 mt-0.5">${esc(parsedPathway)}</p>
+                </div>
+              </div>
             </div>
 
             <!-- Editable Follow-Up / Collaboration Composer -->
@@ -1198,6 +1413,14 @@
 
             <!-- Action Buttons Toolbar -->
             <div class="pt-1 flex items-center gap-1.5 flex-wrap">
+              <!-- 1-Tap Priority Classification Switcher (Task 27D) -->
+              <div class="flex items-center gap-1 py-1 px-2 bg-surface/80 rounded-lg border border-border/50 text-[10px] shrink-0">
+                <span class="text-gray-400 font-bold shrink-0">Priority:</span>
+                <button onclick="setLeadPriority('${idx}', '${esc(profName)}', ${p.row || idx}, '${esc(p.tab || 'Email_Drafts')}', 'P1')" class="px-1.5 py-0.5 rounded font-bold transition ${priority === 'P1' ? 'bg-rose-600 text-white shadow' : 'bg-surface text-gray-400 hover:text-white border border-border/60'}">P1</button>
+                <button onclick="setLeadPriority('${idx}', '${esc(profName)}', ${p.row || idx}, '${esc(p.tab || 'Email_Drafts')}', 'P2')" class="px-1.5 py-0.5 rounded font-bold transition ${priority === 'P2' ? 'bg-amber-600 text-white shadow' : 'bg-surface text-gray-400 hover:text-white border border-border/60'}">P2</button>
+                <button onclick="setLeadPriority('${idx}', '${esc(profName)}', ${p.row || idx}, '${esc(p.tab || 'Email_Drafts')}', 'P3')" class="px-1.5 py-0.5 rounded font-bold transition ${priority === 'P3' ? 'bg-sky-600 text-white shadow' : 'bg-surface text-gray-400 hover:text-white border border-border/60'}">P3</button>
+                <button onclick="setLeadPriority('${idx}', '${esc(profName)}', ${p.row || idx}, '${esc(p.tab || 'Email_Drafts')}', 'P4')" class="px-1.5 py-0.5 rounded font-bold transition ${priority === 'P4' ? 'bg-zinc-700 text-white shadow' : 'bg-surface text-gray-400 hover:text-white border border-border/60'}">P4</button>
+              </div>
               ${isPositive ? `
                 <button onclick="openInterviewPrep('${idx}')" class="px-2.5 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[10px] font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/30 ring-1 ring-emerald-400/50 transition active:scale-95">
                   <i class="fa-solid fa-microphone-lines text-emerald-200 text-[9px]"></i> 🎙️ Launch Interview Prep
@@ -1296,6 +1519,21 @@
       const email = esc(p.email || '');
       const normStatus = (p.status || 'PENDING_APPROVAL').toUpperCase();
 
+      const rawInst = p.inst || '';
+      const rawEmail = p.email || '';
+      const country = p.country || extractCountry(rawInst, rawEmail);
+      const priority = p.priority || extractPriority(normStatus, p.fit, p.deadline);
+      const funding = p.funding || extractFunding(p.opp, p.fit, rawInst);
+      const countryBadge = `<span class="px-1.5 py-0.5 rounded bg-surface border border-border text-[9px] font-bold text-gray-300 inline-flex items-center gap-1">${getCountryFlag(country)} ${esc(country)}</span>`;
+      let prioBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/40">⚡ P2</span>`;
+      if (priority === 'P1') {
+        prioBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/40">🔥 P1</span>`;
+      } else if (priority === 'P3') {
+        prioBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-300 border border-sky-500/40">💤 P3</span>`;
+      } else if (priority === 'P4') {
+        prioBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-zinc-800 text-zinc-400 border border-zinc-700">❄️ P4</span>`;
+      }
+
       let statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">⏳ PENDING</span>';
       if (normStatus === 'APPROVED') {
         statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">💚 APPROVED</span>';
@@ -1325,6 +1563,8 @@
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-1.5 flex-wrap">
               <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold">Fit: ${fitDisplay}</span>
+              ${prioBadge}
+              ${countryBadge}
               <span class="text-[10px] text-gray-400 mono">📅 ${deadline}</span>
               ${p.date ? `<span class="text-[9px] text-gray-500 mono">Found: ${esc(p.date)}</span>` : ''}
             </div>
@@ -1642,6 +1882,31 @@ ${esc(body || '(No email body content)')}
         p = globalSentProfs[idx];
       }
       return p;
+    }
+
+    async function setLeadPriority(idx, profName, row, tabName, newPriority) {
+      showToast("Updating priority to " + newPriority + "...");
+      try {
+        await postGAS({
+          action: 'set_priority',
+          tab: tabName || 'Email_Drafts',
+          row: row,
+          expect_prof: profName,
+          priority: newPriority
+        });
+
+        const p = resolveProfRecord(idx, profName, row);
+        if (p) {
+          p.priority = newPriority;
+          if (p.notes) {
+            p.notes = "[Priority: " + newPriority + "] " + p.notes.replace(/\[Priority:\s*P[1-4]\]\s*/i, '');
+          }
+        }
+        showToast("✅ Priority updated to " + newPriority);
+        renderModalView();
+      } catch (err) {
+        showToast("❌ Priority update failed: " + err.message);
+      }
     }
 
     // Toggle UI Helpers
@@ -2127,6 +2392,8 @@ ${esc(body || '(No email body content)')}
 
     let currentModalFilter = 'sent';
     let currentModalSort = 'name';
+    let currentModalCountry = 'ALL';
+    let currentModalPriority = 'ALL';
     let currentModalRenderedList = [];
 
     function setModalSort(sortKey) {
@@ -2138,6 +2405,107 @@ ${esc(body || '(No email body content)')}
         select.value = sortKey;
       }
       renderModalView();
+    }
+
+    function setModalCountry(country) {
+      currentModalCountry = country || 'ALL';
+      renderModalView();
+    }
+
+    function setModalPriority(priority) {
+      currentModalPriority = priority || 'ALL';
+      ['ALL', 'P1', 'P2', 'P3', 'P4'].forEach(p => {
+        const btn = document.getElementById('prioFilter-' + p);
+        if (btn) {
+          if (p === currentModalPriority) {
+            btn.className = "px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-indigo-600 text-white shadow-sm";
+          } else {
+            btn.className = "px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/60";
+          }
+        }
+      });
+      renderModalView();
+    }
+
+    function filterCRMByCountry(country) {
+      currentModalCountry = country || 'ALL';
+      currentModalPriority = 'ALL';
+      setModalPriority('ALL');
+      currentModalFilter = 'sent';
+      const select = document.getElementById('modalCountrySelect');
+      if (select) select.value = currentModalCountry;
+      showList('sent');
+    }
+
+    function renderCountryBreakdown() {
+      const container = document.getElementById('countryBreakdownGrid');
+      if (!container) return;
+
+      const leads = globalSentProfs || [];
+      const countryMap = {};
+      let totalLeads = 0;
+
+      leads.forEach(p => {
+        const country = p.country || extractCountry(p.inst, p.email);
+        if (!country) return;
+        totalLeads++;
+        if (!countryMap[country]) {
+          countryMap[country] = { country, total: 0, positive: 0, deadlines: 0 };
+        }
+        countryMap[country].total++;
+
+        const s = String(p.status || '').toLowerCase();
+        if (s.includes('pos') || s.includes('accept') || s.includes('call') || s.includes('interview')) {
+          countryMap[country].positive++;
+        }
+        const d = String(p.deadline || p.app_deadline || '').trim();
+        if (d && d !== 'Rolling' && d !== 'N/A' && !/closed|expired/i.test(d)) {
+          countryMap[country].deadlines++;
+        }
+      });
+
+      const sortedCountries = Object.values(countryMap).sort((a, b) => b.total - a.total);
+      const badge = document.getElementById('countryTotalBadge');
+      if (badge) badge.innerText = `${totalLeads} Leads • ${sortedCountries.length} Countries`;
+
+      const maxCount = sortedCountries.length > 0 ? sortedCountries[0].total : 1;
+
+      container.innerHTML = sortedCountries.slice(0, 9).map(c => {
+        const flag = getCountryFlag(c.country);
+        const percent = Math.min(100, Math.round((c.total / maxCount) * 100));
+        return `
+          <div onclick="filterCRMByCountry('${esc(c.country)}')"
+               class="p-2.5 bg-surface/80 hover:bg-surface hover:border-emerald-500/50 rounded-xl border border-border/60 cursor-pointer transition active:scale-95 group space-y-1 shadow-sm">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white group-hover:text-emerald-300 flex items-center gap-1.5 truncate">
+                <span>${flag}</span> <span class="truncate">${esc(c.country)}</span>
+              </span>
+              <span class="text-[11px] font-mono font-black text-emerald-400 shrink-0">${c.total}</span>
+            </div>
+            <div class="flex items-center gap-2 text-[9px] text-gray-400">
+              ${c.positive > 0 ? `<span class="text-emerald-400 font-bold shrink-0">🟢 ${c.positive}</span>` : ''}
+              ${c.deadlines > 0 ? `<span class="text-purple-300 font-semibold shrink-0">📅 ${c.deadlines}</span>` : ''}
+              <span class="text-gray-500 ml-auto">${Math.round((c.total / (totalLeads || 1)) * 100)}%</span>
+            </div>
+            <div class="w-full bg-border/40 h-1 rounded-full overflow-hidden">
+              <div class="bg-gradient-to-r from-emerald-500 to-indigo-500 h-1 rounded-full" style="width: ${percent}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Also update select dropdown in modal
+      const select = document.getElementById('modalCountrySelect');
+      if (select) {
+        const currentVal = currentModalCountry || 'ALL';
+        let optionsHtml = `<option value="ALL">🌍 All Countries (${totalLeads})</option>`;
+        sortedCountries.forEach(c => {
+          const flag = getCountryFlag(c.country);
+          optionsHtml += `<option value="${esc(c.country)}">${flag} ${esc(c.country)} (${c.total})</option>`;
+        });
+        select.innerHTML = optionsHtml;
+        select.value = currentVal;
+      }
     }
 
     function showList(type) {
@@ -2269,6 +2637,14 @@ ${esc(body || '(No email body content)')}
             const email = String(p.email || '').toLowerCase();
             return prof.includes(currentOmniQuery) || inst.includes(currentOmniQuery) || dept.includes(currentOmniQuery) || opp.includes(currentOmniQuery) || paper.includes(currentOmniQuery) || paper2.includes(currentOmniQuery) || email.includes(currentOmniQuery);
           });
+        }
+
+        // Country & Priority Filters on Scraped Leads (Task 27D)
+        if (currentModalCountry && currentModalCountry !== 'ALL') {
+          sList = sList.filter(p => (p.country || extractCountry(p.inst, p.email)) === currentModalCountry);
+        }
+        if (currentModalPriority && currentModalPriority !== 'ALL') {
+          sList = sList.filter(p => (p.priority || extractPriority(p.status, p.fit, p.deadline)) === currentModalPriority);
         }
 
         // Sorting
@@ -2425,6 +2801,14 @@ ${esc(body || '(No email body content)')}
         });
       }
 
+      // Country & Priority Filters on Dispatched CRM Leads (Task 27D)
+      if (currentModalCountry && currentModalCountry !== 'ALL') {
+        list = list.filter(p => (p.country || extractCountry(p.inst, p.email)) === currentModalCountry);
+      }
+      if (currentModalPriority && currentModalPriority !== 'ALL') {
+        list = list.filter(p => (p.priority || extractPriority(p.status, p.notes, p.deadline)) === currentModalPriority);
+      }
+
       // Multi-Sorting Execution
       const getPName = p => typeof p === 'object' && p !== null ? (p.prof || p.name || '') : String(p);
       const getPDate = p => typeof p === 'object' && p !== null ? (p.date || p.date_drafted || '') : '';
@@ -2567,7 +2951,7 @@ ${esc(body || '(No email body content)')}
         const warnBanner = document.getElementById('backendVersionWarning');
         const warnVerStr = document.getElementById('warnVerStr');
         if (warnBanner) {
-          if (!j.backend_version || j.backend_version !== 'v3.3') {
+          if (!j.backend_version || (j.backend_version !== 'v3.3' && j.backend_version !== 'v3.4')) {
             if (warnVerStr) warnVerStr.innerText = j.backend_version || 'pre-v3.3';
             warnBanner.classList.remove('hidden');
           } else {
@@ -2596,6 +2980,7 @@ ${esc(body || '(No email body content)')}
         swipeHistory = [];
         if (typeof globalSentProfs !== 'undefined') globalSentProfs = j.sentProfs || [];
         
+        renderCountryBreakdown();
         renderDeck();
         const modal = document.getElementById('listModal');
         if (modal && !modal.classList.contains('hidden')) {
