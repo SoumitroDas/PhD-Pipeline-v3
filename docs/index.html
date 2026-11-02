@@ -204,18 +204,21 @@
       </div>
 
       <!-- Quick CRM Actionable Queue Badges -->
-      <div class="grid grid-cols-4 gap-1.5 text-center mb-3">
-        <button onclick="showList('positive')" class="py-1.5 px-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 text-[10px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow-sm">
-          <span>🟢</span> <span>Positive</span>
+      <div class="grid grid-cols-5 gap-1 text-center mb-3">
+        <button onclick="showList('positive')" class="py-1.5 px-1 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 text-[9px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 shadow-sm">
+          <span>🟢</span> <span class="truncate">Positive</span>
         </button>
-        <button onclick="showList('neutral')" class="py-1.5 px-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30 text-[10px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow-sm">
-          <span>🟡</span> <span>Neutral</span>
+        <button onclick="showList('neutral')" class="py-1.5 px-1 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30 text-[9px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 shadow-sm">
+          <span>🟡</span> <span class="truncate">Neutral</span>
         </button>
-        <button onclick="showList('followup')" class="py-1.5 px-2 rounded-xl bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 text-[10px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow-sm">
-          <span>⚪</span> <span>Follow-Up</span>
+        <button onclick="showList('deadlines')" class="py-1.5 px-1 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 text-[9px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 shadow-sm">
+          <span>📅</span> <span class="truncate">Deadlines</span>
         </button>
-        <button onclick="showList('declined')" class="py-1.5 px-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 text-[10px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow-sm">
-          <span>🔴</span> <span>Declined</span>
+        <button onclick="showList('followup')" class="py-1.5 px-1 rounded-xl bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 text-[9px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 shadow-sm">
+          <span>⚪</span> <span class="truncate">Follow-Up</span>
+        </button>
+        <button onclick="showList('declined')" class="py-1.5 px-1 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 text-[9px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 shadow-sm">
+          <span>🔴</span> <span class="truncate">Declined</span>
         </button>
       </div>
 
@@ -377,8 +380,17 @@
           <button id="tabFilter-all" onclick="showList('sent')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">All Sent</button>
           <button id="tabFilter-positive" onclick="showList('positive')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🟢 Positive</button>
           <button id="tabFilter-neutral" onclick="showList('neutral')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🟡 Neutral</button>
+          <button id="tabFilter-deadlines" onclick="showList('deadlines')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">📅 Deadlines</button>
           <button id="tabFilter-followup" onclick="showList('followup')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">⚪ Follow-Up</button>
           <button id="tabFilter-declined" onclick="showList('declined')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🔴 Declined</button>
+        </div>
+        <!-- Modal Multi-Sorting Control Bar -->
+        <div class="px-3 py-1.5 bg-card/90 border-b border-border/50 flex items-center gap-1.5 overflow-x-auto text-[9px] text-gray-400">
+          <span class="font-bold uppercase tracking-wider text-[8px] text-gray-500 mr-1 shrink-0"><i class="fa-solid fa-arrow-down-short-wide mr-0.5"></i> Sort:</span>
+          <button id="sortBtn-name" onclick="setModalSort('name')" class="px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40">🔤 Name (A–Z)</button>
+          <button id="sortBtn-lastContact" onclick="setModalSort('lastContact')" class="px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40">🕒 Last Contact</button>
+          <button id="sortBtn-firstContact" onclick="setModalSort('firstContact')" class="px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40">📅 First Contact</button>
+          <button id="sortBtn-deadline" onclick="setModalSort('deadline')" class="px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40">⏳ Deadline</button>
         </div>
         <div id="listContent" class="p-3 overflow-y-auto space-y-2 text-xs text-gray-300 flex-1"></div>
       </div>
@@ -469,10 +481,15 @@
       const notes = (typeof p === 'object' && p !== null ? (p.notes || p.reply_notes || '') : '');
       const f1 = (typeof p === 'object' && p !== null ? (p.f1 || p.f1_due || '') : '') || 'N/A';
       const f2 = (typeof p === 'object' && p !== null ? (p.f2 || p.f2_due || '') : '') || 'N/A';
-      const deadline = (typeof p === 'object' && p !== null ? (p.deadline || '') : '') || 'Rolling';
+      const deadline = (typeof p === 'object' && p !== null ? (p.deadline || p.app_deadline || '') : '') || 'Rolling';
+      const portal = (typeof p === 'object' && p !== null ? (p.portal || p.portal_link || p.dept_link || '') : '') || '';
+      const lastContact = (typeof p === 'object' && p !== null ? (p.last_contact || p.last_contact_date || p.date || '') : '') || '';
 
-      const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic / Research Institution' ? inst : ''))}`;
+      const scholarFallback = `https://scholar.google.com/scholar?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic / Research Institution' ? inst.split('|')[0].trim() : ''))}`;
+      const directProfileUrl = (typeof p === 'object' && p !== null ? (p.profile_url || p.profile || p.direct_profile || '') : '') || scholarFallback;
       const paperLink = (typeof p === 'object' && p !== null ? (p.paper_link || p.paper || p.doi || '') : '') || '';
+
+      const isDeadlineActive = deadline && deadline !== 'Rolling' && deadline !== 'N/A' && !deadline.toLowerCase().startsWith('closed') && !deadline.toLowerCase().includes('expired');
 
       const emailBtn = email ? `
         <a href="mailto:${esc(email)}" onclick="event.stopPropagation()"
@@ -487,8 +504,18 @@
           <div class="flex items-start justify-between gap-2 cursor-pointer select-none" onclick="toggleProfDetail('${idx}')">
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="font-extrabold text-white text-xs">${esc(profName)}</span>
+                <a href="${esc(safeUrl(directProfileUrl))}" target="_blank" rel="noopener noreferrer"
+                   onclick="event.stopPropagation()"
+                   title="Open Faculty Profile"
+                   class="font-extrabold text-white text-xs hover:text-indigo-400 transition underline-offset-2 hover:underline">
+                  ${esc(profName)}
+                </a>
                 <i class="fa-solid fa-chevron-down text-[9px] text-gray-500 transition-transform duration-200" id="chev-${idx}"></i>
+                ${isDeadlineActive ? `
+                <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 truncate max-w-[140px] inline-flex items-center gap-1 shrink-0" title="${esc(deadline)}">
+                  <i class="fa-regular fa-calendar-days text-[8px]"></i> ${esc(deadline)}
+                </span>
+                ` : ''}
               </div>
               <div class="text-[10px] text-gray-400 mt-0.5 truncate">${esc(inst)}</div>
             </div>
@@ -511,10 +538,26 @@
               </div>
             </div>
 
+            <!-- Deadlines & Application Portal Highlight -->
+            <div class="p-2.5 bg-purple-950/30 border border-purple-500/30 rounded-lg space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-purple-400 uppercase font-bold text-[8px] flex items-center gap-1">
+                  <i class="fa-regular fa-calendar-check text-[9px]"></i> Application Deadline & Requirements
+                </span>
+                ${portal && portal !== '#' && portal !== 'https://scholar.google.com' ? `
+                <a href="${esc(safeUrl(portal))}" target="_blank" rel="noopener noreferrer"
+                   class="px-2 py-0.5 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold text-[9px] inline-flex items-center gap-1 transition shadow active:scale-95">
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i> Portal ↗
+                </a>
+                ` : ''}
+              </div>
+              <p class="text-[11px] text-purple-200 font-semibold leading-snug">${esc(deadline)}</p>
+            </div>
+
             <div class="grid grid-cols-3 gap-1 bg-card/70 p-2 rounded-lg border border-border/40 text-[9px] text-center">
               <div><span class="text-gray-500 block uppercase">F1 Due</span><span class="text-amber-400 font-mono font-bold">${esc(f1)}</span></div>
               <div><span class="text-gray-500 block uppercase">F2 Due</span><span class="text-rose-400 font-mono font-bold">${esc(f2)}</span></div>
-              <div><span class="text-gray-500 block uppercase">Deadline</span><span class="text-emerald-400 font-mono font-bold">${esc(deadline)}</span></div>
+              <div><span class="text-gray-500 block uppercase">Last Contact</span><span class="text-indigo-400 font-mono font-bold">${esc(lastContact || 'N/A')}</span></div>
             </div>
 
             <div class="p-2 bg-card/50 rounded-lg border border-border/30">
@@ -528,10 +571,16 @@
                   <i class="fa-solid fa-paper-plane text-[9px]"></i> Email PI
                 </a>
               ` : ''}
-              <a href="${esc(safeUrl(scholarUrl))}" target="_blank" rel="noopener noreferrer"
+              <a href="${esc(safeUrl(directProfileUrl))}" target="_blank" rel="noopener noreferrer"
                  class="px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold flex items-center gap-1 transition">
-                <i class="fa-solid fa-graduation-cap text-[9px]"></i> Scholar Profile ↗
+                <i class="fa-solid fa-graduation-cap text-[9px]"></i> 🎓 Profile ↗
               </a>
+              ${portal && portal !== '#' && portal !== 'https://scholar.google.com' ? `
+                <a href="${esc(safeUrl(portal))}" target="_blank" rel="noopener noreferrer"
+                   class="px-2.5 py-1 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 border border-purple-500/40 text-[10px] font-bold flex items-center gap-1 transition">
+                  <i class="fa-solid fa-building-columns text-[9px]"></i> 🔗 Portal ↗
+                </a>
+              ` : ''}
               ${paperLink ? `
                 <a href="${esc(safeUrl(paperLink))}" target="_blank" rel="noopener noreferrer"
                    class="px-2.5 py-1 rounded-lg bg-surface hover:bg-border text-gray-300 border border-border text-[10px] font-bold flex items-center gap-1 transition">
@@ -557,32 +606,36 @@
     }
 
     let currentModalFilter = 'sent';
+    let currentModalSort = 'name';
+
+    function setModalSort(sortKey) {
+      currentModalSort = sortKey;
+      renderModalView();
+    }
 
     function showList(type) {
       currentModalFilter = type || 'sent';
+      renderModalView();
+      document.getElementById('listModal').classList.remove('hidden');
+    }
+
+    function renderModalView() {
       const modal = document.getElementById('listModal');
       const content = document.getElementById('listContent');
       const title = document.getElementById('listTitle');
 
-      if (currentModalFilter === 'sent') {
-        title.innerHTML = '<i class="fa-solid fa-paper-plane text-amber-400 mr-2"></i> Dispatched Emails';
-      } else if (currentModalFilter === 'positive') {
-        title.innerHTML = '<i class="fa-solid fa-thumbs-up text-emerald-400 mr-2"></i> Positive Replies';
-      } else if (currentModalFilter === 'neutral') {
-        title.innerHTML = '<i class="fa-solid fa-clock text-cyan-400 mr-2"></i> Neutral / Redirects';
-      } else if (currentModalFilter === 'followup') {
-        title.innerHTML = '<i class="fa-solid fa-rotate text-amber-400 mr-2"></i> Follow-Up Queue';
-      } else if (currentModalFilter === 'declined') {
-        title.innerHTML = '<i class="fa-solid fa-ban text-rose-400 mr-2"></i> Declined Leads';
-      }
-
       const tabs = [
-        { id: 'all', key: 'sent' },
-        { id: 'positive', key: 'positive' },
-        { id: 'neutral', key: 'neutral' },
-        { id: 'followup', key: 'followup' },
-        { id: 'declined', key: 'declined' }
+        { id: 'all', key: 'sent', title: '<i class="fa-solid fa-paper-plane text-amber-400 mr-2"></i> Dispatched Emails' },
+        { id: 'positive', key: 'positive', title: '<i class="fa-solid fa-thumbs-up text-emerald-400 mr-2"></i> Positive Replies' },
+        { id: 'neutral', key: 'neutral', title: '<i class="fa-solid fa-clock text-cyan-400 mr-2"></i> Neutral / Redirects' },
+        { id: 'deadlines', key: 'deadlines', title: '<i class="fa-solid fa-calendar-days text-purple-400 mr-2"></i> Deadlines & Portals' },
+        { id: 'followup', key: 'followup', title: '<i class="fa-solid fa-rotate text-amber-400 mr-2"></i> Follow-Up Queue' },
+        { id: 'declined', key: 'declined', title: '<i class="fa-solid fa-ban text-rose-400 mr-2"></i> Declined Leads' }
       ];
+
+      const currentTab = tabs.find(t => t.key === currentModalFilter) || tabs[0];
+      title.innerHTML = currentTab.title;
+
       tabs.forEach(t => {
         const btn = document.getElementById('tabFilter-' + t.id);
         if (btn) {
@@ -594,7 +647,19 @@
         }
       });
 
-      let list = globalSentProfs || [];
+      // Update Sort Pills UI
+      ['name', 'lastContact', 'firstContact', 'deadline'].forEach(k => {
+        const btn = document.getElementById('sortBtn-' + k);
+        if (btn) {
+          if (k === currentModalSort) {
+            btn.className = "px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-indigo-600 text-white shadow text-[9px]";
+          } else {
+            btn.className = "px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40 text-[9px]";
+          }
+        }
+      });
+
+      let list = (globalSentProfs || []).slice();
       if (currentModalFilter === 'positive') {
         list = list.filter(p => {
           const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
@@ -604,6 +669,15 @@
         list = list.filter(p => {
           const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
           return s.includes('neut') || s.includes('redir') || s.includes('apply');
+        });
+      } else if (currentModalFilter === 'deadlines') {
+        list = list.filter(p => {
+          if (typeof p !== 'object' || p === null) return false;
+          const d = (p.deadline || p.app_deadline || '').toLowerCase();
+          const s = (p.status || '').toLowerCase();
+          if (!d || d === 'n/a' || d === 'rolling' || d.startsWith('closed') || d.includes('undeliverable') || d.includes('expired')) return false;
+          if (s.includes('dec') || s.includes('rej') || s.includes('bounce')) return false;
+          return true;
         });
       } else if (currentModalFilter === 'followup') {
         list = list.filter(p => {
@@ -617,12 +691,37 @@
         });
       }
 
+      // Multi-Sorting Execution
+      const getPName = p => typeof p === 'object' && p !== null ? (p.prof || p.name || '') : String(p);
+      const getPDate = p => typeof p === 'object' && p !== null ? (p.date || p.date_drafted || '') : '';
+      const getPLastContact = p => typeof p === 'object' && p !== null ? (p.last_contact || p.last_contact_date || p.date || '') : '';
+      const getPDeadline = p => typeof p === 'object' && p !== null ? (p.deadline || p.app_deadline || '') : '';
+
+      if (currentModalSort === 'name') {
+        list.sort((a, b) => getPName(a).localeCompare(getPName(b)));
+      } else if (currentModalSort === 'lastContact') {
+        list.sort((a, b) => getPLastContact(b).localeCompare(getPLastContact(a)));
+      } else if (currentModalSort === 'firstContact') {
+        list.sort((a, b) => getPDate(a).localeCompare(getPDate(b)));
+      } else if (currentModalSort === 'deadline') {
+        list.sort((a, b) => {
+          const da = getPDeadline(a);
+          const db = getPDeadline(b);
+          const aHasDate = /\b(202[67]|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(da);
+          const bHasDate = /\b(202[67]|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(db);
+          if (aHasDate && !bHasDate) return -1;
+          if (!aHasDate && bHasDate) return 1;
+          return da.localeCompare(db);
+        });
+      }
+
+      title.innerHTML += ` <span class="text-[11px] text-gray-400 font-normal">(${list.length})</span>`;
+
       if (list.length === 0) { 
         content.innerHTML = '<p class="text-center p-8 text-gray-500 text-xs">No records found in this queue.</p>'; 
       } else {
         content.innerHTML = list.map((p, idx) => renderProfListItem(p, idx)).join('');
       }
-      modal.classList.remove('hidden');
     }
 
     const container = document.getElementById('swipeContainer');
@@ -859,14 +958,25 @@
 
         // Zero-Hallucination Fallbacks: fit defaults to '—', paper defaults to 'UNVERIFIED'
         const fitDisplay = lead.fit ? lead.fit : '—';
-        const paperDisplay = lead.paper ? lead.paper : 'UNVERIFIED';
+        const paperDisplay = lead.paper || lead.paper1 || 'UNVERIFIED';
+        const paper2Display = lead.paper2 || lead.paper_2 || '';
 
         // Profile vs. Paper Link Separation:
-        // Professor profile directs to profile_url or university faculty page or Google Scholar search
-        const scholarProfileUrl = lead.profile_url || (lead.link && !lead.link.includes('doi.org') && !lead.link.includes('sciencedirect') && !lead.link.includes('ncbi.nlm.nih.gov') ? lead.link : `https://scholar.google.com/scholar?q=${encodeURIComponent(lead.prof + ' ' + (lead.inst || ''))}`);
+        // Professor profile directs directly to lead.profile_url (OpenAlex / ORCID / faculty page), falling back to Google Scholar
+        const directProfileUrl = lead.profile_url || lead.profile || (lead.link && !lead.link.includes('doi.org') && !lead.link.includes('sciencedirect') && !lead.link.includes('ncbi.nlm.nih.gov') ? lead.link : `https://scholar.google.com/scholar?q=${encodeURIComponent((lead.prof || '') + ' ' + (lead.inst || ''))}`);
+
+        const extractDoiUrl = (str, fallback) => {
+          if (!str) return fallback || '';
+          const m = str.match(/https?:\/\/[^\s)]+/);
+          if (m) return m[0];
+          const doiMatch = str.match(/10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+/);
+          if (doiMatch) return `https://doi.org/${doiMatch[0]}`;
+          return fallback || '';
+        };
 
         // Verified research paper links strictly to DOI / direct paper publication link
-        const paperUrl = lead.paper_link || (lead.doi ? `https://doi.org/${lead.doi.replace(/^https?:\/\/doi\.org\//, '')}` : (lead.link && (lead.link.includes('doi.org') || lead.link.includes('sciencedirect') || lead.link.includes('ncbi.nlm.nih.gov')) ? lead.link : ''));
+        const paperUrl = lead.paper_link || extractDoiUrl(paperDisplay, lead.doi);
+        const paper2Url = lead.paper2_link || extractDoiUrl(paper2Display, '');
 
         card.innerHTML = `
           <div class="relative">
@@ -883,7 +993,7 @@
 
             <!-- Profile vs. Paper Link Separation: Professor Name Links to Profile / Scholar -->
             <div>
-              <span data-open="${esc(safeUrl(scholarProfileUrl))}" class="text-base font-extrabold text-white underline decoration-indigo-500 cursor-pointer block hover:text-indigo-300 transition">
+              <span data-open="${esc(safeUrl(directProfileUrl))}" class="text-base font-extrabold text-white underline decoration-indigo-500 cursor-pointer block hover:text-indigo-300 transition">
                 ${esc(lead.prof)} <span class="text-[11px] text-indigo-400 font-semibold">🎓 Profile ↗</span>
               </span>
               ${emailBadge}
@@ -896,21 +1006,32 @@
               <p class="text-xs text-gray-200 leading-relaxed">${esc(lead.opp || 'Doctoral Research Position')}</p>
             </div>
 
-            <!-- Verified PI Paper (Clean independent bullet/link item) -->
-            <div class="p-2.5 rounded-lg bg-surface/50 border border-border/60 space-y-1">
+            <!-- Verified PI Papers (Clean independent clickable links for Paper 1 & Paper 2) -->
+            <div class="p-2.5 rounded-lg bg-surface/50 border border-border/60 space-y-1.5">
               <div class="text-[10px] uppercase font-bold text-emerald-400 flex items-center justify-between">
-                <span><i class="fa-solid fa-file-lines mr-1"></i> Verified PI Paper:</span>
+                <span><i class="fa-solid fa-file-lines mr-1"></i> Verified PI Papers:</span>
                 <span class="text-[9px] text-gray-500 font-normal">Tap to inspect</span>
               </div>
               ${paperUrl ? `
               <span data-open="${esc(safeUrl(paperUrl))}" class="text-xs font-semibold text-gray-200 underline decoration-emerald-500/60 cursor-pointer block italic hover:text-emerald-300 transition">
-                📄 ${esc(paperDisplay)} ↗
+                📄 Paper 1: ${esc(paperDisplay)} ↗
               </span>
               ` : `
               <span class="text-xs font-semibold text-gray-400 block italic">
-                📄 ${esc(paperDisplay)}
+                📄 Paper 1: ${esc(paperDisplay)}
               </span>
               `}
+              ${paper2Display && paper2Display !== 'None indexed' ? `
+                ${paper2Url ? `
+                <span data-open="${esc(safeUrl(paper2Url))}" class="text-xs font-semibold text-gray-200 underline decoration-emerald-500/60 cursor-pointer block italic hover:text-emerald-300 transition border-t border-border/40 pt-1">
+                  📄 Paper 2: ${esc(paper2Display)} ↗
+                </span>
+                ` : `
+                <span class="text-xs font-semibold text-gray-400 block italic border-t border-border/40 pt-1">
+                  📄 Paper 2: ${esc(paper2Display)}
+                </span>
+                `}
+              ` : ''}
             </div>
           </div>
 
