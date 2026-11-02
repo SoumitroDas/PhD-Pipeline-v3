@@ -689,10 +689,10 @@
                 <select id="modalPrioritySelect" onchange="setModalPriority(this.value)"
                         class="bg-surface hover:bg-border text-gray-200 border border-border rounded-lg text-[10px] font-semibold pl-2 pr-6 py-1 focus:outline-none focus:border-indigo-500 cursor-pointer transition appearance-none shadow-sm">
                   <option value="ALL">All Priorities</option>
-                  <option value="P1">🔥 P1 - High</option>
-                  <option value="P2">⚡ P2 - Medium</option>
-                  <option value="P3">💤 P3 - Low</option>
-                  <option value="P4">❄️ P4 - Dormant</option>
+                  <option value="P1">P1 High</option>
+                  <option value="P2">P2 Med</option>
+                  <option value="P3">P3 Low</option>
+                  <option value="P4">P4 Dormant</option>
                 </select>
                 <i class="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-gray-400 pointer-events-none"></i>
               </div>
@@ -1446,27 +1446,13 @@
         if (!isNaN(diff) && diff >= 0) daysSinceLastContact = diff;
       }
 
-      const openAlexFallback = `https://openalex.org/search?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic / Research Institution' ? inst.split('|')[0].trim() : ''))}`;
+      const openAlexAuthorSearch = `https://openalex.org/search?q=${encodeURIComponent(profName + ' ' + (inst && inst !== 'Academic / Research Institution' ? inst.split('|')[0].trim() : ''))}&type=author`;
       let directProfileUrl = (typeof p === 'object' && p !== null ? (p.profile_url || p.profile || p.direct_profile || '') : '') || '';
-      if (!directProfileUrl || directProfileUrl.includes('google.com/scholar')) {
-        directProfileUrl = openAlexFallback;
+      if (!directProfileUrl || directProfileUrl.includes('scholar.google.com') || directProfileUrl.includes('google.com/scholar') || directProfileUrl === '#') {
+        directProfileUrl = openAlexAuthorSearch;
       }
 
-      const hasValidEmail = email && email !== 'Not logged' && email.includes('@') && !email.toLowerCase().includes('missing');
-      const emailBadgeHtml = hasValidEmail ? `
-        <span class="inline-flex items-center gap-1.5 font-mono text-[10px] text-indigo-300 bg-card px-2 py-0.5 rounded border border-border/80 shadow-sm" onclick="event.stopPropagation()">
-          <i class="fa-regular fa-envelope text-indigo-400 text-[9px]"></i>
-          <span class="select-all">${esc(email)}</span>
-          <button onclick="event.stopPropagation(); copyToClipboard('${esc(email)}', '📋 Email address copied!');" title="Copy email address" class="ml-1 text-gray-400 hover:text-white transition">
-            <i class="fa-regular fa-copy text-[9px]"></i>
-          </button>
-        </span>
-      ` : `
-        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-950/40 px-2 py-0.5 rounded border border-rose-500/30" onclick="event.stopPropagation()">
-          <i class="fa-solid fa-triangle-exclamation text-[9px]"></i>
-          <span>Missing Email</span>
-        </span>
-      `;
+      const emailBadgeHtml = `<div class="font-mono text-sm text-indigo-400 cursor-pointer" onclick="event.stopPropagation(); navigator.clipboard.writeText('${esc(email)}'); alert('Email copied!');">${esc(email || 'Missing Email')} 📋</div>`;
       const paperLink = (typeof p === 'object' && p !== null ? (p.paper_link || p.paper || p.doi || '') : '') || '';
 
       const isDeadlineActive = deadline && deadline !== 'Rolling' && deadline !== 'N/A' && !deadline.toLowerCase().startsWith('closed') && !deadline.toLowerCase().includes('expired');
@@ -1873,7 +1859,7 @@
         statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">❌ DECLINED</span>';
       }
 
-      const openAlexFallback = `https://openalex.org/search?q=${encodeURIComponent((p.prof || '') + ' ' + (p.inst || ''))}`;
+      const openAlexFallback = `https://openalex.org/search?q=${encodeURIComponent((p.prof || '') + ' ' + (p.inst || ''))}&type=author`;
       const profileUrl = (p.profile_url && !p.profile_url.includes('google.com/scholar')) ? p.profile_url : (p.link && !p.link.includes('doi.org') ? p.link : openAlexFallback);
 
       const extractDoiUrl = (str, fallback) => {
@@ -1989,28 +1975,13 @@
       const body = (typeof p === 'object' && p !== null ? (p.body || p.full_body || p.email_body || '') : '') || '';
       const deadline = (typeof p === 'object' && p !== null ? (p.deadline || p.app_deadline || '') : '') || 'Rolling';
 
-      const openAlexFallback = `https://openalex.org/search?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic / Research Institution' ? inst.split('|')[0].trim() : ''))}`;
+      const openAlexAuthorSearch = `https://openalex.org/search?q=${encodeURIComponent(profName + ' ' + (inst && inst !== 'Academic / Research Institution' ? inst.split('|')[0].trim() : ''))}&type=author`;
       let directProfileUrl = (typeof p === 'object' && p !== null ? (p.profile_url || p.profile || p.direct_profile || '') : '') || '';
-      if (!directProfileUrl || directProfileUrl.includes('google.com/scholar')) {
-        directProfileUrl = openAlexFallback;
+      if (!directProfileUrl || directProfileUrl.includes('scholar.google.com') || directProfileUrl.includes('google.com/scholar') || directProfileUrl === '#') {
+        directProfileUrl = openAlexAuthorSearch;
       }
 
-      const hasValidEmail = email && email !== 'Not logged' && email.includes('@') && !email.toLowerCase().includes('missing');
-      const emailBadgeHtml = hasValidEmail ? `
-        <span class="inline-flex items-center gap-1.5 font-mono text-[10px] text-indigo-300 bg-card px-2 py-0.5 rounded border border-border/80 shadow-sm">
-          <i class="fa-regular fa-envelope text-indigo-400 text-[9px]"></i>
-          <span class="select-all">${esc(email)}</span>
-          <button onclick="copyToClipboard('${esc(email)}', '📋 Email address copied!');" title="Copy email address" class="ml-1 text-gray-400 hover:text-white transition">
-            <i class="fa-regular fa-copy text-[9px]"></i>
-          </button>
-        </span>
-      ` : `
-        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-950/40 px-2 py-0.5 rounded border border-rose-500/30">
-          <i class="fa-solid fa-triangle-exclamation text-[9px]"></i>
-          <span>Missing Email</span>
-        </span>
-      `;
-
+      const emailBadgeHtml = `<div class="font-mono text-sm text-indigo-400 cursor-pointer" onclick="navigator.clipboard.writeText('${esc(email)}'); alert('Email copied!');">${esc(email || 'Missing Email')} 📋</div>`;
       const mailtoUrl = email ? `mailto:${esc(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` : '#';
 
       return `
@@ -2038,7 +2009,7 @@
               ${emailBadgeHtml}
               <a href="${esc(safeUrl(directProfileUrl))}" target="_blank" rel="noopener noreferrer"
                  class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 flex items-center gap-1 transition">
-                <i class="fa-solid fa-graduation-cap text-[9px]"></i> Profile ↗
+                <i class="fa-solid fa-graduation-cap text-[9px]"></i> 🎓 Profile ↗
               </a>
             </div>
           </div>
