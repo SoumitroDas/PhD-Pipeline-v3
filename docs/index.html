@@ -63,53 +63,57 @@
       transform: rotate(15deg);
       transition: opacity 0.15s ease;
     }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
 <body class="min-h-screen pb-20 flex flex-col justify-between">
 
-  <!-- TOP APP BAR -->
-  <header class="sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-border px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-600/30">
-        <i class="fa-solid fa-graduation-cap text-white text-base"></i>
-      </div>
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="text-sm font-extrabold tracking-tight">PhD Command</h1>
-          <span class="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full uppercase">v3.1 Live</span>
+  <!-- TOP APP BAR (DESKTOP RESPONSIVE) -->
+  <header class="sticky top-0 z-40 bg-surface/90 backdrop-blur-md border-b border-border px-4 py-3">
+    <div class="max-w-4xl mx-auto w-full flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-600/30">
+          <i class="fa-solid fa-graduation-cap text-white text-base"></i>
         </div>
-        <p class="text-[10px] text-gray-400">Soumitro Kumar Das • Biomathematics</p>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-sm font-extrabold tracking-tight">PhD Command</h1>
+            <span class="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full uppercase">v3.1 Live</span>
+          </div>
+          <p class="text-[10px] text-gray-400">Soumitro Kumar Das • Biomathematics</p>
+        </div>
       </div>
-    </div>
 
-    <!-- Quick Actions: Run Drafter, Run Scout, Reset Credentials & Open Sheet -->
-    <div class="flex items-center gap-1.5">
-      <button onclick="triggerDrafter()" id="btnRunDrafterHeader" title="Run Drafter Manual Trigger"
-              class="px-2 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-blue-600/30 transition active:scale-95">
-        <i class="fa-solid fa-pen-nib text-cyan-300 text-[10px]"></i>
-        <span>Drafter</span>
-      </button>
-      <button onclick="triggerScout()" id="btnRunScoutHeader" title="Run Scout Manual Trigger"
-              class="px-2 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-indigo-600/30 transition active:scale-95">
-        <i class="fa-solid fa-bolt text-amber-300 text-[10px]"></i>
-        <span>Scout</span>
-      </button>
-      <button onclick="resetCredentials()" title="Configure GAS URL & Secret"
-              class="p-2 rounded-lg bg-card hover:bg-border text-gray-300 hover:text-white border border-border transition active:scale-95">
-        <i class="fa-solid fa-gear text-xs text-indigo-400"></i>
-      </button>
-      <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit#gid=0"
-         target="_blank" rel="noopener noreferrer"
-         class="px-2.5 py-1.5 rounded-lg bg-card hover:bg-border text-gray-200 text-xs font-semibold flex items-center gap-1 border border-border transition">
-        <i class="fa-solid fa-table text-emerald-400"></i>
-        <span class="text-[11px]">Sheet</span>
-      </a>
+      <!-- Quick Actions: Run Drafter, Run Scout, Reset Credentials & Open Sheet -->
+      <div class="flex items-center gap-1.5">
+        <button onclick="triggerDrafter()" id="btnRunDrafterHeader" title="Run Drafter Manual Trigger"
+                class="px-2 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-blue-600/30 transition active:scale-95">
+          <i class="fa-solid fa-pen-nib text-cyan-300 text-[10px]"></i>
+          <span>Drafter</span>
+        </button>
+        <button onclick="triggerScout()" id="btnRunScoutHeader" title="Run Scout Manual Trigger"
+                class="px-2 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-indigo-600/30 transition active:scale-95">
+          <i class="fa-solid fa-bolt text-amber-300 text-[10px]"></i>
+          <span>Scout</span>
+        </button>
+        <button onclick="resetCredentials()" title="Configure GAS URL & Secret"
+                class="p-2 rounded-lg bg-card hover:bg-border text-gray-300 hover:text-white border border-border transition active:scale-95">
+          <i class="fa-solid fa-gear text-xs text-indigo-400"></i>
+        </button>
+        <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit#gid=0"
+           target="_blank" rel="noopener noreferrer"
+           class="px-2.5 py-1.5 rounded-lg bg-card hover:bg-border text-gray-200 text-xs font-semibold flex items-center gap-1 border border-border transition">
+          <i class="fa-solid fa-table text-emerald-400"></i>
+          <span class="text-[11px]">Sheet</span>
+        </a>
+      </div>
     </div>
   </header>
 
   <!-- GLOBAL OMNI-SEARCH INPUT (PINNED JUST BELOW HEADER) -->
   <div class="sticky top-[57px] z-30 bg-surface/95 backdrop-blur-md px-4 py-2 border-b border-border shadow-sm">
-    <div class="max-w-md mx-auto relative">
+    <div class="max-w-4xl mx-auto relative">
       <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
       <input type="text" id="omniSearchInput" oninput="onOmniSearchChange(this.value)"
              placeholder="🔍 Omni-Search Name, Institution, or Pitch Notes..."
@@ -121,8 +125,8 @@
     </div>
   </div>
 
-  <!-- NAVIGATION PILLS -->
-  <div class="max-w-md mx-auto w-full px-4 pt-3">
+  <!-- NAVIGATION PILLS (RESPONSIVE MAX-WIDTH) -->
+  <div class="max-w-4xl mx-auto w-full px-4 pt-3">
     <div class="grid grid-cols-4 gap-1 bg-surface p-1 rounded-xl border border-border text-[11px] font-bold">
       <button onclick="switchView('swipe')" id="navSwipe" class="py-2 rounded-lg bg-indigo-600 text-white shadow transition text-center">
         <i class="fa-solid fa-heart mr-1"></i>Review
@@ -139,8 +143,8 @@
     </div>
   </div>
 
-  <!-- MAIN SCROLLABLE CONTENT -->
-  <main class="max-w-md mx-auto w-full px-4 pt-3 space-y-4">
+  <!-- MAIN SCROLLABLE CONTENT (RESPONSIVE MAX-WIDTH) -->
+  <main class="max-w-4xl mx-auto w-full px-4 pt-3 space-y-4">
 
     <!-- VIEW A: TINDER-STYLE SWIPE REVIEW CARD CONTAINER (TAB 1) -->
     <section id="viewSwipe" class="space-y-3">
@@ -194,51 +198,58 @@
       </div>
     </section>
 
-    <!-- 🤖 SCOUT AGENT STATUS (SEPARATE TOP CARD) -->
-    <div id="viewScoutAgent" class="bg-card border border-border/80 rounded-2xl p-3 shadow-md space-y-2">
+    <!-- 🤖 AI AGENT STATUS (TOP CARD) -->
+    <div id="viewScoutAgent" class="bg-card border border-border/80 rounded-2xl p-3.5 shadow-md space-y-2.5">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <div class="w-6 h-6 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-xs">
+          <div class="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-xs">
             <i class="fa-solid fa-robot"></i>
           </div>
           <div>
             <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
-              <span>🤖 Scout Agent Status</span>
+              <span>🤖 AI Agent Status</span>
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             </h3>
             <p class="text-[9px] text-gray-400">Autonomous Prospecting & Intake</p>
           </div>
         </div>
         <button onclick="triggerScout()" id="btnRunScout" title="Run Scout Manual Trigger"
-                class="px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold flex items-center gap-1 transition active:scale-95 shadow-sm">
+                class="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold flex items-center gap-1 transition active:scale-95 shadow-sm">
           <i class="fa-solid fa-bolt text-amber-300 text-[9px]"></i>
-          <span>Run Scout</span>
+          <span>⚡ Run Scout</span>
         </button>
       </div>
 
       <div class="grid grid-cols-2 gap-2 text-center pt-0.5">
-        <div class="bg-surface/80 p-2 rounded-xl border border-border/60">
-          <div id="statScraped" class="text-base font-black text-indigo-400 mono">--</div>
+        <div class="bg-surface/80 p-2.5 rounded-xl border border-border/60">
+          <div id="statScraped" class="text-lg font-black text-indigo-400 mono">--</div>
           <div class="text-[9px] text-gray-400 uppercase font-semibold">Scraped Leads</div>
         </div>
-        <div class="bg-surface/80 p-2 rounded-xl border border-border/60">
-          <div id="statApproved" class="text-base font-black text-emerald-400 mono">--</div>
+        <div class="bg-surface/80 p-2.5 rounded-xl border border-border/60">
+          <div id="statApproved" class="text-lg font-black text-emerald-400 mono">--</div>
           <div class="text-[9px] text-gray-400 uppercase font-semibold">Approved (Deck)</div>
         </div>
       </div>
     </div>
 
-    <!-- 🚀 CRM DISPATCH VELOCITY (HUMAN OUTREACH CARD) -->
+    <!-- 📈 OUTREACH CRM (BOTTOM CARD) -->
     <div id="viewPerformance" class="bg-card border border-border rounded-2xl p-4 shadow-xl space-y-3">
       <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400">Human Outreach CRM</h2>
-          <p class="text-sm font-extrabold text-white">CRM Dispatch Velocity</p>
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-xs">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <div>
+            <h2 class="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>📈 Outreach CRM</span>
+            </h2>
+            <p class="text-[9px] text-gray-400">Dispatch Velocity & Replies</p>
+          </div>
         </div>
         <button onclick="triggerDrafter()" id="btnRunDrafter" title="Run Drafter Manual Trigger"
                 class="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-blue-600/30 transition active:scale-95">
-          <i class="fa-solid fa-pen-nib text-cyan-300 text-[10px]"></i>
-          <span>Run Drafter</span>
+          <i class="fa-solid fa-bolt text-amber-300 text-[10px]"></i>
+          <span>⚡ Run Drafter</span>
         </button>
       </div>
 
@@ -258,22 +269,25 @@
         </div>
       </div>
 
-      <!-- Quick CRM Actionable Queue Badges -->
-      <div class="grid grid-cols-5 gap-1 text-center mb-3">
-        <button onclick="showList('positive')" class="py-1.5 px-1 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 text-[9px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 shadow-sm">
-          <span>🟢</span> <span class="truncate">Positive</span>
+      <!-- Compact Horizontal Scrolling Quick CRM Filters (De-cluttered) -->
+      <div class="flex items-center gap-1.5 overflow-x-auto py-1 text-[10px] no-scrollbar">
+        <button onclick="showList('positive')" class="py-1 px-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm">
+          <span>🟢 Positive</span>
         </button>
-        <button onclick="showList('neutral')" class="py-1.5 px-1 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30 text-[9px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 shadow-sm">
-          <span>🟡</span> <span class="truncate">Neutral</span>
+        <button onclick="showList('neutral')" class="py-1 px-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm">
+          <span>🟡 Neutral</span>
         </button>
-        <button onclick="showList('deadlines')" class="py-1.5 px-1 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 text-[9px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 shadow-sm">
-          <span>📅</span> <span class="truncate">Deadlines</span>
+        <button onclick="showList('deadlines')" class="py-1 px-2.5 rounded-lg bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm">
+          <span>📅 Deadlines</span>
         </button>
-        <button onclick="showList('followup')" class="py-1.5 px-1 rounded-xl bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 text-[9px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 shadow-sm">
-          <span>⚪</span> <span class="truncate">Follow-Up</span>
+        <button onclick="showList('followup')" class="py-1 px-2.5 rounded-lg bg-zinc-800/80 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm">
+          <span>⚪ Follow-Up</span>
         </button>
-        <button onclick="showList('declined')" class="py-1.5 px-1 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 text-[9px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 shadow-sm">
-          <span>🔴</span> <span class="truncate">Declined</span>
+        <button onclick="showList('snoozed')" class="py-1 px-2.5 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm">
+          <span>💤 Snoozed</span>
+        </button>
+        <button onclick="showList('declined')" class="py-1 px-2.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm">
+          <span>🔴 Declined</span>
         </button>
       </div>
 
@@ -423,20 +437,23 @@
 
     <!-- METRIC & CRM DRILL-DOWN MODAL -->
     <div id="listModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-      <div class="bg-card border border-border rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
         <div class="p-3 border-b border-border flex justify-between items-center bg-surface/40 gap-2">
           <h3 id="listTitle" class="font-bold text-sm text-white flex items-center truncate"></h3>
           <div class="flex items-center gap-2 shrink-0">
             <!-- Sleek Single Dropdown Sort Selector -->
-            <div id="modalSortContainer" class="relative">
-              <select id="modalSortSelect" onchange="setModalSort(this.value)"
-                      class="bg-surface hover:bg-border text-gray-200 border border-border rounded-lg text-[10px] font-semibold pl-2 pr-6 py-1 focus:outline-none focus:border-indigo-500 cursor-pointer transition appearance-none shadow-sm">
-                <option value="name">🔤 Name (A–Z)</option>
-                <option value="lastContact">🕒 Last Contact</option>
-                <option value="firstContact">📅 First Contact</option>
-                <option value="deadline">⏳ Deadline</option>
-              </select>
-              <i class="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-gray-400 pointer-events-none"></i>
+            <div id="modalSortContainer" class="relative flex items-center gap-1.5">
+              <label for="modalSortSelect" class="text-[10px] font-bold text-gray-400 shrink-0 hidden sm:inline">⇅ Sort By:</label>
+              <div class="relative">
+                <select id="modalSortSelect" onchange="setModalSort(this.value)"
+                        class="bg-surface hover:bg-border text-gray-200 border border-border rounded-lg text-[10px] font-semibold pl-2 pr-6 py-1 focus:outline-none focus:border-indigo-500 cursor-pointer transition appearance-none shadow-sm">
+                  <option value="name">🔤 Name (A–Z)</option>
+                  <option value="last_contact">🕒 Last Contact</option>
+                  <option value="first_contact">📅 First Contact</option>
+                  <option value="deadline">⏳ Deadline</option>
+                </select>
+                <i class="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-gray-400 pointer-events-none"></i>
+              </div>
             </div>
             <button onclick="document.getElementById('listModal').classList.add('hidden')" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-surface transition">
               <i class="fa-solid fa-xmark text-sm"></i>
@@ -591,8 +608,8 @@
 
   </main>
 
-  <!-- BOTTOM PWA NAVIGATION BAR -->
-  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-md border-t border-border px-4 py-2.5 max-w-md mx-auto flex items-center justify-around text-xs">
+  <!-- BOTTOM PWA NAVIGATION BAR (RESPONSIVE MAX-WIDTH) -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-md border-t border-border px-4 py-2.5 max-w-4xl mx-auto flex items-center justify-around text-xs">
     <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit#gid=0"
        target="_blank" rel="noopener noreferrer" class="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition">
       <i class="fa-solid fa-magnifying-glass text-sm"></i>
@@ -1226,6 +1243,8 @@ ${esc(body || '(No email body content)')}
     let currentModalSort = 'name';
 
     function setModalSort(sortKey) {
+      if (sortKey === 'lastContact') sortKey = 'last_contact';
+      if (sortKey === 'firstContact') sortKey = 'first_contact';
       currentModalSort = sortKey;
       const select = document.getElementById('modalSortSelect');
       if (select && select.value !== sortKey) {
@@ -1375,9 +1394,9 @@ ${esc(body || '(No email body content)')}
 
       if (currentModalSort === 'name') {
         list.sort((a, b) => getPName(a).localeCompare(getPName(b)));
-      } else if (currentModalSort === 'lastContact') {
+      } else if (currentModalSort === 'lastContact' || currentModalSort === 'last_contact') {
         list.sort((a, b) => getPLastContact(b).localeCompare(getPLastContact(a)));
-      } else if (currentModalSort === 'firstContact') {
+      } else if (currentModalSort === 'firstContact' || currentModalSort === 'first_contact') {
         list.sort((a, b) => getPDate(a).localeCompare(getPDate(b)));
       } else if (currentModalSort === 'deadline') {
         list.sort((a, b) => {
