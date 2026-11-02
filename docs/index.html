@@ -770,24 +770,12 @@
 
     // Backend-Relayed Scout Trigger (Zero-Secret, No GITHUB_PAT on frontend)
     async function triggerScout() {
-      const btns = [document.getElementById('btnRunScout'), document.getElementById('btnRunScoutHeader')].filter(Boolean);
-      btns.forEach(b => {
-        b.disabled = true;
-        b.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Triggering...`;
-      });
-
-      showToast('⏳ Dispatching Scout workflow via Secure Backend...');
-
+      showToast("🚀 Triggering Scout...");
       try {
         await postGAS({ action: 'trigger_scout' });
-        showToast('🚀 Scout successfully dispatched on GitHub Actions!');
-      } catch (err) {
-        showToast('❌ Trigger failed: ' + err.message);
-      } finally {
-        btns.forEach(b => {
-          b.disabled = false;
-          b.innerHTML = `<i class="fa-solid fa-bolt text-amber-300"></i> <span>Run Scout</span>`;
-        });
+        showToast("✅ Scout triggered on GitHub! Check Actions tab.");
+      } catch (e) {
+        showToast("❌ Scout trigger failed: " + e.message);
       }
     }
 
