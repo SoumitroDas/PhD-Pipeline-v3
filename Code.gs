@@ -6,7 +6,7 @@
  * Tab 1: Scraped_Leads
  * Tab 2: Email_Drafts (16 Columns: Col A:O + Col P: Snooze Until Date)
  * Tab 3: Literature_Radar
- * Tab 4: Archive_History
+ * Tab 4: Archive_History (15 Columns: Col A:O)
  * Tab 5: Manual_Ingest
  */
 
@@ -33,6 +33,67 @@ function doGet(e) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
+/**
+ * Parses a single 15-to-16 column outreach row using exact 0-indexed column schema (A:O / A:P).
+ */
+function parseOutreachRow(r, rowNum, tabName) {
+  const dateStr = r[0] ? (r[0] instanceof Date ? Utilities.formatDate(r[0], "Asia/Dhaka", "yyyy-MM-dd") : String(r[0]).trim()) : "";
+  const profName = String(r[1] || "").trim();
+  const email = String(r[2] || "").trim();
+  const subject = String(r[3] || "").trim();
+  const body = String(r[4] || "").trim();
+  const meta = String(r[5] || "").trim();                   // meta = r[5] (Institution)
+  const dStat = String(r[6] || "").trim().toUpperCase();    // dStat = r[6] (Dispatch Status)
+  const rStat = String(r[7] || "No Reply").trim();          // rStat = r[7] (PI Reply Status)
+  const notes = String(r[8] || "").trim();                  // notes = r[8] (Reply Summary / Notes)
+  const f1 = r[9] ? (r[9] instanceof Date ? Utilities.formatDate(r[9], "Asia/Dhaka", "yyyy-MM-dd") : String(r[9]).trim()) : "";
+  const f2 = r[10] ? (r[10] instanceof Date ? Utilities.formatDate(r[10], "Asia/Dhaka", "yyyy-MM-dd") : String(r[10]).trim()) : "";
+  const deadline = String(r[11] || "Rolling").trim();
+  const portal = String(r[12] || "").trim();
+  const profile_url = String(r[13] || "").trim();
+  const last_contact = r[14] ? (r[14] instanceof Date ? Utilities.formatDate(r[14], "Asia/Dhaka", "yyyy-MM-dd") : String(r[14]).trim()) : dateStr;
+  const snoozeUntil = r[15] ? (r[15] instanceof Date ? Utilities.formatDate(r[15], "Asia/Dhaka", "yyyy-MM-dd") : String(r[15]).trim()) : "";
+
+  return {
+    row: rowNum,
+    tab: tabName,
+    date: dateStr,
+    date_drafted: dateStr,
+    prof: profName,
+    name: profName,
+    email: email,
+    recipient_email: email,
+    subject: subject,
+    subject_line: subject,
+    body: body,
+    full_body: body,
+    email_body: body,
+    inst: meta,
+    institution: meta,
+    meta: meta,
+    dispatch: dStat,
+    dispatch_status: dStat,
+    status: rStat || "No Reply",
+    reply_status: rStat || "No Reply",
+    notes: notes,
+    reply_notes: notes,
+    f1: f1,
+    f1_due: f1,
+    f2: f2,
+    f2_due: f2,
+    deadline: deadline,
+    app_deadline: deadline,
+    portal: portal,
+    portal_link: portal,
+    profile_url: profile_url,
+    profile: profile_url,
+    direct_profile: profile_url,
+    last_contact: last_contact,
+    last_contact_date: last_contact,
+    snooze_until: snoozeUntil
+  };
+}
+
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
@@ -44,17 +105,20 @@ function doPost(e) {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const todayDhaka = Utilities.formatDate(new Date(), "Asia/Dhaka", "yyyy-MM-dd");
 
-    // 1. ACTION: list (Returns live stats, pending swipe leads, drafts, sent profs, action needed, and snoozed)
+    // 1. ACTION: list (Returns live unified metrics across Email_Drafts + Archive_History)
     if (data.action === "list") {
       const tab1 = ss.getSheetByName("Scraped_Leads");
       const tab2 = ss.getSheetByName("Email_Drafts");
+      const tab4 = ss.getSheetByName("Archive_History");
 
       const t1Data = tab1 && tab1.getLastRow() > 1 ? tab1.getRange(2, 1, tab1.getLastRow() - 1, 14).getValues() : [];
       const t2Data = tab2 && tab2.getLastRow() > 1 ? tab2.getRange(2, 1, tab2.getLastRow() - 1, 16).getValues() : [];
+      const t4Data = tab4 && tab4.getLastRow() > 1 ? tab4.getRange(2, 1, tab4.getLastRow() - 1, 15).getValues() : [];
 
       const pendingLeads = [];
       let scraped = 0, approved = 0, drafted = 0, sent = 0, positive = 0;
 
+      // Tab 1: Scraped Leads triage
       t1Data.forEach((r, idx) => {
         scraped++;
         const status = String(r[6] || "").trim(); // Col G: Status
@@ -81,91 +145,60 @@ function doPost(e) {
       const actionNeeded = [];
       const snoozed = [];
 
+      // Tab 2: Email_Drafts (Active Outreach + Drafts Ready)
       t2Data.forEach((r, idx) => {
         const rowNum = idx + 2;
-        const dateDrafted = r[0] ? Utilities.formatDate(new Date(r[0]), "Asia/Dhaka", "yyyy-MM-dd") : "";
-        const prof = String(r[1] || "").trim();
-        const email = String(r[2] || "").trim();
-        const subject = String(r[3] || "").trim();
-        const body = String(r[4] || "").trim();
-        const inst = String(r[5] || "").trim();
-        const dispatch = String(r[6] || "DRAFT").trim().toUpperCase();
-        const replyStatus = String(r[7] || "No Reply").trim();
-        const notes = String(r[8] || "").trim();
-        const f1 = r[9] ? Utilities.formatDate(new Date(r[9]), "Asia/Dhaka", "yyyy-MM-dd") : "";
-        const f2 = r[10] ? Utilities.formatDate(new Date(r[10]), "Asia/Dhaka", "yyyy-MM-dd") : "";
-        const deadline = String(r[11] || "Rolling").trim();
-        const portal = String(r[12] || "").trim();
-        const profileUrl = String(r[13] || "").trim();
-        const lastContact = r[14] ? Utilities.formatDate(new Date(r[14]), "Asia/Dhaka", "yyyy-MM-dd") : dateDrafted;
-        const snoozeDate = r[15] ? Utilities.formatDate(new Date(r[15]), "Asia/Dhaka", "yyyy-MM-dd") : "";
+        const item = parseOutreachRow(r, rowNum, "Email_Drafts");
+        if (!item.prof) return; // Skip empty row
 
-        if (dispatch === "DRAFT") {
+        if (item.dispatch === "DRAFT") {
           drafted++;
-          draftsReady.push({
-            row: rowNum,
-            prof: prof,
-            name: prof,
-            email: email,
-            recipient_email: email,
-            subject: subject,
-            subject_line: subject,
-            body: body,
-            full_body: body,
-            inst: inst,
-            institution: inst,
-            deadline: deadline,
-            portal: portal,
-            profile_url: profileUrl,
-            last_contact: lastContact
-          });
+          draftsReady.push(item);
         } else {
+          // Dispatched lead (SENT)
           sent++;
-          const isPos = /pos|accept|interview|call/i.test(replyStatus);
-          const isNeut = /neut|redir|apply|portal/i.test(replyStatus);
+          const isPos = /pos|accept|interview|call/i.test(item.status);
+          const isNeut = /neut|redir|apply|portal/i.test(item.status);
           if (isPos) positive++;
 
-          const leadObj = {
-            row: rowNum,
-            prof: prof,
-            name: prof,
-            email: email,
-            recipient_email: email,
-            subject: subject,
-            body: body,
-            inst: inst,
-            institution: inst,
-            status: replyStatus,
-            notes: notes,
-            reply_notes: notes,
-            f1: f1,
-            f2: f2,
-            deadline: deadline,
-            portal: portal,
-            profile_url: profileUrl,
-            last_contact: lastContact,
-            snooze_until: snoozeDate
-          };
+          sentProfs.push(item);
 
-          sentProfs.push(leadObj);
-
-          // Col P Snooze Engine:
-          // If current date is strictly before Col P, filter out of actionNeeded and push into snoozed array.
-          // Once the date passes (todayDhaka >= snoozeDate), automatically moves back to actionNeeded.
-          const isCurrentlySnoozed = snoozeDate && todayDhaka < snoozeDate;
+          // Col P Snooze Engine check
+          const isCurrentlySnoozed = item.snooze_until && todayDhaka < item.snooze_until;
           if (isCurrentlySnoozed) {
-            snoozed.push(leadObj);
+            snoozed.push(item);
           } else {
-            if (isPos || isNeut || !replyStatus || replyStatus === "No Reply" || replyStatus === "SENT") {
-              actionNeeded.push(leadObj);
+            if (isPos || isNeut || !item.status || item.status === "No Reply" || item.status === "SENT") {
+              actionNeeded.push(item);
             }
           }
         }
       });
 
+      // Tab 4: Archive_History (Historical Dispatches: Declined, Bounced, Closed, Expired F2)
+      t4Data.forEach((r, idx) => {
+        const rowNum = idx + 2;
+        const item = parseOutreachRow(r, rowNum, "Archive_History");
+        if (!item.prof) return; // Skip empty row
+
+        // Every historical archive entry was dispatched (SENT)
+        sent++;
+        const isPos = /pos|accept|interview|call/i.test(item.status);
+        if (isPos) positive++;
+
+        sentProfs.push(item);
+      });
+
       return ContentService.createTextOutput(JSON.stringify({
         ok: true,
-        stats: { scraped, approved, drafted, sent, positive, snoozed: snoozed.length },
+        stats: {
+          scraped: scraped,
+          approved: approved,
+          drafted: drafted,
+          sent: sent,
+          positive: positive,
+          snoozed: snoozed.length
+        },
         leads: pendingLeads,
         draftsReady: draftsReady,
         sentProfs: sentProfs,
@@ -176,24 +209,26 @@ function doPost(e) {
 
     // 2. ACTION: snooze (Sets Col P: Snooze Until Date in Email_Drafts)
     if (data.action === "snooze") {
-      const tab2 = ss.getSheetByName("Email_Drafts");
+      const tabName = data.tab || "Email_Drafts";
+      const tab = ss.getSheetByName(tabName);
+      if (!tab) throw new Error("Tab not found: " + tabName);
       const row = Number(data.row);
       if (!row || row < 2) throw new Error("Invalid row index");
 
       if (data.expect_prof) {
-        const curProf = String(tab2.getRange(row, 2).getValue()).trim();
+        const curProf = String(tab.getRange(row, 2).getValue()).trim();
         if (curProf && curProf.toLowerCase() !== String(data.expect_prof).trim().toLowerCase()) {
           throw new Error("Row mismatch: expected " + data.expect_prof + " but found " + curProf);
         }
       }
 
       // Ensure Col P header exists
-      const pHeader = String(tab2.getRange(1, 16).getValue() || "").trim();
+      const pHeader = String(tab.getRange(1, 16).getValue() || "").trim();
       if (!pHeader) {
-        tab2.getRange(1, 16).setValue("Snooze Until Date");
+        tab.getRange(1, 16).setValue("Snooze Until Date");
       }
 
-      tab2.getRange(row, 16).setValue(data.snooze_date);
+      tab.getRange(row, 16).setValue(data.snooze_date);
 
       return ContentService.createTextOutput(JSON.stringify({
         ok: true,
