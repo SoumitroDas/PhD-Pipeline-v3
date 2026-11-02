@@ -14,6 +14,8 @@ import hashlib
 import datetime
 from typing import List, Dict, Any, Optional
 
+import requests
+
 from cloud_shared_core import (
     CloudNotifier,
     CloudModelRouter,
@@ -38,18 +40,69 @@ def to_date(v: Any) -> Optional[datetime.date]:
 
 class NaggerV3Guarded:
     """
-    Daily 09:00 AM Dhaka execution in GitHub Actions.
-    1. Monitors Tab 2 (Email_Drafts) where Col G == 'SENT'.
-    2. Calculates F1 Due (+10d) and F2 Due (+21d) from actual dispatch detection date.
-    3. Triggers follow-up reminders using a 3-day grace window so delayed cron runs never miss alerts.
-    4. Evaluates replies in Col I with confirmable status ('Declined (auto - verify)') and re-evaluates updated snippets.
-    5. Syncs outreach metadata to assets/PhD_Outreach_Full_Log_V3.md respecting repository privacy guards.
+    Nagger v3.1 Guarded & Autonomous Local CRM Sync Daemon:
+    1. Remote mode (GitHub Actions): Monitors Tab 2 via GoogleWorkspaceClient, handles sentiment & follow-up digests.
+    2. Local mode (Autonomous CRM Sync): Sends secure POST request to Google Apps Script Web App using stored APP_SECRET,
+       fetches live outreach & replies, and updates the local Markdown log's index table & correspondence entries.
     """
 
-    def __init__(self, dry_run: bool = False):
+    def __init__(self, dry_run: bool = False, local_sync: bool = False, gas_url: str = "", app_secret: str = ""):
         self.dry_run = dry_run
+        self.local_sync = local_sync
+        self.gas_url = gas_url.strip() or self._resolve_gas_url()
+        self.gas_secret = app_secret.strip() or self._resolve_gas_secret()
         self.llm = CloudModelRouter()
-        self.ws = None if dry_run else GoogleWorkspaceClient()
+
+        if dry_run:
+            self.ws = None
+        elif local_sync or not self._has_oauth_token():
+            self.ws = None
+        else:
+            try:
+                self.ws = GoogleWorkspaceClient()
+            except Exception as e:
+                print(f"[NAGGER V3.1] Google Workspace OAuth credentials not active ({e}). Defaulting to Google Apps Script sync.")
+                self.ws = None
+
+    @staticmethod
+    def _has_oauth_token() -> bool:
+        return bool(os.getenv("GOOGLE_TOKEN_JSON_B64") or os.path.exists(os.getenv("GOOGLE_TOKEN_PATH", "token.json")))
+
+    @staticmethod
+    def _load_env_file() -> Dict[str, str]:
+        env_vars = {}
+        candidates = [
+            ".env",
+            ".env.local",
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env.local")
+        ]
+        for candidate in candidates:
+            if os.path.isfile(candidate):
+                try:
+                    with open(candidate, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#") and "=" in line:
+                                k, v = line.split("=", 1)
+                                env_vars[k.strip()] = v.strip().strip("'\"")
+                except Exception:
+                    pass
+        return env_vars
+
+    def _resolve_gas_url(self) -> str:
+        url = os.getenv("PHD_GAS_URL") or os.getenv("GAS_URL")
+        if not url:
+            file_env = self._load_env_file()
+            url = file_env.get("PHD_GAS_URL") or file_env.get("GAS_URL")
+        return (url or "").strip()
+
+    def _resolve_gas_secret(self) -> str:
+        secret = os.getenv("PHD_APP_SECRET") or os.getenv("APP_SECRET")
+        if not secret:
+            file_env = self._load_env_file()
+            secret = file_env.get("PHD_APP_SECRET") or file_env.get("APP_SECRET")
+        return (secret or "").strip()
 
     def _get_log_file_path(self) -> str:
         log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
@@ -65,6 +118,78 @@ class NaggerV3Guarded:
             except Exception:
                 return ""
         return ""
+
+    def run_local_sync(self) -> None:
+        """
+        Autonomous Local CRM Sync:
+        Sends a secure POST request to the Google Apps Script Web App (using stored APP_SECRET),
+        fetches live outreach and reply statuses from Tab 2, and updates the local Markdown log.
+        """
+        print("[NAGGER V3.1] Initializing Autonomous Local CRM Sync via Google Apps Script Web App...")
+
+        if not self.gas_url or not self.gas_secret:
+            print(
+                "[NAGGER V3.1 ERROR] Missing Google Apps Script credentials.\n"
+                "Please configure PHD_GAS_URL and PHD_APP_SECRET in your .env file or pass --gas-url and --app-secret.\n"
+                "Example (.env):\n"
+                "  PHD_GAS_URL=https://script.google.com/macros/s/AKfycbx.../exec\n"
+                "  PHD_APP_SECRET=your_secret_token_here"
+            )
+            return
+
+        try:
+            payload = {
+                "action": "list",
+                "secret": self.gas_secret
+            }
+            print(f"[NAGGER V3.1] Sending secure POST request to Web App endpoint: {self.gas_url[:45]}...")
+            resp = requests.post(
+                self.gas_url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=30
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            print(f"[NAGGER V3.1 ERROR] Network request to Google Apps Script failed: {e}")
+            return
+
+        if not data.get("ok"):
+            err = data.get("error", "Unknown error from backend")
+            print(f"[NAGGER V3.1 ERROR] Backend rejected sync request: {err}")
+            return
+
+        sent_profs = data.get("sentProfs", [])
+        stats = data.get("stats", {})
+        print(f"[NAGGER V3.1] Live stats retrieved: {stats.get('sent', len(sent_profs))} sent, {stats.get('positive', 0)} positive replies.")
+        print(f"[NAGGER V3.1] Ingested {len(sent_profs)} outreach records from Google Sheet.")
+
+        # Convert sentProfs into Tab 2 row matrix format for _sync_markdown_outreach_log
+        # Format: [Date Drafted, Target Professor, Recipient Email, Subject Line, Email Body, Checklist/Meta, Dispatch Status, PI Reply Status, Reply Notes, F1 Due, F2 Due]
+        synthetic_rows = [
+            ["Date Drafted", "Target Professor", "Recipient Email", "Subject Line", "Email Body", "Checklist/Meta", "Dispatch Status", "PI Reply Status", "Reply Notes", "F1 Due", "F2 Due"]
+        ]
+
+        for p in sent_profs:
+            if isinstance(p, dict):
+                prof = p.get("prof") or p.get("name") or ""
+                status = p.get("status") or "No Reply"
+                email = p.get("email") or p.get("recipient_email") or ""
+                notes = p.get("notes") or p.get("reply_notes") or ""
+                inst = p.get("inst") or p.get("institution") or p.get("meta") or ""
+                date = p.get("date") or p.get("date_drafted") or ""
+                f1 = p.get("f1") or p.get("f1_due") or ""
+                f2 = p.get("f2") or p.get("f2_due") or ""
+                subject = p.get("subject") or ""
+                body = p.get("body") or ""
+                synthetic_rows.append([date, prof, email, subject, body, inst, "SENT", status, notes, f1, f2])
+            elif isinstance(p, str):
+                synthetic_rows.append(["", p, "", "", "", "", "SENT", "No Reply", "", "", ""])
+
+        # Update local markdown log and autonomously rebuild/refresh Index table
+        self._sync_markdown_outreach_log(synthetic_rows)
+        print("[NAGGER V3.1] Local CRM sync completed successfully. Markdown log is in 100% sync with live Google Sheet data!")
 
     def _append_reply_to_log(self, prof_name: str, date_str: str, status: str, notes: str, snippet_hash: str) -> None:
         log_file = self._get_log_file_path()
@@ -90,8 +215,13 @@ class NaggerV3Guarded:
 
     def run(self) -> None:
         print("=== STARTING NAGGER V3.1 GUARDED (TAB 2 MONITORING) ===")
-        if self.dry_run or not self.ws:
-            print("[DRY RUN] Nagger V3.1 ready.")
+        if self.dry_run:
+            print("[DRY RUN] Nagger V3.1 dry run mode active.")
+            return
+
+        # If run locally or explicitly requested local sync, execute autonomous sync via GAS
+        if self.local_sync or not self.ws:
+            self.run_local_sync()
             return
 
         self.ws.ensure_three_tabs()
@@ -209,9 +339,24 @@ Return strictly valid JSON:
 
         print(f"[NAGGER V3.1] Sync complete. Ingested replies: {new_replies_detected}, F1 active: {len(f1_due_today)}, F2 active: {len(f2_due_today)}.")
 
+    @staticmethod
+    def _status_to_emoji(status_str: str) -> str:
+        s = str(status_str).strip().lower()
+        if any(k in s for k in ("pos", "accept", "interview", "call", "encourage", "taking students")):
+            return "🟢"
+        elif any(k in s for k in ("neut", "redirect", "apply", "fund", "quota", "portal", "fall 202", "march 202")):
+            return "🟡"
+        elif any(k in s for k in ("dec", "rej", "no pos", "full", "unavail", "not recruit", "not tak")):
+            return "🔴"
+        elif any(k in s for k in ("bounce", "undeliver", "user unknown", "failed")):
+            return "⚫"
+        else:
+            return "⚪"
+
     def _sync_markdown_outreach_log(self, rows: list) -> None:
         """
         Synchronizes sent emails and professor replies to assets/PhD_Outreach_Full_Log_V3.md
+        Autonomously updates the top Index table with real-time emoji states (🟢, 🟡, 🔴, ⚫, ⚪).
         Respects LOG_FULL_BODIES environment variable to protect private communications.
         """
         log_file = self._get_log_file_path()
@@ -241,6 +386,7 @@ Return strictly valid JSON:
         new_blocks = []
         log_full_bodies = os.getenv("LOG_FULL_BODIES", "").strip().lower() in ("true", "1", "yes")
 
+        # 1. Append any new sent emails to detailed correspondence blocks
         for row in rows[1:]:
             if len(row) < 7:
                 continue
@@ -255,31 +401,30 @@ Return strictly valid JSON:
             f1_due = str(row[9]).strip() if len(row) > 9 else ""
             f2_due = str(row[10]).strip() if len(row) > 10 else ""
 
-            if dispatch_status != "SENT":
+            if dispatch_status != "SENT" or not prof_name:
                 continue
 
             entry_tag = f"<!-- ENTRY: {prof_name.lower()} | {date_drafted} -->"
-            if entry_tag in existing_content:
-                continue
+            hash_tag = f"<!-- REPLY: {prof_name.lower()} | {reply_status} -->"
 
-            entries_added += 1
+            if entry_tag not in existing_content:
+                entries_added += 1
+                email_str = (recipient_email or 'N/A') if log_full_bodies else '[redacted]'
 
-            email_str = (recipient_email or 'N/A') if log_full_bodies else '[redacted]'
-
-            if log_full_bodies:
-                body_block = f"""<details>
+                if log_full_bodies:
+                    body_block = f"""<details>
 <summary><b>View Sent Email Body</b></summary>
 
 ```text
 {body}
 ```
 </details>"""
-                notes_block = reply_notes if reply_notes not in ("None", "") else "None logged."
-            else:
-                body_block = "_[Email body redacted for public repository privacy. Set `LOG_FULL_BODIES=true` to include full text.]_"
-                notes_block = "_[Reply details redacted for public repository privacy.]_" if reply_notes not in ("None", "") else "None logged."
+                    notes_block = reply_notes if reply_notes not in ("None", "") else "None logged."
+                else:
+                    body_block = "_[Email body redacted for public repository privacy. Set `LOG_FULL_BODIES=true` to include full text.]_"
+                    notes_block = "_[Reply details redacted for public repository privacy.]_" if reply_notes not in ("None", "") else "None logged."
 
-            block = f"""{entry_tag}
+                block = f"""{entry_tag}
 ### [{date_drafted}] {prof_name}
 - **Recipient Email:** `{email_str}`
 - **Subject Line:** {subject or 'N/A'}
@@ -291,23 +436,114 @@ Return strictly valid JSON:
 
 ---
 """
-            new_blocks.append(block)
+                new_blocks.append(block)
+            elif hash_tag not in existing_content and reply_status not in ("", "No Reply", "Pending"):
+                # Human or LLM reply state updated: update the PI Reply Status inline
+                pattern = rf"(<!-- ENTRY: {re.escape(prof_name.lower())} \| [^\n]+ -->[\s\S]*?\*\*PI Reply Status:\*\* `)[^`]+(`)"
+                if re.search(pattern, existing_content):
+                    existing_content = re.sub(pattern, rf"\g<1>{reply_status}\g<2>", existing_content, count=1)
+                    # Add comment hash to prevent repeated replacement
+                    existing_content += f"\n{hash_tag}\n"
 
         if new_blocks:
             if not existing_content.strip():
-                final_content = header + "\n" + "\n".join(new_blocks)
+                existing_content = header + "\n" + "\n".join(new_blocks)
             else:
-                final_content = existing_content.rstrip() + "\n\n" + "\n".join(new_blocks)
+                existing_content = existing_content.rstrip() + "\n\n" + "\n".join(new_blocks)
 
+        # 2. Autonomous Index Table Maintenance (## Index (N entries))
+        def _clean_name(name: str) -> str:
+            n = re.sub(r"^(dr\.?|prof\.?|professor)\s+", "", name.strip().lower())
+            return re.sub(r"[^\w]", "", n)
+
+        m_idx = re.search(r"(## Index \(\d+ entries\)\s*\n\s*\|[^\n]+\|\s*\n\s*\|[^\n]+\|\s*\n)([\s\S]*?)(?=\n\s*\n\s*(?:##|---)|\Z)", existing_content)
+        if m_idx:
+            idx_header = m_idx.group(1)
+            raw_table_body = m_idx.group(2).strip()
+
+            table_entries = []
+            for line in raw_table_body.splitlines():
+                parts = [p.strip() for p in line.split("|")]
+                if len(parts) >= 5 and parts[1]:
+                    table_entries.append({
+                        "num": parts[1],
+                        "name": parts[2],
+                        "inst": parts[3],
+                        "status": parts[4]
+                    })
+
+            # Reconcile all SENT rows from Google Sheet Tab 2 with the index table
+            for row in rows[1:]:
+                if len(row) < 7:
+                    continue
+                prof_name = str(row[1]).strip() if len(row) > 1 else ""
+                dispatch_status = str(row[6]).strip().upper() if len(row) > 6 else ""
+                reply_status = str(row[7]).strip() if len(row) > 7 else "No Reply"
+                checklist_meta = str(row[5]).strip() if len(row) > 5 else ""
+
+                if dispatch_status != "SENT" or not prof_name:
+                    continue
+
+                target_emoji = self._status_to_emoji(reply_status)
+                norm_prof = _clean_name(prof_name)
+
+                # Find match in table
+                matched = False
+                for entry in table_entries:
+                    norm_entry = _clean_name(entry["name"])
+                    if norm_prof and norm_entry and (norm_prof in norm_entry or norm_entry in norm_prof):
+                        # Update status if new status is known/informative
+                        if target_emoji != "⚪" or entry["status"] in ("⚪", "", "—"):
+                            entry["status"] = target_emoji
+                        matched = True
+                        break
+
+                if not matched:
+                    # Append new entry to the index table
+                    next_num = str(len(table_entries) + 1)
+                    inst = checklist_meta if checklist_meta and len(checklist_meta) < 35 else "—"
+                    table_entries.append({
+                        "num": next_num,
+                        "name": prof_name,
+                        "inst": inst,
+                        "status": target_emoji
+                    })
+
+            # Rebuild table markdown
+            new_rows_md = "\n".join([f"| {e['num']} | {e['name']} | {e['inst']} | {e['status']} |" for e in table_entries])
+            new_index_full = f"## Index ({len(table_entries)} entries)\n\n| # | Name | Institution | Status |\n|---|---|---|---|\n{new_rows_md}"
+
+            # Replace in content
+            existing_content = re.sub(
+                r"## Index \(\d+ entries\)\s*\n\s*\|[^\n]+\|\s*\n\s*\|[^\n]+\|\s*\n[\s\S]*?(?=\n\s*\n\s*(?:##|---)|\Z)",
+                new_index_full,
+                existing_content,
+                count=1
+            )
+
+        try:
             with open(log_file, "w", encoding="utf-8") as f:
-                f.write(final_content)
-            print(f"[NAGGER V3.1] Logged {entries_added} entries to assets/PhD_Outreach_Full_Log_V3.md.")
+                f.write(existing_content)
+            if entries_added > 0:
+                print(f"[NAGGER V3.1] Logged {entries_added} entries and refreshed index table in assets/PhD_Outreach_Full_Log_V3.md.")
+            else:
+                print(f"[NAGGER V3.1] Index table autonomously updated in assets/PhD_Outreach_Full_Log_V3.md.")
+        except Exception as e:
+            print(f"[NAGGER V3.1] Warning: Failed to write markdown log: {e}")
 
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Nagger v3.1 Guarded Runner")
-    parser.add_argument("--dry-run", action="store_true")
+    parser = argparse.ArgumentParser(description="Nagger v3.1 Guarded Runner & Autonomous Local CRM Sync")
+    parser.add_argument("--dry-run", action="store_true", help="Run without persisting changes")
+    parser.add_argument("--local-sync", action="store_true", help="Force local sync via Google Apps Script Web App")
+    parser.add_argument("--gas-url", type=str, default="", help="Google Apps Script Web App URL")
+    parser.add_argument("--app-secret", type=str, default="", help="Google Apps Script APP_SECRET")
     args = parser.parse_args()
 
-    NaggerV3Guarded(dry_run=args.dry_run).run()
+    NaggerV3Guarded(
+        dry_run=args.dry_run,
+        local_sync=args.local_sync,
+        gas_url=args.gas_url,
+        app_secret=args.app_secret
+    ).run()

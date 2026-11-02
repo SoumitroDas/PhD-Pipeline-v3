@@ -190,7 +190,7 @@
       </div>
 
       <!-- Quick Metrics Counters -->
-      <div class="grid grid-cols-3 gap-2 mb-3 text-center">
+      <div class="grid grid-cols-3 gap-2 mb-2 text-center">
         <div class="bg-surface p-2 rounded-xl border border-border">
           <div id="statScraped" class="text-base font-black text-indigo-400 mono">--</div><div class="text-[9px] text-gray-400 uppercase">Scraped</div>
         </div>
@@ -201,6 +201,22 @@
           <div id="statPositive" class="text-base font-black text-emerald-400 mono">--</div><div class="text-[9px] text-emerald-500/70 font-bold uppercase">Positive</div>
         </div>
         <span id="statApproved" class="hidden"></span>
+      </div>
+
+      <!-- Quick CRM Actionable Queue Badges -->
+      <div class="grid grid-cols-4 gap-1.5 text-center mb-3">
+        <button onclick="showList('positive')" class="py-1.5 px-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 text-[10px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow-sm">
+          <span>🟢</span> <span>Positive</span>
+        </button>
+        <button onclick="showList('neutral')" class="py-1.5 px-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30 text-[10px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow-sm">
+          <span>🟡</span> <span>Neutral</span>
+        </button>
+        <button onclick="showList('followup')" class="py-1.5 px-2 rounded-xl bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 text-[10px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow-sm">
+          <span>⚪</span> <span>Follow-Up</span>
+        </button>
+        <button onclick="showList('declined')" class="py-1.5 px-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500/30 text-[10px] font-bold flex items-center justify-center gap-1 transition active:scale-95 shadow-sm">
+          <span>🔴</span> <span>Declined</span>
+        </button>
       </div>
 
       <!-- Funnel Chart Canvas -->
@@ -347,14 +363,24 @@
       </button>
     </div>
 
-    <!-- METRIC DRILL-DOWN MODAL -->
-    <div id="listModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-      <div class="bg-card border border-border rounded-xl w-full max-w-sm max-h-[80vh] flex flex-col shadow-2xl">
-        <div class="p-3 border-b border-border flex justify-between items-center">
-          <h3 id="listTitle" class="font-bold text-sm text-white"></h3>
-          <button onclick="document.getElementById('listModal').classList.add('hidden')" class="text-gray-400 p-1"><i class="fa-solid fa-xmark"></i></button>
+    <!-- METRIC & CRM DRILL-DOWN MODAL -->
+    <div id="listModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <div class="bg-card border border-border rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <div class="p-3.5 border-b border-border flex justify-between items-center bg-surface/40">
+          <h3 id="listTitle" class="font-bold text-sm text-white flex items-center"></h3>
+          <button onclick="document.getElementById('listModal').classList.add('hidden')" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-surface transition">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
         </div>
-        <div id="listContent" class="p-3 overflow-y-auto space-y-2 text-xs text-gray-300"></div>
+        <!-- Modal Actionable Queue Filters -->
+        <div class="px-3 py-2 bg-surface/60 border-b border-border/60 flex items-center gap-1.5 overflow-x-auto text-[10px]">
+          <button id="tabFilter-all" onclick="showList('sent')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">All Sent</button>
+          <button id="tabFilter-positive" onclick="showList('positive')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🟢 Positive</button>
+          <button id="tabFilter-neutral" onclick="showList('neutral')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🟡 Neutral</button>
+          <button id="tabFilter-followup" onclick="showList('followup')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">⚪ Follow-Up</button>
+          <button id="tabFilter-declined" onclick="showList('declined')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🔴 Declined</button>
+        </div>
+        <div id="listContent" class="p-3 overflow-y-auto space-y-2 text-xs text-gray-300 flex-1"></div>
       </div>
     </div>
 
@@ -407,32 +433,194 @@
     let analyticsChart;
     let isBusy = false;
 
+    // CRM Color-Coded Badges & Taxonomy Mapping
+    function getStatusBadge(status) {
+      const s = String(status || '').trim().toLowerCase();
+      if (s.includes('pos') || s.includes('accept') || s.includes('call') || s.includes('interview') || s.includes('encourage')) {
+        return {
+          label: status || 'Positive',
+          cls: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+        };
+      } else if (s.includes('neut') || s.includes('redir') || s.includes('apply') || s.includes('fund') || s.includes('portal') || s.includes('march') || s.includes('fall')) {
+        return {
+          label: status || 'Neutral',
+          cls: 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+        };
+      } else if (s.includes('dec') || s.includes('rej') || s.includes('no pos') || s.includes('full') || s.includes('unavail')) {
+        return {
+          label: status || 'Declined',
+          cls: 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+        };
+      } else {
+        return {
+          label: status || 'No Reply',
+          cls: 'bg-zinc-800 text-zinc-400 border border-zinc-700'
+        };
+      }
+    }
+
+    // Modal List Item Rendering with One-Tap Email & Toggleable Rich Insights
+    function renderProfListItem(p, idx) {
+      const profName = typeof p === 'object' && p !== null ? (p.prof || p.name || 'Unknown Professor') : String(p);
+      const statusRaw = typeof p === 'object' && p !== null ? (p.status || 'No Reply') : 'No Reply';
+      const badge = getStatusBadge(statusRaw);
+      const email = (typeof p === 'object' && p !== null ? (p.email || p.recipient_email || '') : '') || '';
+      const inst = (typeof p === 'object' && p !== null ? (p.inst || p.institution || p.meta || 'Academic / Research Institution') : 'Academic Institution');
+      const notes = (typeof p === 'object' && p !== null ? (p.notes || p.reply_notes || '') : '');
+      const f1 = (typeof p === 'object' && p !== null ? (p.f1 || p.f1_due || '') : '') || 'N/A';
+      const f2 = (typeof p === 'object' && p !== null ? (p.f2 || p.f2_due || '') : '') || 'N/A';
+      const deadline = (typeof p === 'object' && p !== null ? (p.deadline || '') : '') || 'Rolling';
+
+      const scholarUrl = `https://scholar.google.com/scholar?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic / Research Institution' ? inst : ''))}`;
+      const paperLink = (typeof p === 'object' && p !== null ? (p.paper_link || p.paper || p.doi || '') : '') || '';
+
+      const emailBtn = email ? `
+        <a href="mailto:${esc(email)}" onclick="event.stopPropagation()"
+           title="Send direct email"
+           class="px-2 py-0.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold inline-flex items-center gap-1 transition active:scale-95 shrink-0">
+          <i class="fa-solid fa-envelope text-[9px]"></i> Email
+        </a>
+      ` : '';
+
+      return `
+        <div class="p-3 bg-surface border border-border rounded-xl transition hover:border-indigo-500/40 shadow-sm">
+          <div class="flex items-start justify-between gap-2 cursor-pointer select-none" onclick="toggleProfDetail('${idx}')">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-extrabold text-white text-xs">${esc(profName)}</span>
+                <i class="fa-solid fa-chevron-down text-[9px] text-gray-500 transition-transform duration-200" id="chev-${idx}"></i>
+              </div>
+              <div class="text-[10px] text-gray-400 mt-0.5 truncate">${esc(inst)}</div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="text-[9px] px-2 py-0.5 rounded-md font-bold uppercase ${badge.cls}">${esc(badge.label)}</span>
+              ${emailBtn}
+            </div>
+          </div>
+
+          <!-- Rich Modal Insights (Toggled on click) -->
+          <div id="detail-${idx}" class="hidden mt-2.5 pt-2.5 border-t border-border/60 space-y-2 text-xs">
+            <div class="grid grid-cols-2 gap-2 text-[10px]">
+              <div>
+                <span class="text-gray-500 block uppercase font-bold text-[8px]">Institution</span>
+                <span class="text-gray-200 font-medium">${esc(inst)}</span>
+              </div>
+              <div>
+                <span class="text-gray-500 block uppercase font-bold text-[8px]">Email</span>
+                <span class="text-indigo-400 font-mono select-all">${esc(email || 'Not logged')}</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-1 bg-card/70 p-2 rounded-lg border border-border/40 text-[9px] text-center">
+              <div><span class="text-gray-500 block uppercase">F1 Due</span><span class="text-amber-400 font-mono font-bold">${esc(f1)}</span></div>
+              <div><span class="text-gray-500 block uppercase">F2 Due</span><span class="text-rose-400 font-mono font-bold">${esc(f2)}</span></div>
+              <div><span class="text-gray-500 block uppercase">Deadline</span><span class="text-emerald-400 font-mono font-bold">${esc(deadline)}</span></div>
+            </div>
+
+            <div class="p-2 bg-card/50 rounded-lg border border-border/30">
+              <span class="text-gray-500 block uppercase font-bold text-[8px] mb-0.5">Reply Notes / Summary</span>
+              <p class="text-[11px] text-gray-300 italic leading-snug">${esc(notes || 'No reply notes logged yet.')}</p>
+            </div>
+
+            <div class="pt-1 flex items-center gap-1.5 flex-wrap">
+              ${email ? `
+                <a href="mailto:${esc(email)}" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1 transition shadow">
+                  <i class="fa-solid fa-paper-plane text-[9px]"></i> Email PI
+                </a>
+              ` : ''}
+              <a href="${esc(safeUrl(scholarUrl))}" target="_blank" rel="noopener noreferrer"
+                 class="px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold flex items-center gap-1 transition">
+                <i class="fa-solid fa-graduation-cap text-[9px]"></i> Scholar Profile ↗
+              </a>
+              ${paperLink ? `
+                <a href="${esc(safeUrl(paperLink))}" target="_blank" rel="noopener noreferrer"
+                   class="px-2.5 py-1 rounded-lg bg-surface hover:bg-border text-gray-300 border border-border text-[10px] font-bold flex items-center gap-1 transition">
+                  <i class="fa-solid fa-file-lines text-[9px]"></i> Paper DOI ↗
+                </a>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleProfDetail(idx) {
+      const d = document.getElementById('detail-' + idx);
+      const chev = document.getElementById('chev-' + idx);
+      if (d) {
+        const isHidden = d.classList.contains('hidden');
+        d.classList.toggle('hidden');
+        if (chev) {
+          chev.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+      }
+    }
+
+    let currentModalFilter = 'sent';
+
     function showList(type) {
+      currentModalFilter = type || 'sent';
       const modal = document.getElementById('listModal');
       const content = document.getElementById('listContent');
       const title = document.getElementById('listTitle');
-      content.innerHTML = '';
-      
-      let list = [];
-      if (type === 'sent') {
+
+      if (currentModalFilter === 'sent') {
         title.innerHTML = '<i class="fa-solid fa-paper-plane text-amber-400 mr-2"></i> Dispatched Emails';
-        list = globalSentProfs;
-      } else if (type === 'positive') {
+      } else if (currentModalFilter === 'positive') {
         title.innerHTML = '<i class="fa-solid fa-thumbs-up text-emerald-400 mr-2"></i> Positive Replies';
-        list = globalSentProfs.filter(p => (typeof p === 'object' && p !== null ? p.status === 'Positive' : false));
+      } else if (currentModalFilter === 'neutral') {
+        title.innerHTML = '<i class="fa-solid fa-clock text-cyan-400 mr-2"></i> Neutral / Redirects';
+      } else if (currentModalFilter === 'followup') {
+        title.innerHTML = '<i class="fa-solid fa-rotate text-amber-400 mr-2"></i> Follow-Up Queue';
+      } else if (currentModalFilter === 'declined') {
+        title.innerHTML = '<i class="fa-solid fa-ban text-rose-400 mr-2"></i> Declined Leads';
       }
-      
-      if (list.length === 0) { 
-        content.innerHTML = '<p class="text-center p-4 text-gray-500">No records found.</p>'; 
-      } else {
-        list.forEach(p => {
-          const profName = typeof p === 'object' && p !== null ? p.prof : String(p);
-          const statusName = typeof p === 'object' && p !== null ? (p.status || 'SENT') : 'SENT';
-          content.innerHTML += `<div class="p-2.5 bg-surface border border-border rounded-lg flex justify-between items-center">
-            <span class="font-bold text-gray-200">${esc(profName)}</span>
-            <span class="text-[9px] px-2 py-0.5 rounded font-extrabold uppercase ${statusName === 'Positive' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}">${esc(statusName)}</span>
-          </div>`;
+
+      const tabs = [
+        { id: 'all', key: 'sent' },
+        { id: 'positive', key: 'positive' },
+        { id: 'neutral', key: 'neutral' },
+        { id: 'followup', key: 'followup' },
+        { id: 'declined', key: 'declined' }
+      ];
+      tabs.forEach(t => {
+        const btn = document.getElementById('tabFilter-' + t.id);
+        if (btn) {
+          if (t.key === currentModalFilter || (t.id === 'all' && currentModalFilter === 'sent')) {
+            btn.className = "px-2.5 py-1 rounded-lg font-bold bg-indigo-600 text-white shadow text-[10px] transition shrink-0";
+          } else {
+            btn.className = "px-2.5 py-1 rounded-lg font-bold text-gray-400 hover:text-white bg-surface border border-border/50 text-[10px] transition shrink-0";
+          }
+        }
+      });
+
+      let list = globalSentProfs || [];
+      if (currentModalFilter === 'positive') {
+        list = list.filter(p => {
+          const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
+          return s.includes('pos') || s.includes('accept');
         });
+      } else if (currentModalFilter === 'neutral') {
+        list = list.filter(p => {
+          const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
+          return s.includes('neut') || s.includes('redir') || s.includes('apply');
+        });
+      } else if (currentModalFilter === 'followup') {
+        list = list.filter(p => {
+          const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
+          return !s || s === 'no reply' || s === 'pending' || s === 'sent';
+        });
+      } else if (currentModalFilter === 'declined') {
+        list = list.filter(p => {
+          const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
+          return s.includes('dec') || s.includes('rej');
+        });
+      }
+
+      if (list.length === 0) { 
+        content.innerHTML = '<p class="text-center p-8 text-gray-500 text-xs">No records found in this queue.</p>'; 
+      } else {
+        content.innerHTML = list.map((p, idx) => renderProfListItem(p, idx)).join('');
       }
       modal.classList.remove('hidden');
     }
@@ -673,6 +861,13 @@
         const fitDisplay = lead.fit ? lead.fit : '—';
         const paperDisplay = lead.paper ? lead.paper : 'UNVERIFIED';
 
+        // Profile vs. Paper Link Separation:
+        // Professor profile directs to profile_url or university faculty page or Google Scholar search
+        const scholarProfileUrl = lead.profile_url || (lead.link && !lead.link.includes('doi.org') && !lead.link.includes('sciencedirect') && !lead.link.includes('ncbi.nlm.nih.gov') ? lead.link : `https://scholar.google.com/scholar?q=${encodeURIComponent(lead.prof + ' ' + (lead.inst || ''))}`);
+
+        // Verified research paper links strictly to DOI / direct paper publication link
+        const paperUrl = lead.paper_link || (lead.doi ? `https://doi.org/${lead.doi.replace(/^https?:\/\/doi\.org\//, '')}` : (lead.link && (lead.link.includes('doi.org') || lead.link.includes('sciencedirect') || lead.link.includes('ncbi.nlm.nih.gov')) ? lead.link : ''));
+
         card.innerHTML = `
           <div class="relative">
             <span class="badge-accept absolute top-0 right-0 px-3 py-1 bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 font-extrabold text-xs rounded-lg uppercase">ACCEPT</span>
@@ -686,9 +881,11 @@
               <span class="text-[10px] text-gray-400 mono">📅 ${esc(lead.deadline || 'Rolling')}</span>
             </div>
 
-            <!-- Touch-Safe Professor Name Link -->
+            <!-- Profile vs. Paper Link Separation: Professor Name Links to Profile / Scholar -->
             <div>
-              <span data-open="${esc(safeUrl(lead.link))}" class="text-base font-extrabold text-white underline decoration-indigo-500 cursor-pointer block">${esc(lead.prof)} ↗</span>
+              <span data-open="${esc(safeUrl(scholarProfileUrl))}" class="text-base font-extrabold text-white underline decoration-indigo-500 cursor-pointer block hover:text-indigo-300 transition">
+                ${esc(lead.prof)} <span class="text-[11px] text-indigo-400 font-semibold">🎓 Profile ↗</span>
+              </span>
               ${emailBadge}
               <p class="text-xs text-indigo-300 font-medium mt-0.5">${esc(lead.inst || 'Research Institution')}</p>
             </div>
@@ -699,15 +896,21 @@
               <p class="text-xs text-gray-200 leading-relaxed">${esc(lead.opp || 'Doctoral Research Position')}</p>
             </div>
 
-            <!-- Touch-Safe Paper Title Link -->
+            <!-- Verified PI Paper (Clean independent bullet/link item) -->
             <div class="p-2.5 rounded-lg bg-surface/50 border border-border/60 space-y-1">
               <div class="text-[10px] uppercase font-bold text-emerald-400 flex items-center justify-between">
-                <span>Verified PI Paper:</span>
+                <span><i class="fa-solid fa-file-lines mr-1"></i> Verified PI Paper:</span>
                 <span class="text-[9px] text-gray-500 font-normal">Tap to inspect</span>
               </div>
-              <span data-open="${esc(safeUrl(lead.paper_link || lead.link))}" class="text-xs font-semibold text-gray-200 underline decoration-indigo-500 cursor-pointer block italic">
-                ${esc(paperDisplay)} ↗
+              ${paperUrl ? `
+              <span data-open="${esc(safeUrl(paperUrl))}" class="text-xs font-semibold text-gray-200 underline decoration-emerald-500/60 cursor-pointer block italic hover:text-emerald-300 transition">
+                📄 ${esc(paperDisplay)} ↗
               </span>
+              ` : `
+              <span class="text-xs font-semibold text-gray-400 block italic">
+                📄 ${esc(paperDisplay)}
+              </span>
+              `}
             </div>
           </div>
 

@@ -16,3 +16,13 @@ local_auth/
 venv/
 .venv/
 env/
+
+# Private candidate outreach logs, CV, and email structures (strictly local to D:\AI\phd-pipeline-v3\)
+PhD_Outreach_Full_Log*.md
+assets/PhD_Outreach_Full_Log*.md
+*PhD_Outreach_Full_Log*.md
+assets/*CV*.md
+assets/*cv*.md
+*Soumitro_Kumar_Das_CV*.md
+assets/email_structures*.md
+*email_structures*.md
