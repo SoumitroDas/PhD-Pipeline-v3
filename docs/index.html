@@ -744,7 +744,7 @@
         <button onclick="event.stopPropagation(); triggerFollowUpDraft('${idx}', '${esc(profName)}', ${p.row || idx})"
                 title="Queue a 2nd-touch follow-up draft"
                 class="px-2 py-0.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold inline-flex items-center gap-1 transition active:scale-95 shrink-0">
-          <i class="fa-solid fa-pen-fancy text-indigo-400 text-[9px]"></i> Follow-Up
+          <i class="fa-solid fa-pen-fancy text-indigo-400 text-[9px]"></i> <span>✍️ Generate Follow-Up</span>
         </button>
       ` : '';
 
@@ -851,7 +851,7 @@
               ` : ''}
               ${isNoReply ? `
                 <button onclick="triggerFollowUpDraft('${idx}', '${esc(profName)}', ${p.row || idx})" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold flex items-center gap-1 transition shadow active:scale-95">
-                  <i class="fa-solid fa-pen-fancy text-[9px]"></i> ✍️ Follow-Up Draft
+                  <i class="fa-solid fa-pen-fancy text-[9px]"></i> ✍️ Generate Follow-Up
                 </button>
               ` : ''}
               ${email ? `
@@ -1118,7 +1118,7 @@ ${esc(body || '(No email body content)')}
 
     // 3. 2nd Draft (Follow-Up) Generator Engine
     async function triggerFollowUpDraft(idx, profName, row) {
-      showToast(`✍️ Queueing follow-up draft for ${profName}...`);
+      showToast("Follow-Up Draft Requested!");
       try {
         const res = await postGAS({
           action: 'trigger_drafter',
@@ -1126,11 +1126,11 @@ ${esc(body || '(No email body content)')}
           prof: profName,
           row: Number(row)
         });
-        showToast(`✅ Follow-up draft queued for ${profName}!`);
+        showToast("Follow-Up Draft Requested!");
         setTimeout(fetchLiveStats, 1200);
       } catch (err) {
         console.error('Follow-up error:', err);
-        showToast(`Follow-up draft request sent for ${profName}`);
+        showToast("Follow-Up Draft Requested!");
         setTimeout(fetchLiveStats, 1500);
       }
     }
