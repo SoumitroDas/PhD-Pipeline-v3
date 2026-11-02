@@ -165,10 +165,10 @@ class NaggerV3Guarded:
         print(f"[NAGGER V3.1] Live stats retrieved: {stats.get('sent', len(sent_profs))} sent, {stats.get('positive', 0)} positive replies.")
         print(f"[NAGGER V3.1] Ingested {len(sent_profs)} outreach records from Google Sheet.")
 
-        # Convert sentProfs into Tab 2 row matrix format for _sync_markdown_outreach_log
-        # Format: [Date Drafted, Target Professor, Recipient Email, Subject Line, Email Body, Checklist/Meta, Dispatch Status, PI Reply Status, Reply Notes, F1 Due, F2 Due]
+        # Convert sentProfs into 15-column CRM row matrix format for _sync_markdown_outreach_log
+        # Format: [Date Drafted, PI Name, Email, Subject Line, Full Email Body, Institution & Dept, Dispatch Status, PI Reply Status, Reply Summary / Notes, F1 Due, F2 Due, Application Deadline & Reqs, Dept / Portal Link, Direct Profile URL, Last Contact Date]
         synthetic_rows = [
-            ["Date Drafted", "Target Professor", "Recipient Email", "Subject Line", "Email Body", "Checklist/Meta", "Dispatch Status", "PI Reply Status", "Reply Notes", "F1 Due", "F2 Due"]
+            ["Date Drafted", "PI Name", "Email", "Subject Line", "Full Email Body", "Institution & Dept", "Dispatch Status (DRAFT / SENT)", "PI Reply Status", "Reply Summary / Notes", "F1 Due", "F2 Due", "Application Deadline & Reqs", "Dept / Portal Link", "Direct Profile URL", "Last Contact Date"]
         ]
 
         for p in sent_profs:
@@ -183,9 +183,37 @@ class NaggerV3Guarded:
                 f2 = p.get("f2") or p.get("f2_due") or ""
                 subject = p.get("subject") or ""
                 body = p.get("body") or ""
-                synthetic_rows.append([date, prof, email, subject, body, inst, "SENT", status, notes, f1, f2])
+                deadline = p.get("deadline") or p.get("app_deadline") or ""
+                portal = p.get("portal") or p.get("portal_link") or p.get("dept_link") or ""
+                profile = p.get("profile") or p.get("profile_url") or p.get("scholar") or ""
+                last_contact = p.get("last_contact") or p.get("last_contact_date") or date or ""
+                synthetic_rows.append([date, prof, email, subject, body, inst, "SENT", status, notes, f1, f2, deadline, portal, profile, last_contact])
+            elif isinstance(p, (list, tuple)):
+                r = list(p)
+                while len(r) < 15:
+                    r.append("")
+                synthetic_rows.append(r[:15])
             elif isinstance(p, str):
-                synthetic_rows.append(["", p, "", "", "", "", "SENT", "No Reply", "", "", ""])
+                synthetic_rows.append(["", p, "", "", "", "", "SENT", "No Reply", "", "", "", "", "", "", ""])
+
+        # If direct GoogleWorkspaceClient is available, merge Tab 2 (Email_Drafts) and Tab 4 (Archive_History) directly
+        if self.ws:
+            try:
+                drafts = self.ws.get_all_rows(tab_name="Email_Drafts", raw=True)
+                archives = self.ws.get_all_rows(tab_name="Archive_History", raw=True)
+                combined = []
+                if drafts and len(drafts) > 0:
+                    combined.append(drafts[0])
+                for r in drafts[1:]:
+                    if len(r) > 1 and str(r[1]).strip():
+                        combined.append(r)
+                for r in archives[1:]:
+                    if len(r) > 1 and str(r[1]).strip():
+                        combined.append(r)
+                if len(combined) > 1:
+                    synthetic_rows = combined
+            except Exception as e:
+                print(f"[NAGGER V3.1 WARN] Direct sheet read in run_local_sync: {e}")
 
         # Update local markdown log and autonomously rebuild/refresh Index table
         self._sync_markdown_outreach_log(synthetic_rows)
@@ -232,6 +260,8 @@ class NaggerV3Guarded:
         new_replies_detected = 0
         f1_due_today = []
         f2_due_today = []
+        rows_to_archive = []
+        active_rows_to_keep = []
 
         for idx, row in enumerate(rows[1:], start=2):
             if len(row) < 7:
@@ -322,6 +352,30 @@ Return strictly valid JSON:
                     f1_due_today.append(f"{prof_name} (F1 Due: {f1_date.isoformat()})")
                 elif f2_date and (f2_date <= today <= f2_date + datetime.timedelta(days=3)):
                     f2_due_today.append(f"{prof_name} (F2 Due - Final: {f2_date.isoformat()})")
+            else:
+                f2_date = to_date(f2_due_val)
+
+            # Auto-Archive Decision:
+            # When an email in Email_Drafts is marked Declined or Bounced
+            # (or completes its F2 cycle without reply), automatically move to Archive_History (Tab 4).
+            status_lower = reply_status.lower()
+            is_declined = any(k in status_lower for k in ("declined", "reject"))
+            is_bounced = any(k in status_lower for k in ("bounce", "undeliver", "user unknown", "failed"))
+            is_f2_expired = bool(
+                f2_date
+                and today > (f2_date + datetime.timedelta(days=3))
+                and reply_status in {"", "No Reply", "Pending"}
+                and dispatch_status == "SENT"
+            )
+
+            padded_row = list(row)
+            while len(padded_row) < 15:
+                padded_row.append("")
+
+            if is_declined or is_bounced or is_f2_expired:
+                rows_to_archive.append(padded_row)
+            else:
+                active_rows_to_keep.append(padded_row)
 
         # Send digest if follow-ups are due
         if f1_due_today or f2_due_today:
@@ -333,9 +387,31 @@ Return strictly valid JSON:
             alert_msg += "\n\nOpen Tab 2 (Email_Drafts) in your sheet or mobile app to review and dispatch."
             CloudNotifier.notify(alert_msg)
 
+        # Auto-Archive Execution
+        if rows_to_archive:
+            print(f"[NAGGER V3.1] Auto-archiving {len(rows_to_archive)} closed / expired lead(s) to Tab 4 (Archive_History)...")
+            try:
+                self.ws.append_rows(rows_to_archive, tab_name="Archive_History")
+                self.ws.clear_tab("Email_Drafts", keep_header=True)
+                if active_rows_to_keep:
+                    num_cols = len(rows[0]) if rows and len(rows) > 0 else 15
+                    end_col = chr(ord('A') + min(num_cols, 26) - 1)
+                    self.ws.update_cell_range(f"A2:{end_col}{len(active_rows_to_keep)+1}", active_rows_to_keep, tab_name="Email_Drafts")
+                print(f"[NAGGER V3.1] Successfully moved {len(rows_to_archive)} lead(s) to Archive_History. Active workbench count: {len(active_rows_to_keep)}.")
+            except Exception as e:
+                print(f"[NAGGER V3.1 ERROR] Auto-archiving failed: {e}")
+
         # 3. Synchronize sent emails into local markdown log with privacy guards
-        updated_rows = self.ws.get_all_rows(tab_name="Email_Drafts", raw=True)
-        self._sync_markdown_outreach_log(updated_rows)
+        # Read both Email_Drafts and Archive_History to maintain complete 150-lead log
+        drafts_rows = self.ws.get_all_rows(tab_name="Email_Drafts", raw=True)
+        archive_rows = self.ws.get_all_rows(tab_name="Archive_History", raw=True)
+        header_row = drafts_rows[0] if drafts_rows and len(drafts_rows) > 0 else (archive_rows[0] if archive_rows else [])
+        all_sent_rows = [header_row]
+        if drafts_rows:
+            all_sent_rows.extend([r for r in drafts_rows[1:] if len(r) > 1 and str(r[1]).strip()])
+        if archive_rows:
+            all_sent_rows.extend([r for r in archive_rows[1:] if len(r) > 1 and str(r[1]).strip()])
+        self._sync_markdown_outreach_log(all_sent_rows)
 
         print(f"[NAGGER V3.1] Sync complete. Ingested replies: {new_replies_detected}, F1 active: {len(f1_due_today)}, F2 active: {len(f2_due_today)}.")
 
@@ -395,11 +471,16 @@ Return strictly valid JSON:
             recipient_email = str(row[2]).strip() if len(row) > 2 else ""
             subject = str(row[3]).strip() if len(row) > 3 else ""
             body = str(row[4]).strip() if len(row) > 4 else ""
+            inst_dept = str(row[5]).strip() if len(row) > 5 else ""
             dispatch_status = str(row[6]).strip().upper() if len(row) > 6 else ""
             reply_status = str(row[7]).strip() if len(row) > 7 else "No Reply"
             reply_notes = str(row[8]).strip() if len(row) > 8 else "None"
             f1_due = str(row[9]).strip() if len(row) > 9 else ""
             f2_due = str(row[10]).strip() if len(row) > 10 else ""
+            deadline = str(row[11]).strip() if len(row) > 11 else ""
+            portal_url = str(row[12]).strip() if len(row) > 12 else ""
+            profile_url = str(row[13]).strip() if len(row) > 13 else ""
+            last_contact = str(row[14]).strip() if len(row) > 14 else ""
 
             if dispatch_status != "SENT" or not prof_name:
                 continue
@@ -427,9 +508,14 @@ Return strictly valid JSON:
                 block = f"""{entry_tag}
 ### [{date_drafted}] {prof_name}
 - **Recipient Email:** `{email_str}`
+- **Institution & Department:** {inst_dept or 'N/A'}
 - **Subject Line:** {subject or 'N/A'}
 - **Dispatch Status:** `{dispatch_status}` | **PI Reply Status:** `{reply_status}`
 - **Follow-up Cadence:** F1 Due: `{f1_due or 'N/A'}` | F2 Due: `{f2_due or 'N/A'}`
+- **Application Deadline & Reqs:** `{deadline or 'Rolling / Open'}`
+- **Dept / Application Portal:** {portal_url or 'N/A'}
+- **Direct PI Profile:** {profile_url or 'N/A'}
+- **Last Contact Date:** `{last_contact or date_drafted or 'N/A'}`
 - **Reply Summary / Notes:** {notes_block}
 
 {body_block}
@@ -480,6 +566,7 @@ Return strictly valid JSON:
                 dispatch_status = str(row[6]).strip().upper() if len(row) > 6 else ""
                 reply_status = str(row[7]).strip() if len(row) > 7 else "No Reply"
                 checklist_meta = str(row[5]).strip() if len(row) > 5 else ""
+                inst_dept = checklist_meta.split('|')[0].strip() if '|' in checklist_meta else checklist_meta
 
                 if dispatch_status != "SENT" or not prof_name:
                     continue
@@ -501,7 +588,7 @@ Return strictly valid JSON:
                 if not matched:
                     # Append new entry to the index table
                     next_num = str(len(table_entries) + 1)
-                    inst = checklist_meta if checklist_meta and len(checklist_meta) < 35 else "—"
+                    inst = inst_dept if inst_dept and len(inst_dept) < 40 else "—"
                     table_entries.append({
                         "num": next_num,
                         "name": prof_name,

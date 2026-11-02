@@ -166,12 +166,17 @@ class DrafterV3Guarded:
 
             prof_name = sanitize_input(row[1] if len(row) > 1 else "", max_len=100)
             institution = sanitize_input(row[2] if len(row) > 2 else "", max_len=150)
+            dept = sanitize_input(row[3] if len(row) > 3 else "Mathematics", max_len=100)
             opp_title = sanitize_input(row[4] if len(row) > 4 else "", max_len=200)
+            portal_link = sanitize_input(row[5] if len(row) > 5 else "", max_len=300)
             paper1_meta = sanitize_input(row[6] if len(row) > 6 else "", max_len=300)
             paper2_meta = sanitize_input(row[7] if len(row) > 7 else "", max_len=300)
+            deadline = sanitize_input(row[9] if len(row) > 9 else "Rolling", max_len=100)
 
             # Email propagation from Tab 1 Column L (row[11])
             pi_email = sanitize_input(row[11] if len(row) > 11 else "", max_len=100)
+            # Direct Profile URL from Tab 1 Column M (row[12])
+            profile_url = sanitize_input(row[12] if len(row) > 12 else "", max_len=300)
 
             if not prof_name or prof_name.lower() in existing_drafted_names:
                 # Mark as processed if draft already exists
@@ -276,19 +281,24 @@ Verified PI Paper 2: {paper2_meta if paper2_meta else 'None indexed'}
                 f"\n\nCV EMPHASIS:\n{cv_advice}"
             )
 
-            # Tab 2: Email_Drafts Schema (Cols A to K)
+            # Tab 2: Email_Drafts 15-Column CRM Schema (Cols A to O)
+            inst_dept = f"{institution} | {dept}"
             draft_row = [
                 today_str,                              # Col A: Date Drafted
                 prof_name,                              # Col B: PI Name
                 pi_email,                               # Col C: Email (Propagated from Tab 1 Col L)
                 subject,                                # Col D: Subject Line
                 body,                                   # Col E: Full Email Body (Paragraph breaks preserved)
-                checklist_text,                         # Col F: Pre-Send Checklist & CV Advice
+                inst_dept,                              # Col F: Institution & Dept
                 "DRAFT",                                # Col G: Dispatch Status (DRAFT / SENT)
                 "No Reply",                             # Col H: PI Reply Status
                 "",                                     # Col I: Reply Summary / Notes
                 "",                                     # Col J: F1 Due
-                ""                                      # Col K: F2 Due
+                "",                                     # Col K: F2 Due
+                deadline,                               # Col L: Application Deadline & Reqs (Carried from Tab 1 Col J)
+                portal_link,                            # Col M: Dept / Portal Link (Carried from Tab 1 Col F)
+                profile_url,                            # Col N: Direct Profile URL (Carried from Tab 1 Col M)
+                today_str                               # Col O: Last Contact Date
             ]
 
             try:

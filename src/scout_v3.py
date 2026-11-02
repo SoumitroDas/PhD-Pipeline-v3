@@ -113,7 +113,13 @@ class ScoutVerifier:
             return {"verified": False, "recent_count": 0, "papers": [], "orcid": "", "identity": "UNVERIFIED", "profile_url": ""}
 
         aid = author_data.get("id", "")
-        orcid = (author_data.get("orcid") or "").replace("https://orcid.org/", "")
+        orcid_val = (author_data.get("orcid") or "").replace("https://orcid.org/", "")
+        orcid_url = f"https://orcid.org/{orcid_val}" if orcid_val else ""
+        profile_url = (
+            orcid_url
+            or aid
+            or f"https://scholar.google.com/scholar?q={urllib.parse.quote(prof_name + ' ' + institution)}"
+        )
 
         counts_by_year = {c["year"]: c["works_count"] for c in author_data.get("counts_by_year", [])}
         recent_count = counts_by_year.get(2026, 0) + counts_by_year.get(2025, 0) + counts_by_year.get(2024, 0)
@@ -139,10 +145,11 @@ class ScoutVerifier:
         return {
             "verified": True,
             "author_id": aid,
-            "orcid": orcid,
+            "orcid": orcid_val,
             "identity": identity,
             "recent_count": recent_count,
-            "papers": papers
+            "papers": papers,
+            "profile_url": profile_url
         }
 
 
@@ -538,6 +545,16 @@ Return JSON in this exact structure:
                 if e_match:
                     validated_email = e_match.group(0).lower()
 
+            # Direct Profile URL disambiguation (OpenAlex / ORCID / faculty page)
+            direct_profile = (
+                eval_res.get("profile_url")
+                or v_data.get("profile_url")
+                or cand.get("profile_url")
+                or cand.get("author_id")
+                or (f"https://orcid.org/{v_data.get('orcid')}" if v_data.get("orcid") else "")
+                or f"https://scholar.google.com/scholar?q={urllib.parse.quote(prof_name + ' ' + cand.get('institution', ''))}"
+            )
+
             p1_str = f"{papers[0]['title']} ({papers[0]['doi']})" if len(papers) > 0 else "None indexed"
             p2_str = f"{papers[1]['title']} ({papers[1]['doi']})" if len(papers) > 1 else "None indexed"
 
@@ -553,7 +570,8 @@ Return JSON in this exact structure:
                 f"{total}/10",                                                         # Col I: Fit Score
                 sanitize_input(eval_res.get("deadline", "Rolling"), max_len=50),       # Col J: Deadline
                 ST_PENDING,                                                            # Col K: Status ("PENDING_APPROVAL")
-                validated_email                                                        # Col L: Email
+                validated_email,                                                       # Col L: Email
+                sanitize_input(direct_profile, max_len=250)                            # Col M: Direct Profile URL
             ]
 
             qualified_rows.append(row)
