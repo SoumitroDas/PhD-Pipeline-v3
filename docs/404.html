@@ -76,20 +76,25 @@
       <div>
         <div class="flex items-center gap-2">
           <h1 class="text-sm font-extrabold tracking-tight">PhD Command</h1>
-          <span class="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full uppercase">v3.1 Guarded</span>
+          <span class="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full uppercase">v3.1 Live</span>
         </div>
         <p class="text-[10px] text-gray-400">Soumitro Kumar Das • Biomathematics</p>
       </div>
     </div>
 
-    <!-- Master Sheet Deep-Link -->
-    <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit"
-       target="_blank" rel="noopener noreferrer"
-       class="px-3 py-1.5 rounded-lg bg-card hover:bg-border text-gray-200 text-xs font-semibold flex items-center gap-1.5 border border-border transition">
-      <i class="fa-solid fa-table text-emerald-400"></i>
-      <span class="text-[11px]">Sheet</span>
-      <i class="fa-solid fa-arrow-up-right-from-square text-[9px] text-gray-400 ml-0.5"></i>
-    </a>
+    <!-- Quick Actions: Configure GAS & Open Sheet -->
+    <div class="flex items-center gap-1.5">
+      <button onclick="configureGasUrl()" title="Configure Google Apps Script URL"
+              class="p-2 rounded-lg bg-card hover:bg-border text-gray-400 hover:text-white border border-border transition">
+        <i class="fa-solid fa-gear text-xs"></i>
+      </button>
+      <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit"
+         target="_blank" rel="noopener noreferrer"
+         class="px-3 py-1.5 rounded-lg bg-card hover:bg-border text-gray-200 text-xs font-semibold flex items-center gap-1.5 border border-border transition">
+        <i class="fa-solid fa-table text-emerald-400"></i>
+        <span class="text-[11px]">Sheet</span>
+      </a>
+    </div>
   </header>
 
   <!-- NAVIGATION PILLS -->
@@ -113,51 +118,20 @@
   <!-- MAIN SCROLLABLE CONTENT -->
   <main class="max-w-md mx-auto w-full px-4 pt-3 space-y-4">
 
-    <!-- 1. ANALYTICS FUNNEL DASHBOARD WITH MANUAL TRIGGER -->
-    <div class="bg-card border border-border rounded-2xl p-4 shadow-xl space-y-3">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400">Pipeline Performance</h2>
-          <p class="text-sm font-extrabold text-white">Funnel & Dispatch Velocity</p>
-        </div>
-        <!-- Manual Scout Trigger Button -->
-        <button onclick="triggerScout()" id="btnRunScout"
-                class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition active:scale-95">
-          <i class="fa-solid fa-bolt text-amber-300"></i>
-          <span>Run Scout</span>
-        </button>
-      </div>
-
-      <!-- Quick Metrics Counters -->
-      <div class="grid grid-cols-3 gap-2 text-center">
-        <div class="bg-surface p-2 rounded-xl border border-border">
-          <div id="statScraped" class="text-base font-black text-indigo-400 mono">18</div>
-          <div class="text-[9px] text-gray-400 uppercase font-semibold">Scraped</div>
-        </div>
-        <div class="bg-surface p-2 rounded-xl border border-border">
-          <div id="statApproved" class="text-base font-black text-emerald-400 mono">7</div>
-          <div class="text-[9px] text-gray-400 uppercase font-semibold">Approved</div>
-        </div>
-        <div class="bg-surface p-2 rounded-xl border border-border">
-          <div id="statSent" class="text-base font-black text-amber-400 mono">5</div>
-          <div class="text-[9px] text-gray-400 uppercase font-semibold">Dispatched</div>
-        </div>
-      </div>
-
-      <!-- Funnel Chart Canvas -->
-      <div class="h-28 w-full">
-        <canvas id="analyticsChart"></canvas>
-      </div>
-    </div>
-
     <!-- VIEW A: TINDER-STYLE SWIPE REVIEW CARD CONTAINER (TAB 1) -->
-    <section id="viewSwipe" class="space-y-2">
+    <!-- REORDERED TO THE VERY TOP FOR INSTANT MOBILE THUMB INTERACTION -->
+    <section id="viewSwipe" class="space-y-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-1.5">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300">Tab 1: Swipe-To-Approve Leads</h3>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-gray-300">Tab 1: Swipe Leads</h3>
         </div>
-        <span class="text-[11px] text-gray-400 mono" id="cardCounter">Remaining: 0</span>
+        <div class="flex items-center gap-2">
+          <button onclick="fetchLiveStats()" title="Refresh from Sheet" class="text-xs text-indigo-400 hover:text-indigo-300">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+          <span class="text-[11px] text-gray-400 mono" id="cardCounter">Remaining: 0</span>
+        </div>
       </div>
 
       <!-- Swipe Card Deck Viewport -->
@@ -168,8 +142,8 @@
           </div>
           <p class="text-xs font-semibold text-gray-300">All current leads reviewed!</p>
           <p class="text-[11px] text-gray-500">New leads are scraped every Friday at 06:00 AM Dhaka.</p>
-          <button onclick="reloadLeads()" class="mt-2 px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-xs font-bold transition">
-            Reload Feed
+          <button onclick="fetchLiveStats()" class="mt-2 px-3.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-xs font-bold transition flex items-center gap-1.5 mx-auto">
+            <i class="fa-solid fa-arrows-rotate text-[10px]"></i> Check for New Leads
           </button>
         </div>
       </div>
@@ -194,6 +168,43 @@
           <span>Undo Last Swipe</span>
           <span id="undoCount" class="text-[10px] px-1.5 py-0.5 rounded-full bg-surface text-gray-400 border border-border hidden">0</span>
         </button>
+      </div>
+
+      <!-- PIPELINE PERFORMANCE DASHBOARD (REORDERED: BELOW THE SWIPE DECK) -->
+      <div class="bg-card border border-border rounded-2xl p-4 shadow-xl space-y-3 mt-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400">Pipeline Performance</h2>
+            <p class="text-sm font-extrabold text-white">Funnel & Dispatch Velocity</p>
+          </div>
+          <!-- Manual Scout Trigger Button -->
+          <button onclick="triggerScout()" id="btnRunScout"
+                  class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition active:scale-95">
+            <i class="fa-solid fa-bolt text-amber-300"></i>
+            <span>Run Scout</span>
+          </button>
+        </div>
+
+        <!-- Quick Metrics Counters -->
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-surface p-2 rounded-xl border border-border">
+            <div id="statScraped" class="text-base font-black text-indigo-400 mono">--</div>
+            <div class="text-[9px] text-gray-400 uppercase font-semibold">Scraped</div>
+          </div>
+          <div class="bg-surface p-2 rounded-xl border border-border">
+            <div id="statApproved" class="text-base font-black text-emerald-400 mono">--</div>
+            <div class="text-[9px] text-gray-400 uppercase font-semibold">Approved</div>
+          </div>
+          <div class="bg-surface p-2 rounded-xl border border-border">
+            <div id="statSent" class="text-base font-black text-amber-400 mono">--</div>
+            <div class="text-[9px] text-gray-400 uppercase font-semibold">Dispatched</div>
+          </div>
+        </div>
+
+        <!-- Funnel Chart Canvas -->
+        <div class="h-28 w-full">
+          <canvas id="analyticsChart"></canvas>
+        </div>
       </div>
     </section>
 
@@ -345,13 +356,70 @@
     const SHEET_ID = '18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E';
     const GITHUB_REPO = 'SoumitroDas/PhD-Pipeline-v3';
 
-    // Optional Google Apps Script Web App Endpoint for Direct Cloud Sync
-    const APPS_SCRIPT_WEBHOOK = localStorage.getItem('PHD_APPS_SCRIPT_WEBHOOK') || '';
+    // 1. Google Apps Script Web App URL Manager
+    function getGasUrl(forcePrompt = false) {
+      let url = localStorage.getItem('GAS_URL');
+      if (!url || forcePrompt) {
+        url = prompt('Enter your Google Apps Script Web App Exec URL (https://script.google.com/macros/s/.../exec):', url || '');
+        if (url && url.trim()) {
+          url = url.trim();
+          localStorage.setItem('GAS_URL', url);
+          showToast('✅ Saved Google Apps Script URL.');
+        }
+      }
+      return url ? url.trim() : '';
+    }
 
-    // History stack for Undo functionality
+    function configureGasUrl() {
+      getGasUrl(true);
+      fetchLiveStats();
+    }
+
+    // Dynamic Live Leads Array (Populated from Google Sheet)
+    let liveLeads = [];
     let swipeHistory = [];
+    let currentCardIndex = 0;
+    const container = document.getElementById('swipeContainer');
+    const counterElem = document.getElementById('cardCounter');
 
-    // 1. Navigation View Switcher
+    // Fallback Mock Leads if offline or GAS not yet configured
+    const defaultFallbackLeads = [
+      {
+        row: 2,
+        prof: "Prof. Christian Borgs",
+        inst: "UC Berkeley / Department of Mathematics",
+        opp: "Funded PhD Studentship: Compartmental Graph Epidemiology & Dynamical Systems",
+        paper: "Nonlinear Dynamics in Hypergraph Network Epidemics",
+        link: "https://doi.org/10.1038/s41567-024",
+        email: "cborgs@berkeley.edu",
+        fit: "9/10",
+        deadline: "Dec 15, 2026"
+      },
+      {
+        row: 3,
+        prof: "Dr. Laura P. Schaposnik",
+        inst: "University of Illinois Chicago",
+        opp: "Doctoral Position: Mathematical Biology & Geometric Vector ODE Models",
+        paper: "Fractional Geometric Dynamics in Dengue Transmission",
+        link: "https://doi.org/10.1016/j.jde.2025",
+        email: "schapos@uic.edu",
+        fit: "10/10",
+        deadline: "Rolling / Fall 2027"
+      },
+      {
+        row: 4,
+        prof: "Prof. Mark Alber",
+        inst: "UC Riverside / Interdisciplinary Mathematical Biology",
+        opp: "Graduate Research Fellowship: Physics-Informed Neural Networks for Multiscale ODEs",
+        paper: "PINNs Parameter Identifiability in Carrying-Capacity Biological Systems",
+        link: "https://doi.org/10.1016/j.jcp.2025",
+        email: "malber@ucr.edu",
+        fit: "9/10",
+        deadline: "Jan 10, 2027"
+      }
+    ];
+
+    // 2. Navigation View Switcher
     function switchView(viewName) {
       const views = ['swipe', 'drop', 'manualSent', 'quickReply'];
       views.forEach(v => {
@@ -365,7 +433,7 @@
       activeNav.className = "py-2 rounded-lg bg-indigo-600 text-white shadow transition text-center";
     }
 
-    // 2. Chart.js Analytics Funnel Setup
+    // 3. Chart.js Analytics Funnel Setup
     const ctx = document.getElementById('analyticsChart').getContext('2d');
     const analyticsChart = new Chart(ctx, {
       type: 'bar',
@@ -373,7 +441,7 @@
         labels: ['Scraped (T1)', 'Approved (T1)', 'Drafted (T2)', 'Sent (T2)', 'Positive Reply'],
         datasets: [{
           label: 'Outreach Funnel',
-          data: [18, 7, 7, 5, 2],
+          data: [0, 0, 0, 0, 0],
           backgroundColor: [
             'rgba(99, 102, 241, 0.75)',
             'rgba(16, 185, 129, 0.75)',
@@ -411,7 +479,73 @@
       }
     });
 
-    // 3. Manual Scout Trigger via GitHub API
+    // 4. Real-Time API Sync: fetchLiveStats()
+    async function fetchLiveStats() {
+      const url = getGasUrl();
+      if (!url) {
+        console.log('No GAS_URL set. Loading fallback leads.');
+        liveLeads = defaultFallbackLeads;
+        document.getElementById('statScraped').innerText = "18";
+        document.getElementById('statApproved').innerText = "7";
+        document.getElementById('statSent').innerText = "5";
+        analyticsChart.data.datasets[0].data = [18, 7, 7, 5, 2];
+        analyticsChart.update();
+        renderDeck();
+        return;
+      }
+
+      showToast('🔄 Fetching real-time leads & metrics from Google Sheet...');
+
+      try {
+        const resp = await fetch(url, { method: 'GET' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+
+        // Update Funnel Counters & Chart
+        if (data.stats) {
+          const scraped = data.stats.scraped || 0;
+          const approved = data.stats.approved || 0;
+          const drafted = data.stats.drafted || 0;
+          const sent = data.stats.sent || 0;
+          const positive = data.stats.positive || 0;
+
+          document.getElementById('statScraped').innerText = scraped;
+          document.getElementById('statApproved').innerText = approved;
+          document.getElementById('statSent').innerText = sent;
+
+          analyticsChart.data.datasets[0].data = [scraped, approved, drafted, sent, positive];
+          analyticsChart.update();
+        }
+
+        // Replace mockLeads entirely with live leads from Sheet
+        if (Array.isArray(data.leads)) {
+          liveLeads = data.leads.map((l, idx) => ({
+            row: l.row || (idx + 2),
+            prof: l.prof || l.prof_name || l.name || 'Target Professor',
+            inst: l.inst || l.institution || 'University',
+            opp: l.opp || l.opportunity || l.opportunity_title || 'PhD Opportunity',
+            paper: l.paper || l.paper1 || 'Verified Research Paper',
+            link: l.link || l.posting_link || l.doi || '#',
+            email: l.email || '',
+            fit: l.fit || l.fit_score || '8/10',
+            deadline: l.deadline || 'Rolling'
+          }));
+          currentCardIndex = 0;
+          swipeHistory = [];
+          renderDeck();
+          showToast(`✅ Loaded ${liveLeads.length} live lead(s) from Tab 1.`);
+        }
+      } catch (err) {
+        console.warn('GAS fetch error:', err);
+        showToast(`⚠️ Could not reach Sheet (${err.message}). Using cached data.`);
+        if (liveLeads.length === 0) {
+          liveLeads = defaultFallbackLeads;
+          renderDeck();
+        }
+      }
+    }
+
+    // 5. Manual Scout Trigger via GitHub API
     async function triggerScout() {
       let pat = localStorage.getItem('GITHUB_PAT');
       if (!pat) {
@@ -467,41 +601,7 @@
       }
     }
 
-    // 4. Tinder-Style Swipe Deck Logic
-    let mockLeads = [
-      {
-        prof: "Prof. Christian Borgs",
-        inst: "UC Berkeley / Department of Mathematics",
-        opp: "Funded PhD Studentship: Compartmental Graph Epidemiology & Dynamical Systems",
-        paper: "Nonlinear Dynamics in Hypergraph Network Epidemics",
-        posting_link: "https://doi.org/10.1038/s41567-024",
-        fit: "9/10",
-        deadline: "Dec 15, 2026"
-      },
-      {
-        prof: "Dr. Laura P. Schaposnik",
-        inst: "University of Illinois Chicago",
-        opp: "Doctoral Position: Mathematical Biology & Geometric Vector ODE Models",
-        paper: "Fractional Geometric Dynamics in Dengue Transmission",
-        posting_link: "https://doi.org/10.1016/j.jde.2025",
-        fit: "10/10",
-        deadline: "Rolling / Fall 2027"
-      },
-      {
-        prof: "Prof. Mark Alber",
-        inst: "UC Riverside / Interdisciplinary Mathematical Biology",
-        opp: "Graduate Research Fellowship: Physics-Informed Neural Networks for Multiscale ODEs",
-        paper: "PINNs Parameter Identifiability in Carrying-Capacity Biological Systems",
-        posting_link: "https://doi.org/10.1016/j.jcp.2025",
-        fit: "9/10",
-        deadline: "Jan 10, 2027"
-      }
-    ];
-
-    let currentCardIndex = 0;
-    const container = document.getElementById('swipeContainer');
-    const counterElem = document.getElementById('cardCounter');
-
+    // 6. Tinder-Style Swipe Deck Logic (With Clickable Non-Hijacked Spans)
     function updateUndoUI() {
       const undoBadge = document.getElementById('undoCount');
       if (swipeHistory.length > 0) {
@@ -514,7 +614,7 @@
 
     function renderDeck() {
       container.querySelectorAll('.swipe-card').forEach(c => c.remove());
-      const activeLeads = mockLeads.slice(currentCardIndex);
+      const activeLeads = liveLeads.slice(currentCardIndex);
       counterElem.innerText = `Remaining: ${activeLeads.length}`;
       updateUndoUI();
 
@@ -528,37 +628,54 @@
         const card = document.createElement('div');
         card.className = "swipe-card bg-card border border-border rounded-xl p-4 flex flex-col justify-between";
         card.style.zIndex = idx + 1;
+
+        const emailBadge = lead.email
+          ? `<span onclick="window.location.href='mailto:${lead.email}'; event.stopPropagation();"
+                   class="text-emerald-400 font-semibold text-[11px] underline decoration-emerald-500 cursor-pointer hover:text-emerald-300 inline-flex items-center gap-1 ml-2">
+               <i class="fa-solid fa-envelope text-[10px]"></i> Email PI
+             </span>`
+          : '';
+
         card.innerHTML = `
           <div class="relative">
             <span class="badge-accept absolute top-0 right-0 px-3 py-1 bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 font-extrabold text-xs rounded-lg uppercase">ACCEPT</span>
             <span class="badge-decline absolute top-0 left-0 px-3 py-1 bg-red-500/20 border-2 border-red-400 text-red-300 font-extrabold text-xs rounded-lg uppercase">DECLINE</span>
           </div>
 
-          <!-- Card Content (Scrollable with overflow-y-auto to prevent text truncation) -->
+          <!-- Card Content (Scrollable with overflow-y-auto to fix layout) -->
           <div class="space-y-2 mt-2 overflow-y-auto max-h-[225px] pr-1">
             <div class="flex items-center justify-between">
               <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold">Fit: ${lead.fit}</span>
               <span class="text-[10px] text-gray-400 mono">📅 ${lead.deadline}</span>
             </div>
+
+            <!-- Clickable Professor Name (Bypasses Hammer.js touch hijacking) -->
             <div>
-              <a href="${lead.posting_link || '#'}" target="_blank" rel="noopener noreferrer" class="group inline-flex items-center gap-1.5 hover:underline">
-                <h4 class="text-base font-extrabold text-white tracking-tight leading-tight group-hover:text-indigo-300 transition">${lead.prof}</h4>
+              <span onclick="window.open('${lead.link}', '_blank'); event.stopPropagation();"
+                    class="text-white font-extrabold text-base tracking-tight leading-tight hover:text-indigo-400 underline decoration-indigo-500 cursor-pointer inline-flex items-center gap-1.5">
+                ${lead.prof}
                 <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-indigo-400"></i>
-              </a>
-              <p class="text-xs text-indigo-300 font-medium">${lead.inst}</p>
+              </span>
+              ${emailBadge}
+              <p class="text-xs text-indigo-300 font-medium mt-0.5">${lead.inst}</p>
             </div>
+
+            <!-- Opportunity Scope -->
             <div class="p-2.5 rounded-lg bg-surface border border-border/80 space-y-1">
               <div class="text-[10px] uppercase font-bold text-gray-400">Opportunity:</div>
               <p class="text-xs text-gray-200 leading-relaxed">${lead.opp}</p>
             </div>
+
+            <!-- Clickable Paper Title (Bypasses Hammer.js touch hijacking) -->
             <div class="p-2.5 rounded-lg bg-surface/50 border border-border/60 space-y-1">
               <div class="text-[10px] uppercase font-bold text-emerald-400 flex items-center justify-between">
                 <span>Verified PI Paper:</span>
-                <span class="text-[9px] text-gray-500 font-normal">Tap to read paper</span>
+                <span class="text-[9px] text-gray-500 font-normal">Tap to inspect</span>
               </div>
-              <a href="${lead.posting_link || '#'}" target="_blank" rel="noopener noreferrer" class="text-[11px] text-gray-300 italic leading-snug hover:underline hover:text-emerald-300 block">
+              <span onclick="window.open('${lead.link}', '_blank'); event.stopPropagation();"
+                    class="text-[11px] text-gray-300 italic leading-snug hover:text-emerald-300 underline decoration-emerald-500 cursor-pointer block">
                 ${lead.paper} <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-1 text-emerald-400"></i>
-              </a>
+              </span>
             </div>
           </div>
 
@@ -608,8 +725,9 @@
       });
     }
 
+    // Two-Way Swipe Sync Engine
     function handleDecision(cardEl, direction) {
-      const lead = mockLeads[currentCardIndex];
+      const lead = liveLeads[currentCardIndex];
       const flyX = direction === 'right' ? window.innerWidth + 200 : -window.innerWidth - 200;
       cardEl.style.transform = `translate(${flyX}px, 0px) rotate(${direction === 'right' ? 30 : -30}deg)`;
       cardEl.style.opacity = '0';
@@ -625,6 +743,24 @@
 
       showToast(`${action === 'ACCEPT' ? '✅ ACCEPTED' : '❌ DECLINED'}: ${lead.prof}`);
 
+      // TWO-WAY CLOUD SYNC: POST DECISION TO GOOGLE APPS SCRIPT WEB APP
+      const gasUrl = getGasUrl();
+      if (gasUrl && lead && lead.row) {
+        fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'swipe',
+            row: lead.row,
+            decision: action
+          })
+        }).then(() => {
+          console.log(`[GAS Sync] Row ${lead.row} set to ${action}`);
+        }).catch(err => {
+          console.warn('[GAS Sync Warning]', err);
+        });
+      }
+
       setTimeout(() => {
         currentCardIndex++;
         renderDeck();
@@ -638,6 +774,21 @@
       }
       const last = swipeHistory.pop();
       currentCardIndex--;
+
+      // Reverse in Google Sheet if connected
+      const gasUrl = getGasUrl();
+      if (gasUrl && last.lead && last.lead.row) {
+        fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'swipe',
+            row: last.lead.row,
+            decision: 'Pending'
+          })
+        }).catch(() => {});
+      }
+
       renderDeck();
       showToast(`↩️ Undid decision for ${last.lead.prof}`);
     }
@@ -647,14 +798,7 @@
       if (topCard) handleDecision(topCard, direction);
     }
 
-    function reloadLeads() {
-      currentCardIndex = 0;
-      swipeHistory = [];
-      renderDeck();
-      showToast('Deck reloaded with latest scraped queue.');
-    }
-
-    // 5. Smart Drop Submission Engine (Tab 5: Manual_Ingest)
+    // 7. Smart Drop Submission Engine (Tab 5: Manual_Ingest)
     function submitSmartDrop() {
       const text = document.getElementById('smartDropText').value.trim();
       if (!text) {
@@ -662,16 +806,20 @@
         return;
       }
       const timestamp = new Date().toISOString();
-      const payload = {
-        action: 'append_manual_ingest',
-        tab: 'Manual_Ingest',
-        values: [timestamp, text, 'Pending Scout Parse']
-      };
+      const gasUrl = getGasUrl();
 
-      if (APPS_SCRIPT_WEBHOOK) {
-        fetch(APPS_SCRIPT_WEBHOOK, { method: 'POST', body: JSON.stringify(payload) })
-          .then(() => showToast('✅ Sent to Tab 5: Manual_Ingest via Webhook'))
-          .catch(() => showToast('⚠️ Webhook error. Formatted row copied.'));
+      if (gasUrl) {
+        fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'append_manual_ingest',
+            tab: 'Manual_Ingest',
+            values: [timestamp, text, 'Pending Scout Parse']
+          })
+        })
+        .then(() => showToast('✅ Sent to Tab 5: Manual_Ingest via Sheet API'))
+        .catch(() => showToast('⚠️ Direct sync failed. Formatted row copied.'));
       } else {
         const rowText = `${timestamp}\t${text.replace(/\t|\n/g, ' ')}\tPending Scout Parse`;
         navigator.clipboard.writeText(rowText).then(() => {
@@ -681,7 +829,7 @@
       document.getElementById('smartDropText').value = '';
     }
 
-    // 6. Out-of-Band Sent Email Logger (Tab 2: Direct SENT)
+    // 8. Out-of-Band Sent Email Logger (Tab 2: Direct SENT)
     function submitManualSent() {
       const profName = document.getElementById('manualPiName').value.trim();
       const email = document.getElementById('manualPiEmail').value.trim();
@@ -702,16 +850,19 @@
         "Out-of-band manual dispatch", "SENT", "No Reply", "", f1Date, f2Date
       ];
 
-      const payload = {
-        action: 'append_email_draft',
-        tab: 'Email_Drafts',
-        values: rowValues
-      };
-
-      if (APPS_SCRIPT_WEBHOOK) {
-        fetch(APPS_SCRIPT_WEBHOOK, { method: 'POST', body: JSON.stringify(payload) })
-          .then(() => showToast(`✅ Registered ${profName} as SENT in Tab 2`))
-          .catch(() => showToast(`⚠️ Logged locally. Row copied.`));
+      const gasUrl = getGasUrl();
+      if (gasUrl) {
+        fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'append_email_draft',
+            tab: 'Email_Drafts',
+            values: rowValues
+          })
+        })
+        .then(() => showToast(`✅ Registered ${profName} as SENT in Tab 2`))
+        .catch(() => showToast(`⚠️ Direct sync failed. Row copied.`));
       } else {
         const rowText = rowValues.join('\t');
         navigator.clipboard.writeText(rowText).then(() => {
@@ -725,15 +876,30 @@
       document.getElementById('manualBody').value = '';
     }
 
-    // 7. Quick Reply Logger Engine
+    // 9. Quick Reply Logger Engine
     function logReply(category) {
       const profName = document.getElementById('quickPiName').value.trim() || 'Target Professor';
       const notes = document.getElementById('quickReplyNotes').value.trim() || 'No additional notes provided.';
+      
+      const gasUrl = getGasUrl();
+      if (gasUrl) {
+        fetch(gasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'log_reply',
+            prof_name: profName,
+            status: category,
+            notes: notes
+          })
+        }).then(() => console.log(`[GAS Sync] Reply logged for ${profName}`));
+      }
+
       showToast(`Logged '${category}' for ${profName}`);
       document.getElementById('quickReplyNotes').value = '';
     }
 
-    // 8. Toast & Clipboard Utility
+    // 10. Toast & Clipboard Utility
     function showToast(msg) {
       const toast = document.getElementById('quickToast');
       const toastMsg = document.getElementById('toastMsg');
@@ -748,10 +914,12 @@
       });
     }
 
-    // Initialize Card Deck
-    renderDeck();
+    // Initial Startup: Fetch real-time data from Google Sheet
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchLiveStats();
+    });
 
-    // 9. Service Worker Registration
+    // 11. Service Worker Registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
