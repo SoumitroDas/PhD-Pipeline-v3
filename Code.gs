@@ -11,6 +11,7 @@
  */
 
 const SHEET_ID = PropertiesService.getScriptProperties().getProperty("SHEET_ID") || "YOUR_SHEET_ID_HERE";
+const BACKEND_VERSION = "v3.3";
 
 function getStoredSecret() {
   const sp = PropertiesService.getScriptProperties();
@@ -28,7 +29,8 @@ function verifyAuth(payload) {
 function doGet(e) {
   return ContentService.createTextOutput(JSON.stringify({
     ok: true,
-    message: "PhD Command Center v3.1 Backend Live",
+    backend_version: BACKEND_VERSION,
+    message: "PhD Command Center " + BACKEND_VERSION + " Backend Live",
     timestamp: new Date().toISOString()
   })).setMimeType(ContentService.MimeType.JSON);
 }
@@ -219,6 +221,7 @@ function doPost(e) {
 
       return ContentService.createTextOutput(JSON.stringify({
         ok: true,
+        backend_version: BACKEND_VERSION,
         stats: {
           scraped: scraped,
           approved: approved,
@@ -355,10 +358,19 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ ok: true, row: row, status: data.status })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // 8. ACTION: trigger_scout & trigger_drafter (GitHub Actions Relays)
-    if (data.action === "trigger_scout" || data.action === "trigger_drafter") {
-      const daemon = data.action === "trigger_scout" ? "scout" : "drafter";
-      triggerGitHubWorkflow(daemon);
+    // 8. ACTION: trigger_scout, trigger_drafter, trigger_nagger, trigger_radar (GitHub Actions Relays)
+    if (data.action === "trigger_scout" || data.action === "trigger_drafter" || data.action === "trigger_nagger" || data.action === "trigger_radar") {
+      let daemon = "scout";
+      if (data.action === "trigger_drafter") daemon = "drafter";
+      else if (data.action === "trigger_nagger") daemon = "nagger";
+      else if (data.action === "trigger_radar") daemon = "radar";
+
+      const extraInputs = {};
+      if (data.type) extraInputs.type = String(data.type);
+      if (data.prof) extraInputs.prof = String(data.prof);
+      if (data.row) extraInputs.row = String(data.row);
+
+      triggerGitHubWorkflow(daemon, extraInputs);
       return ContentService.createTextOutput(JSON.stringify({ ok: true, daemon: daemon })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -441,7 +453,8 @@ function doPost(e) {
       const crmJson = typeof data.crm_data === "string" ? data.crm_data : JSON.stringify(data.crm_data || {});
       const systemInstruction = "You are a ruthless, highly efficient PhD CRM Assistant. Here is the user's current outreach pipeline: " + crmJson + ". Answer the user's query concisely and directly, extracting the exact names and details they need.";
 
-      const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+      let model = "gemini-2.5-flash";
+      let url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
 
       const payload = {
         systemInstruction: {
@@ -469,6 +482,15 @@ function doPost(e) {
       let res = UrlFetchApp.fetch(url, options);
       let resCode = res.getResponseCode();
       let resText = res.getContentText();
+
+      // If gemini-2.5-flash fails, fallback to gemini-2.0-flash
+      if (resCode !== 200) {
+        model = "gemini-2.0-flash";
+        url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey;
+        res = UrlFetchApp.fetch(url, options);
+        resCode = res.getResponseCode();
+        resText = res.getContentText();
+      }
 
       // Fallback: If systemInstruction format is rejected, prepend prompt directly
       if (resCode !== 200) {
@@ -511,15 +533,23 @@ function doPost(e) {
   }
 }
 
-function triggerGitHubWorkflow(daemonName) {
+function triggerGitHubWorkflow(daemonName, extraInputs) {
   const sp = PropertiesService.getScriptProperties();
   const token = sp.getProperty("GITHUB_PAT");
   if (!token) throw new Error("GITHUB_PAT not configured in Script Properties");
   const repo = sp.getProperty("GITHUB_REPO") || "shuvro-das/phd-pipeline-v3";
   const url = "https://api.github.com/repos/" + repo + "/actions/workflows/phd_pipeline_v3.yml/dispatches";
+  const inputs = { daemon: daemonName, dry_run: false };
+  if (extraInputs && typeof extraInputs === "object") {
+    for (const k in extraInputs) {
+      if (extraInputs[k] !== undefined && extraInputs[k] !== null) {
+        inputs[k] = extraInputs[k];
+      }
+    }
+  }
   const payload = {
     ref: "Smain",
-    inputs: { daemon: daemonName, dry_run: false }
+    inputs: inputs
   };
   const options = {
     method: "POST",
