@@ -190,19 +190,17 @@
       </div>
 
       <!-- Quick Metrics Counters -->
-      <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="grid grid-cols-3 gap-2 mb-3 text-center">
         <div class="bg-surface p-2 rounded-xl border border-border">
-          <div id="statScraped" class="text-base font-black text-indigo-400 mono">--</div>
-          <div class="text-[9px] text-gray-400 uppercase font-semibold">Scraped</div>
+          <div id="statScraped" class="text-base font-black text-indigo-400 mono">--</div><div class="text-[9px] text-gray-400 uppercase">Scraped</div>
         </div>
-        <div class="bg-surface p-2 rounded-xl border border-border">
-          <div id="statApproved" class="text-base font-black text-emerald-400 mono">--</div>
-          <div class="text-[9px] text-gray-400 uppercase font-semibold">Approved</div>
+        <div onclick="showList('sent')" class="bg-surface p-2 rounded-xl border border-border cursor-pointer hover:bg-surface/80 active:scale-95 transition-all">
+          <div id="statSent" class="text-base font-black text-amber-400 mono">--</div><div class="text-[9px] text-gray-400 uppercase">Dispatched</div>
         </div>
-        <div class="bg-surface p-2 rounded-xl border border-border">
-          <div id="statSent" class="text-base font-black text-amber-400 mono">--</div>
-          <div class="text-[9px] text-gray-400 uppercase font-semibold">Dispatched</div>
+        <div onclick="showList('positive')" class="bg-surface p-2 rounded-xl border border-border cursor-pointer hover:bg-surface/80 active:scale-95 transition-all shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+          <div id="statPositive" class="text-base font-black text-emerald-400 mono">--</div><div class="text-[9px] text-emerald-500/70 font-bold uppercase">Positive</div>
         </div>
+        <span id="statApproved" class="hidden"></span>
       </div>
 
       <!-- Funnel Chart Canvas -->
@@ -349,6 +347,17 @@
       </button>
     </div>
 
+    <!-- METRIC DRILL-DOWN MODAL -->
+    <div id="listModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+      <div class="bg-card border border-border rounded-xl w-full max-w-sm max-h-[80vh] flex flex-col shadow-2xl">
+        <div class="p-3 border-b border-border flex justify-between items-center">
+          <h3 id="listTitle" class="font-bold text-sm text-white"></h3>
+          <button onclick="document.getElementById('listModal').classList.add('hidden')" class="text-gray-400 p-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="listContent" class="p-3 overflow-y-auto space-y-2 text-xs text-gray-300"></div>
+      </div>
+    </div>
+
   </main>
 
   <!-- BOTTOM PWA NAVIGATION BAR -->
@@ -392,10 +401,41 @@
 
     // Global state
     let liveLeads = [];
+    let globalSentProfs = [];
     let currentCardIndex = 0;
     let swipeHistory = [];
     let analyticsChart;
     let isBusy = false;
+
+    function showList(type) {
+      const modal = document.getElementById('listModal');
+      const content = document.getElementById('listContent');
+      const title = document.getElementById('listTitle');
+      content.innerHTML = '';
+      
+      let list = [];
+      if (type === 'sent') {
+        title.innerHTML = '<i class="fa-solid fa-paper-plane text-amber-400 mr-2"></i> Dispatched Emails';
+        list = globalSentProfs;
+      } else if (type === 'positive') {
+        title.innerHTML = '<i class="fa-solid fa-thumbs-up text-emerald-400 mr-2"></i> Positive Replies';
+        list = globalSentProfs.filter(p => (typeof p === 'object' && p !== null ? p.status === 'Positive' : false));
+      }
+      
+      if (list.length === 0) { 
+        content.innerHTML = '<p class="text-center p-4 text-gray-500">No records found.</p>'; 
+      } else {
+        list.forEach(p => {
+          const profName = typeof p === 'object' && p !== null ? p.prof : String(p);
+          const statusName = typeof p === 'object' && p !== null ? (p.status || 'SENT') : 'SENT';
+          content.innerHTML += `<div class="p-2.5 bg-surface border border-border rounded-lg flex justify-between items-center">
+            <span class="font-bold text-gray-200">${esc(profName)}</span>
+            <span class="text-[9px] px-2 py-0.5 rounded font-extrabold uppercase ${statusName === 'Positive' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}">${esc(statusName)}</span>
+          </div>`;
+        });
+      }
+      modal.classList.remove('hidden');
+    }
 
     const container = document.getElementById('swipeContainer');
     const counterElem = document.getElementById('cardCounter');
@@ -473,65 +513,29 @@
 
     // POST-based fetchLiveStats: Secret never exposed in GET query string or cached
     async function fetchLiveStats() {
-      let url = localStorage.getItem('PHD_GAS_URL');
-      let secret = localStorage.getItem('PHD_APP_SECRET');
-
-      if (!url || !secret) {
-        resetCredentials();
-        url = localStorage.getItem('PHD_GAS_URL');
-        secret = localStorage.getItem('PHD_APP_SECRET');
-        if (!url || !secret) return;
-      }
-
-      showToast("🔄 Syncing with Google Sheets...");
+      showToast("🔄 Syncing...");
       try {
-        const data = await postGAS({ action: 'list' });
-
-        const stats = data.stats || {};
-        document.getElementById('statScraped').innerText = stats.scraped ?? 0;
-        document.getElementById('statApproved').innerText = stats.approved ?? 0;
-        document.getElementById('statSent').innerText = stats.sent ?? 0;
-
-        analyticsChart.data.datasets[0].data = [
-          stats.scraped ?? 0,
-          stats.approved ?? 0,
-          stats.drafted ?? 0,
-          stats.sent ?? 0,
-          stats.positive ?? 0
-        ];
-        analyticsChart.update();
-
-        liveLeads = (data.leads || []).map((l, idx) => ({
-          row: l.row,
-          prof: l.prof || l.name || 'Target Professor',
-          inst: l.inst || l.institution || 'University',
-          opp: l.opp || l.opportunity || l.field_match || 'PhD Opportunity',
-          paper: l.paper || l.paper_title || '',
-          paper_link: l.paper_link || l.paper_doi || l.doi || '',
-          link: l.link || l.posting_link || '#',
-          email: l.email || '',
-          fit: l.fit || l.field_match || '',
-          deadline: l.deadline || 'Rolling'
-        }));
-        currentCardIndex = 0;
-        swipeHistory = [];
-        renderDeck();
-
-        // Populate sent professors dropdown in View D
-        const piSelect = document.getElementById('quickPiName');
-        if (piSelect && Array.isArray(data.sentProfs)) {
-          piSelect.innerHTML = '<option value="">-- Select Target Professor --</option>' +
-            data.sentProfs.map(p => {
-              if (typeof p === 'object' && p !== null) {
-                return `<option value="${esc(p.row)}" data-prof="${esc(p.prof)}">${esc(p.prof)}${p.status && p.status !== 'No Reply' ? ' — ' + esc(p.status) : ''}</option>`;
-              }
-              return `<option value="${esc(p)}" data-prof="${esc(p)}">${esc(p)}</option>`;
-            }).join('');
+        const j = await postGAS({ action: 'list' });
+        
+        document.getElementById('statScraped').innerText = j.stats.scraped;
+        document.getElementById('statApproved').innerText = j.stats.approved;
+        document.getElementById('statSent').innerText = j.stats.sent;
+        if (document.getElementById('statPositive')) document.getElementById('statPositive').innerText = j.stats.positive;
+        
+        if (typeof analyticsChart !== 'undefined') {
+          analyticsChart.data.datasets[0].data = [j.stats.scraped, j.stats.approved, j.stats.drafted, j.stats.sent, j.stats.positive];
+          analyticsChart.update();
         }
 
-        showToast("✅ Cloud sync complete!");
-      } catch (e) {
-        showToast(`❌ Sync Error: ${e.message}`);
+        liveLeads = j.leads || []; 
+        currentCardIndex = 0; 
+        swipeHistory = [];
+        if (typeof globalSentProfs !== 'undefined') globalSentProfs = j.sentProfs || [];
+        
+        renderDeck();
+        showToast("✅ Synced");
+      } catch (e) { 
+        showToast("❌ Sync failed: " + e.message); 
       }
     }
 
@@ -716,6 +720,18 @@
         container.appendChild(card);
         initHammer(card);
       });
+
+      // Populate sent professors dropdown in View D
+      const piSelect = document.getElementById('quickPiName');
+      if (piSelect && typeof globalSentProfs !== 'undefined' && Array.isArray(globalSentProfs) && globalSentProfs.length > 0) {
+        piSelect.innerHTML = '<option value="">-- Select Target Professor --</option>' +
+          globalSentProfs.map(p => {
+            if (typeof p === 'object' && p !== null) {
+              return `<option value="${esc(p.row)}" data-prof="${esc(p.prof)}">${esc(p.prof)}${p.status && p.status !== 'No Reply' ? ' — ' + esc(p.status) : ''}</option>`;
+            }
+            return `<option value="${esc(p)}" data-prof="${esc(p)}">${esc(p)}</option>`;
+          }).join('');
+      }
     }
 
     function initHammer(el) {
