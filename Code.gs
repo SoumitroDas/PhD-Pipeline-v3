@@ -673,7 +673,7 @@ function doPost(e) {
       const sysPrompt = "You are the AI Academic Intelligence Assistant for Soumitro Kumar Das (M.Sc. Applied Mathematics, researching Compartmental Epidemiological Modeling, Parameter Estimation, PINNs/Neural ODEs, Fractional Calculus, and Predator-Prey/Harvesting systems).\n" +
         "Use his live CRM & Scraped Leads database below to answer questions about professors, compatibility, follow-ups, email drafting, and literature:\n" +
         JSON.stringify(data.crm_data || {});
-      const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
+      const models = ["gemini-1.5-flash", "gemini-pro"];
       let lastErr = "";
       for (let m = 0; m < models.length; m++) {
         const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[m] + ":generateContent?key=" + encodeURIComponent(apiKey);
@@ -790,29 +790,45 @@ function doPost(e) {
       const fromDate = Utilities.formatDate(d, "UTC", "yyyy-MM-dd");
 
       const clusterQueries = {
-        epidemiology: '("compartmental model" OR "SEIR" OR "SIR model" OR "dengue" OR "basic reproduction number")',
-        parameter_estimation: '("parameter estimation" OR "identifiability") AND ("differential equations" OR "epidemic")',
-        pinns: '("Physics-Informed Neural Networks" OR "PINNs" OR "Neural ODEs") AND ("epidemiology" OR "dynamical")',
-        fractional: '("fractional differential equations" OR "Caputo") AND ("epidemic" OR "mathematical biology")',
-        predator_prey: '("predator-prey" OR "harvesting model") AND ("bifurcation" OR "stability")'
+        epidemiology: 'compartmental model OR SEIR OR infectious disease modeling OR dengue',
+        parameter_estimation: 'parameter estimation AND (epidemic OR differential equations)',
+        pinns: 'Physics-Informed Neural Networks OR PINNs OR Neural ODEs AND dynamical',
+        fractional: 'fractional differential equations AND mathematical biology',
+        predator_prey: 'predator-prey OR harvesting model AND bifurcation'
       };
 
       const selectedCluster = data.cluster && clusterQueries[data.cluster] ? data.cluster : "epidemiology";
       const q = clusterQueries[selectedCluster];
 
       const url = "https://api.openalex.org/works?search=" + encodeURIComponent(q) +
-                  "&filter=from_publication_date:" + fromDate + ",type:article&per-page=8&sort=publication_date:desc";
+                  "&filter=from_publication_date:" + fromDate + ",type:article,primary_location.source.type:journal&per-page=15&sort=publication_date:desc";
 
       const headers = { "User-Agent": "PhDPipelineV34/3.4 (mailto:dassoumitrokumar@gmail.com)" };
-      const res = UrlFetchApp.fetch(url, { headers: headers, muteHttpExceptions: true });
-      const newPapers = [];
-
+      let res = UrlFetchApp.fetch(url, { headers: headers, muteHttpExceptions: true });
+      let results = [];
       if (res.getResponseCode() === 200) {
-        const json = JSON.parse(res.getContentText());
-        const results = json.results || [];
-        const tab3 = getSheetCaseInsensitive(ss, "Literature_Radar") || getSheetCaseInsensitive(ss, "Radar");
+        try {
+          const json = JSON.parse(res.getContentText());
+          results = json.results || [];
+        } catch (e) {}
+      }
+      if (results.length < 10) {
+        const fallbackUrl = "https://api.openalex.org/works?search=" + encodeURIComponent(q) +
+                            "&filter=from_publication_date:" + fromDate + ",type:article&per-page=15&sort=publication_date:desc";
+        const fbRes = UrlFetchApp.fetch(fallbackUrl, { headers: headers, muteHttpExceptions: true });
+        if (fbRes.getResponseCode() === 200) {
+          try {
+            const fbJson = JSON.parse(fbRes.getContentText());
+            if (fbJson && fbJson.results && fbJson.results.length > results.length) {
+              results = fbJson.results;
+            }
+          } catch (e) {}
+        }
+      }
+      const newPapers = [];
+      const tab3 = getSheetCaseInsensitive(ss, "Literature_Radar") || getSheetCaseInsensitive(ss, "Radar");
 
-        for (let i = 0; i < Math.min(results.length, 6); i++) {
+      for (let i = 0; i < Math.min(results.length, 10); i++) {
           const w = results[i];
           const title = String(w.title || "").trim();
           if (!title) continue;
@@ -892,7 +908,6 @@ function doPost(e) {
             ]);
           }
         }
-      }
 
       return ContentService.createTextOutput(JSON.stringify({
         ok: true,
@@ -1032,7 +1047,7 @@ function triggerGitHubWorkflow(daemonName, extraInputs) {
 function callGeminiAPI(prompt, systemInstruction) {
   const apiKey = (PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY") || "").trim();
   if (!apiKey) return "";
-  const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
+  const models = ["gemini-1.5-flash", "gemini-pro"];
   for (let m = 0; m < models.length; m++) {
     try {
       const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[m] + ":generateContent?key=" + encodeURIComponent(apiKey);
