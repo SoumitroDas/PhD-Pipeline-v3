@@ -33,26 +33,55 @@ function doGet(e) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
+function formatCellDate(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, "Asia/Dhaka", "yyyy-MM-dd");
+  }
+  return String(val).trim();
+}
+
+function getSheetCaseInsensitive(ss, name) {
+  if (!ss || !name) return null;
+  const direct = ss.getSheetByName(name);
+  if (direct) return direct;
+  const cleanTarget = name.toLowerCase().replace(/[\s_-]/g, "");
+  const sheets = ss.getSheets();
+  for (let i = 0; i < sheets.length; i++) {
+    const sName = sheets[i].getName().toLowerCase().replace(/[\s_-]/g, "");
+    if (sName === cleanTarget) return sheets[i];
+  }
+  return null;
+}
+
+function getSheetDataRows(sheet) {
+  if (!sheet) return [];
+  const lr = sheet.getLastRow();
+  const lc = sheet.getLastColumn();
+  if (lr <= 1 || lc < 1) return [];
+  return sheet.getRange(2, 1, lr - 1, lc).getValues();
+}
+
 /**
  * Parses a single 15-to-16 column outreach row using exact 0-indexed column schema (A:O / A:P).
  */
 function parseOutreachRow(r, rowNum, tabName) {
-  const dateStr = r[0] ? (r[0] instanceof Date ? Utilities.formatDate(r[0], "Asia/Dhaka", "yyyy-MM-dd") : String(r[0]).trim()) : "";
+  const dateStr = formatCellDate(r[0]);
   const profName = String(r[1] || "").trim();
   const email = String(r[2] || "").trim();
   const subject = String(r[3] || "").trim();
   const body = String(r[4] || "").trim();
-  const meta = String(r[5] || "").trim();                   // meta = r[5] (Institution)
-  const dStat = String(r[6] || "").trim().toUpperCase();    // dStat = r[6] (Dispatch Status)
+  const inst = String(r[5] || "").trim();                   // inst = r[5] (Institution & Dept)
+  const dStat = String(r[6] || "").trim().toUpperCase();    // dStat = r[6] (Dispatch Status: DRAFT / SENT)
   const rStat = String(r[7] || "No Reply").trim();          // rStat = r[7] (PI Reply Status)
   const notes = String(r[8] || "").trim();                  // notes = r[8] (Reply Summary / Notes)
-  const f1 = r[9] ? (r[9] instanceof Date ? Utilities.formatDate(r[9], "Asia/Dhaka", "yyyy-MM-dd") : String(r[9]).trim()) : "";
-  const f2 = r[10] ? (r[10] instanceof Date ? Utilities.formatDate(r[10], "Asia/Dhaka", "yyyy-MM-dd") : String(r[10]).trim()) : "";
-  const deadline = String(r[11] || "Rolling").trim();
-  const portal = String(r[12] || "").trim();
-  const profile_url = String(r[13] || "").trim();
-  const last_contact = r[14] ? (r[14] instanceof Date ? Utilities.formatDate(r[14], "Asia/Dhaka", "yyyy-MM-dd") : String(r[14]).trim()) : dateStr;
-  const snoozeUntil = r[15] ? (r[15] instanceof Date ? Utilities.formatDate(r[15], "Asia/Dhaka", "yyyy-MM-dd") : String(r[15]).trim()) : "";
+  const f1 = formatCellDate(r[9]);                          // f1 = r[9] (F1 Due)
+  const f2 = formatCellDate(r[10]);                         // f2 = r[10] (F2 Due)
+  const deadline = String(r[11] || "Rolling").trim();       // deadline = r[11] (Application Deadline & Reqs)
+  const portal = String(r[12] || "").trim();                // portal = r[12] (Dept / Portal Link)
+  const profile_url = String(r[13] || "").trim();           // profile_url = r[13] (Direct Profile URL)
+  const last_contact = formatCellDate(r[14]) || dateStr;    // last_contact = r[14] (Last Contact Date)
+  const snoozeUntil = formatCellDate(r[15]);                // snoozeUntil = r[15] (Optional Snooze Until Date)
 
   return {
     row: rowNum,
@@ -68,9 +97,9 @@ function parseOutreachRow(r, rowNum, tabName) {
     body: body,
     full_body: body,
     email_body: body,
-    inst: meta,
-    institution: meta,
-    meta: meta,
+    inst: inst,
+    institution: inst,
+    meta: inst,
     dispatch: dStat,
     dispatch_status: dStat,
     status: rStat || "No Reply",
@@ -81,8 +110,8 @@ function parseOutreachRow(r, rowNum, tabName) {
     f1_due: f1,
     f2: f2,
     f2_due: f2,
-    deadline: deadline,
-    app_deadline: deadline,
+    deadline: deadline || "Rolling",
+    app_deadline: deadline || "Rolling",
     portal: portal,
     portal_link: portal,
     profile_url: profile_url,
@@ -107,13 +136,13 @@ function doPost(e) {
 
     // 1. ACTION: list (Returns live unified metrics across Email_Drafts + Archive_History)
     if (data.action === "list") {
-      const tab1 = ss.getSheetByName("Scraped_Leads");
-      const tab2 = ss.getSheetByName("Email_Drafts");
-      const tab4 = ss.getSheetByName("Archive_History");
+      const tab1 = getSheetCaseInsensitive(ss, "Scraped_Leads");
+      const tab2 = getSheetCaseInsensitive(ss, "Email_Drafts") || getSheetCaseInsensitive(ss, "Drafts");
+      const tab4 = getSheetCaseInsensitive(ss, "Archive_History") || getSheetCaseInsensitive(ss, "Archive");
 
-      const t1Data = tab1 && tab1.getLastRow() > 1 ? tab1.getRange(2, 1, tab1.getLastRow() - 1, 14).getValues() : [];
-      const t2Data = tab2 && tab2.getLastRow() > 1 ? tab2.getRange(2, 1, tab2.getLastRow() - 1, 16).getValues() : [];
-      const t4Data = tab4 && tab4.getLastRow() > 1 ? tab4.getRange(2, 1, tab4.getLastRow() - 1, 15).getValues() : [];
+      const t1Data = getSheetDataRows(tab1);
+      const t2Data = getSheetDataRows(tab2);
+      const t4Data = getSheetDataRows(tab4);
 
       const pendingLeads = [];
       let scraped = 0, approved = 0, drafted = 0, sent = 0, positive = 0;
@@ -145,48 +174,45 @@ function doPost(e) {
       const actionNeeded = [];
       const snoozed = [];
 
-      // Tab 2: Email_Drafts (Active Outreach + Drafts Ready)
-      t2Data.forEach((r, idx) => {
-        const rowNum = idx + 2;
-        const item = parseOutreachRow(r, rowNum, "Email_Drafts");
-        if (!item.prof) return; // Skip empty row
+      function processOutreachRow(r, rowNum, tabName) {
+        if (!r || !r[1] || !String(r[1]).trim()) return; // Skip empty PI name
+        const item = parseOutreachRow(r, rowNum, tabName);
+        if (!item.prof) return;
 
         if (item.dispatch === "DRAFT") {
+          // Rows with dStat === 'DRAFT' go ONLY into draftsReady
           drafted++;
           draftsReady.push(item);
-        } else {
-          // Dispatched lead (SENT)
+        } else if (item.dispatch === "SENT" || tabName === "Archive_History" || (!item.dispatch && item.date)) {
+          // ANY row with dStat === 'SENT' (whether it comes from Email_Drafts or Archive_History)
+          // MUST be appended to the unified sentProfs array and increment the stats.sent counter.
           sent++;
+          sentProfs.push(item);
+
           const isPos = /pos|accept|interview|call/i.test(item.status);
           const isNeut = /neut|redir|apply|portal/i.test(item.status);
           if (isPos) positive++;
-
-          sentProfs.push(item);
 
           // Col P Snooze Engine check
           const isCurrentlySnoozed = item.snooze_until && todayDhaka < item.snooze_until;
           if (isCurrentlySnoozed) {
             snoozed.push(item);
           } else {
-            if (isPos || isNeut || !item.status || item.status === "No Reply" || item.status === "SENT") {
+            if (isPos || isNeut || !item.status || /no reply|pending|sent/i.test(item.status)) {
               actionNeeded.push(item);
             }
           }
         }
+      }
+
+      // Tab 2: Email_Drafts (Active Outreach + Drafts Ready)
+      t2Data.forEach((r, idx) => {
+        processOutreachRow(r, idx + 2, "Email_Drafts");
       });
 
-      // Tab 4: Archive_History (Historical Dispatches: Declined, Bounced, Closed, Expired F2)
+      // Tab 4: Archive_History (Historical Dispatched Leads)
       t4Data.forEach((r, idx) => {
-        const rowNum = idx + 2;
-        const item = parseOutreachRow(r, rowNum, "Archive_History");
-        if (!item.prof) return; // Skip empty row
-
-        // Every historical archive entry was dispatched (SENT)
-        sent++;
-        const isPos = /pos|accept|interview|call/i.test(item.status);
-        if (isPos) positive++;
-
-        sentProfs.push(item);
+        processOutreachRow(r, idx + 2, "Archive_History");
       });
 
       return ContentService.createTextOutput(JSON.stringify({
@@ -210,7 +236,7 @@ function doPost(e) {
     // 2. ACTION: snooze (Sets Col P: Snooze Until Date in Email_Drafts)
     if (data.action === "snooze") {
       const tabName = data.tab || "Email_Drafts";
-      const tab = ss.getSheetByName(tabName);
+      const tab = getSheetCaseInsensitive(ss, tabName) || getSheetCaseInsensitive(ss, "Email_Drafts");
       if (!tab) throw new Error("Tab not found: " + tabName);
       const row = Number(data.row);
       if (!row || row < 2) throw new Error("Invalid row index");
@@ -222,7 +248,11 @@ function doPost(e) {
         }
       }
 
-      // Ensure Col P header exists
+      // Ensure Col P exists
+      const maxCols = tab.getMaxColumns();
+      if (maxCols < 16) {
+        tab.insertColumnsAfter(maxCols, 16 - maxCols);
+      }
       const pHeader = String(tab.getRange(1, 16).getValue() || "").trim();
       if (!pHeader) {
         tab.getRange(1, 16).setValue("Snooze Until Date");
@@ -239,7 +269,7 @@ function doPost(e) {
 
     // 3. ACTION: mark_draft_sent (Sets Dispatch Status to SENT, records sent date & calculates F1/F2)
     if (data.action === "mark_draft_sent") {
-      const tab2 = ss.getSheetByName("Email_Drafts");
+      const tab2 = getSheetCaseInsensitive(ss, "Email_Drafts");
       const row = Number(data.row);
       if (!row || row < 2) throw new Error("Invalid row index");
 
@@ -266,7 +296,7 @@ function doPost(e) {
 
     // 4. ACTION: swipe (Accept or Decline scraped lead in Tab 1)
     if (data.action === "swipe") {
-      const tab1 = ss.getSheetByName("Scraped_Leads");
+      const tab1 = getSheetCaseInsensitive(ss, "Scraped_Leads");
       const row = Number(data.row);
       if (!row || row < 2) throw new Error("Invalid row index");
 
@@ -289,21 +319,22 @@ function doPost(e) {
 
     // 5. ACTION: manual_ingest (Appends raw lead text to Tab 5: Manual_Ingest)
     if (data.action === "manual_ingest") {
-      const tab5 = ss.getSheetByName("Manual_Ingest");
+      const tab5 = getSheetCaseInsensitive(ss, "Manual_Ingest");
       tab5.appendRow([data.timestamp || todayDhaka, data.text || "", "Pending Scout Parse"]);
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
 
     // 6. ACTION: append_email_draft (Appends manually logged out-of-band sent email)
     if (data.action === "append_email_draft") {
-      const tab2 = ss.getSheetByName("Email_Drafts");
+      const tab2 = getSheetCaseInsensitive(ss, "Email_Drafts");
       tab2.appendRow(data.values);
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // 7. ACTION: log_reply (Updates PI Reply Status and notes in Tab 2)
+    // 7. ACTION: log_reply (Updates PI Reply Status and notes in Tab 2 or Archive)
     if (data.action === "log_reply") {
-      const tab2 = ss.getSheetByName("Email_Drafts");
+      const tabName = data.tab || "Email_Drafts";
+      const tab2 = getSheetCaseInsensitive(ss, tabName) || getSheetCaseInsensitive(ss, "Email_Drafts");
       const row = Number(data.row);
       if (!row || row < 2) throw new Error("Invalid row index");
 
