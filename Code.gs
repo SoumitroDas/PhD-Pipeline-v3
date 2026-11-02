@@ -364,6 +364,47 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ ok: true, row: row, status: data.status })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // ACTION: log_manual_comm (Manual Email & Communication Logger)
+    if (data.action === "log_manual_comm") {
+      const tabName = data.tab || "Email_Drafts";
+      const tab2 = getSheetCaseInsensitive(ss, tabName) || getSheetCaseInsensitive(ss, "Email_Drafts") || getSheetCaseInsensitive(ss, "Drafts");
+      if (!tab2) throw new Error("Tab not found: " + tabName);
+      const row = Number(data.row);
+      if (!row || row < 2) throw new Error("Invalid row index");
+
+      if (data.expect_prof) {
+        const curProf = String(tab2.getRange(row, 2).getValue()).trim();
+        if (curProf && curProf.toLowerCase() !== String(data.expect_prof).trim().toLowerCase()) {
+          throw new Error("Row mismatch: expected " + data.expect_prof + " but found " + curProf);
+        }
+      }
+
+      const commDate = String(data.date || todayDhaka).trim();
+      const direction = String(data.direction || "Sent by Me").trim();
+      const newStatus = String(data.status || "No Reply").trim();
+      const commNotes = String(data.notes || "").trim();
+
+      // Append communication entry to Col I (Col 9 / Notes)
+      const existingNotes = String(tab2.getRange(row, 9).getValue() || "").trim();
+      const entryPrefix = `[${commDate} ${direction}]:`;
+      const fullEntry = commNotes ? `${entryPrefix} ${commNotes}` : `${entryPrefix} (Logged in CRM)`;
+      const updatedNotes = existingNotes ? `${existingNotes}\n${fullEntry}` : fullEntry;
+
+      tab2.getRange(row, 8).setValue(newStatus);      // Col H (Col 8): Reply Status
+      tab2.getRange(row, 9).setValue(updatedNotes);  // Col I (Col 9): Notes
+      tab2.getRange(row, 15).setValue(commDate);     // Col O (Col 15): Last Contact Date
+
+      return ContentService.createTextOutput(JSON.stringify({ 
+        ok: true, 
+        message: "Manual communication logged successfully", 
+        row: row, 
+        prof: data.expect_prof || "", 
+        status: newStatus,
+        last_contact: commDate,
+        notes: updatedNotes
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     // 8. ACTION: trigger_scout, trigger_drafter, trigger_nagger, trigger_radar (GitHub Actions Relays)
     if (data.action === "trigger_scout" || data.action === "trigger_drafter" || data.action === "trigger_nagger" || data.action === "trigger_radar") {
       let daemon = "scout";

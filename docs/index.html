@@ -376,8 +376,11 @@
         <button onclick="showList('deadlines')" class="py-1 px-2.5 rounded-lg bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm">
           <span>📅 Deadlines</span>
         </button>
-        <button onclick="showList('followup')" class="py-1 px-2.5 rounded-lg bg-zinc-800/80 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm">
-          <span>⚪ Follow-Up</span>
+        <button onclick="showList('followup_unanswered')" class="py-1 px-2.5 rounded-lg bg-zinc-800/80 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm" title="Category A: Unanswered Outbound">
+          <span>⚪ Unanswered (Cat A)</span>
+        </button>
+        <button onclick="showList('followup_replied')" class="py-1 px-2.5 rounded-lg bg-emerald-950/40 text-emerald-300 border border-emerald-600/40 hover:bg-emerald-900/40 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm" title="Category B: Replied - Needs My Action">
+          <span>📥 Needs Reply (Cat B)</span>
         </button>
         <button onclick="showList('snoozed')" class="py-1 px-2.5 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 font-bold flex items-center gap-1 transition active:scale-95 shrink-0 shadow-sm">
           <span>💤 Snoozed</span>
@@ -564,7 +567,8 @@
           <button id="tabFilter-positive" onclick="showList('positive')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🟢 Positive</button>
           <button id="tabFilter-neutral" onclick="showList('neutral')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🟡 Neutral</button>
           <button id="tabFilter-deadlines" onclick="showList('deadlines')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">📅 Deadlines</button>
-          <button id="tabFilter-followup" onclick="showList('followup')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">⚪ Follow-Up</button>
+          <button id="tabFilter-followup-a" onclick="showList('followup_unanswered')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">⚪ Unanswered (Cat A)</button>
+          <button id="tabFilter-followup-b" onclick="showList('followup_replied')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">📥 Needs Reply (Cat B)</button>
           <button id="tabFilter-snoozed" onclick="showList('snoozed')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">💤 Snoozed</button>
           <button id="tabFilter-declined" onclick="showList('declined')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🔴 Declined</button>
 
@@ -930,6 +934,15 @@
       const portal = (typeof p === 'object' && p !== null ? (p.portal || p.portal_link || p.dept_link || '') : '') || '';
       const lastContact = (typeof p === 'object' && p !== null ? (p.last_contact || p.last_contact_date || p.date || '') : '') || '';
 
+      const today = getDhakaDate();
+      let daysSinceLastContact = null;
+      if (lastContact && /^\d{4}-\d{2}-\d{2}/.test(lastContact)) {
+        const contactMs = new Date(lastContact.slice(0, 10) + 'T00:00:00Z').getTime();
+        const todayMs = new Date(today + 'T00:00:00Z').getTime();
+        const diff = Math.floor((todayMs - contactMs) / (1000 * 60 * 60 * 24));
+        if (!isNaN(diff) && diff >= 0) daysSinceLastContact = diff;
+      }
+
       const scholarFallback = `https://scholar.google.com/scholar?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic / Research Institution' ? inst.split('|')[0].trim() : ''))}`;
       const directProfileUrl = (typeof p === 'object' && p !== null ? (p.profile_url || p.profile || p.direct_profile || '') : '') || scholarFallback;
       const paperLink = (typeof p === 'object' && p !== null ? (p.paper_link || p.paper || p.doi || '') : '') || '';
@@ -942,6 +955,23 @@
       const isPositiveOrNeutral = isPositive || isNeutral;
       const isNoReply = !isPositive && !isNeutral && !isDeclined;
 
+      const isHandled = statusRaw.toLowerCase().includes('handled') || statusRaw.toLowerCase().includes('closed');
+      const isRepliedCategoryB = (isPositive || isNeutral || statusRaw.toLowerCase().includes('replied')) && !isDeclined;
+
+      const nLower = (notes || '').toLowerCase();
+      const isDoNotContact = nLower.includes('do not contact') || nLower.includes('dnc') || nLower.includes('blacklist') || nLower.includes('unsubscribed') || nLower.includes('stop emailing');
+
+      let suggestedNextAction = "Reply with tailored research pitch & CV";
+      if (nLower.includes('call') || nLower.includes('interview') || nLower.includes('meet')) {
+        suggestedNextAction = "📅 Schedule prep call / Send availability & 3-slide overview";
+      } else if (nLower.includes('portal') || nLower.includes('apply') || nLower.includes('cse') || nLower.includes('admit')) {
+        suggestedNextAction = "📝 Complete institutional portal application & notify PI";
+      } else if (nLower.includes('fall') || nLower.includes('later') || nLower.includes('check in')) {
+        suggestedNextAction = "⏰ Set calendar check-in for upcoming funding/admissions cycle";
+      } else if (nLower.includes('refer') || nLower.includes('recommend') || nLower.includes('warm')) {
+        suggestedNextAction = "🤝 Reach out to referred collaborator / lab faculty";
+      }
+
       const emailBtn = email ? `
         <a href="mailto:${esc(email)}" onclick="event.stopPropagation()"
            title="Send direct email"
@@ -950,16 +980,25 @@
         </a>
       ` : '';
 
-      // 3. 2nd Draft Generator (Follow-Up) Button for ⚪ No Reply / Active leads
+      // 1. Follow-Up Button for Category A (⚪ No Reply leads)
       const followUpBtn = isNoReply ? `
-        <button onclick="event.stopPropagation(); triggerFollowUpDraft('${idx}', '${esc(profName)}', ${p.row || idx})"
-                title="Queue a 2nd-touch follow-up draft"
+        <button onclick="event.stopPropagation(); openFollowUpComposer('${idx}', '${esc(profName)}', ${p.row || idx})"
+                title="Open editable 2nd-touch follow-up composer"
                 class="px-2 py-0.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold inline-flex items-center gap-1 transition active:scale-95 shrink-0">
           <i class="fa-solid fa-pen-fancy text-indigo-400 text-[9px]"></i> <span>✍️ Generate Follow-Up</span>
         </button>
       ` : '';
 
-      // 3. Glowing Enter Prep Mode button for 🟢 Positive leads, replacing Email button
+      // 2. Mark Handled Button for Category B (📥 Replied leads)
+      const markHandledBtn = isRepliedCategoryB ? `
+        <button onclick="event.stopPropagation(); markRepliedHandled('${idx}', '${esc(profName)}', ${p.row || idx}, '${esc(p.tab || 'Email_Drafts')}')"
+                title="${isHandled ? 'Reopen lead in Category B' : 'Mark lead response as handled'}"
+                class="px-2 py-0.5 rounded-lg ${isHandled ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-600/40' : 'bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40'} text-[10px] font-bold inline-flex items-center gap-1 transition active:scale-95 shrink-0">
+          <i class="fa-solid fa-check-double text-[9px]"></i> <span>${isHandled ? 'Handled ✓' : '✅ Handled'}</span>
+        </button>
+      ` : '';
+
+      // 3. Glowing Enter Prep Mode button for 🟢 Positive leads
       const mainActionBtn = isPositive ? `
         <button onclick="event.stopPropagation(); openInterviewPrep('${idx}')"
                 title="Enter Focused Interview Prep Mode"
@@ -969,7 +1008,7 @@
         </button>
       ` : emailBtn;
 
-      // 2. Snooze Button for Positive/Neutral leads
+      // Snooze Button for Positive/Neutral leads
       const snoozeBtn = isPositiveOrNeutral ? `
         <button onclick="event.stopPropagation(); snoozeLead('${idx}', '${esc(profName)}', ${p.row || idx})"
                 title="Snooze lead until a specific date"
@@ -978,10 +1017,17 @@
         </button>
       ` : '';
 
-      const isSnoozedActive = p.snooze_until && (!getDhakaDate() || getDhakaDate() < p.snooze_until);
+      const isSnoozedActive = p.snooze_until && (!today || today < p.snooze_until);
       const snoozeBadge = isSnoozedActive ? `
         <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1 shrink-0" title="Snoozed until ${esc(p.snooze_until)}">
           <i class="fa-solid fa-bed text-[8px]"></i> Snoozed: ${esc(p.snooze_until)}
+        </span>
+      ` : '';
+
+      // Prominent Category A Badge: Days Since Last Contact + Recommended Follow-Up
+      const unansweredBadge = isNoReply ? `
+        <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1 shrink-0" title="Days since last email: ${daysSinceLastContact !== null ? daysSinceLastContact + 'd' : 'N/A'}">
+          <i class="fa-regular fa-clock text-[8px]"></i> ⏳ ${daysSinceLastContact !== null ? daysSinceLastContact + 'd since last email' : 'Sent'} • Rec: ${esc(f1 !== 'N/A' ? f1 : (f2 !== 'N/A' ? f2 : 'F1 Follow-up'))}
         </span>
       ` : '';
 
@@ -997,6 +1043,7 @@
                   ${esc(profName)}
                 </a>
                 <i class="fa-solid fa-chevron-down text-[9px] text-gray-500 transition-transform duration-200" id="chev-${idx}"></i>
+                ${unansweredBadge}
                 ${isDeadlineActive ? `
                 <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 truncate max-w-[140px] inline-flex items-center gap-1 shrink-0" title="${esc(deadline)}">
                   <i class="fa-regular fa-calendar-days text-[8px]"></i> ${esc(deadline)}
@@ -1010,6 +1057,7 @@
               <span class="text-[9px] px-2 py-0.5 rounded-md font-bold uppercase ${badge.cls}">${esc(badge.label)}</span>
               ${snoozeBtn}
               ${followUpBtn}
+              ${markHandledBtn}
               ${mainActionBtn}
             </div>
           </div>
@@ -1043,6 +1091,27 @@
               <p class="text-[11px] text-purple-200 font-semibold leading-snug">${esc(deadline)}</p>
             </div>
 
+            <!-- Category B (Replied — Needs My Response) Intel Block -->
+            ${isRepliedCategoryB ? `
+              <div class="p-2.5 bg-emerald-950/25 border border-emerald-500/30 rounded-lg space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-emerald-400 uppercase font-bold text-[8px] flex items-center gap-1">
+                    <i class="fa-solid fa-inbox text-[9px]"></i> Exact PI Response & Requirements
+                  </span>
+                  <span class="text-[9px] text-gray-400 font-mono">Date of Reply: ${esc(lastContact || p.date || 'Recent')}</span>
+                </div>
+                <p class="text-[11px] text-emerald-200 font-medium leading-relaxed">${esc(notes || 'PI expressed interest / follow-up required.')}</p>
+                <div class="pt-1 border-t border-emerald-500/20 flex items-center justify-between gap-2 flex-wrap">
+                  <div class="text-[10px] text-gray-300">
+                    <span class="font-bold text-gray-400">Suggested Reply / Next Action:</span> <span class="text-amber-300 font-semibold">${suggestedNextAction}</span>
+                  </div>
+                  <button onclick="markRepliedHandled('${idx}', '${esc(profName)}', ${p.row || idx}, '${esc(p.tab || 'Email_Drafts')}')" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[9px] inline-flex items-center gap-1 transition shadow active:scale-95">
+                    <i class="fa-solid fa-check-double text-[8px]"></i> ${isHandled ? 'Handled ✓' : '✅ Mark Replied / Handled'}
+                  </button>
+                </div>
+              </div>
+            ` : ''}
+
             <div class="grid grid-cols-3 gap-1 bg-card/70 p-2 rounded-lg border border-border/40 text-[9px] text-center">
               <div><span class="text-gray-500 block uppercase">F1 Due</span><span class="text-amber-400 font-mono font-bold">${esc(f1)}</span></div>
               <div><span class="text-gray-500 block uppercase">F2 Due</span><span class="text-rose-400 font-mono font-bold">${esc(f2)}</span></div>
@@ -1054,6 +1123,80 @@
               <p class="text-[11px] text-gray-300 italic leading-snug">${esc(notes || 'No reply notes logged yet.')}</p>
             </div>
 
+            <!-- Editable Follow-Up / Collaboration Composer -->
+            <div id="composerBox-${idx}" class="hidden p-3 bg-surface/90 border border-indigo-500/40 rounded-xl space-y-2 mt-2 shadow-lg">
+              <div class="flex items-center justify-between">
+                <span id="composerTitle-${idx}" class="text-[10px] uppercase font-bold text-indigo-300 flex items-center gap-1.5">
+                  <i class="fa-solid fa-pen-to-square"></i> Follow-Up Email Composer
+                </span>
+                <button onclick="closeComposer('${idx}')" class="text-gray-400 hover:text-white p-1 text-xs">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <div>
+                <label class="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Subject</label>
+                <input type="text" id="composerSubj-${idx}" class="w-full bg-card text-gray-100 border border-border rounded-lg text-xs p-2 focus:border-indigo-500 outline-none">
+              </div>
+              <div>
+                <label class="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Body</label>
+                <textarea id="composerBody-${idx}" rows="6" class="w-full bg-card text-gray-100 border border-border rounded-lg text-xs p-2 focus:border-indigo-500 outline-none leading-relaxed"></textarea>
+              </div>
+              <div class="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                <button onclick="launchComposerInGmail('${idx}', '${esc(email)}')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1.5 shadow active:scale-95 transition">
+                  <i class="fa-solid fa-paper-plane text-emerald-200"></i> 🚀 Open in Gmail
+                </button>
+                <button onclick="markFollowUpSent('${idx}', '${esc(profName)}', ${p.row || idx}, '${esc(p.tab || 'Email_Drafts')}')" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold flex items-center gap-1.5 shadow active:scale-95 transition">
+                  <i class="fa-solid fa-check"></i> ✅ Mark Follow-Up Sent
+                </button>
+              </div>
+            </div>
+
+            <!-- Manual Email & Comm Logger Form -->
+            <div id="commForm-${idx}" class="hidden p-3 bg-card/95 border border-indigo-500/30 rounded-xl space-y-2 mt-2 shadow-lg">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] uppercase font-bold text-indigo-300 flex items-center gap-1">
+                  <i class="fa-solid fa-envelope-circle-check"></i> ➕ Log Manual Email / Update
+                </span>
+                <button onclick="toggleManualCommForm('${idx}')" class="text-gray-400 hover:text-white p-1 text-xs">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <label class="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Direction</label>
+                  <select id="commDir-${idx}" class="w-full bg-surface text-gray-200 border border-border rounded-lg p-1.5 focus:border-indigo-500 text-xs">
+                    <option value="Sent by Me (via Gmail)">📤 Sent by Me (via Gmail)</option>
+                    <option value="Reply Received from PI">📥 Reply Received from PI</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Date</label>
+                  <input type="date" id="commDate-${idx}" value="${today}" class="w-full bg-surface text-gray-200 border border-border rounded-lg p-1.5 focus:border-indigo-500 text-xs">
+                </div>
+              </div>
+              <div>
+                <label class="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">New Status</label>
+                <select id="commStatus-${idx}" class="w-full bg-surface text-gray-200 border border-border rounded-lg p-1.5 focus:border-indigo-500 text-xs">
+                  <option value="No Reply" ${isNoReply ? 'selected' : ''}>⚪ No Reply (Awaiting PI)</option>
+                  <option value="Positive" ${isPositive ? 'selected' : ''}>🟢 Positive</option>
+                  <option value="Neutral" ${isNeutral ? 'selected' : ''}>🟡 Neutral</option>
+                  <option value="Replied - Handled" ${isHandled ? 'selected' : ''}>✅ Replied - Handled</option>
+                  <option value="Declined" ${isDeclined ? 'selected' : ''}>🔴 Declined</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[9px] uppercase font-bold text-gray-400 block mb-0.5">Message / Summary</label>
+                <input type="text" id="commNotes-${idx}" placeholder="Summary of email sent or PI response received..." class="w-full bg-surface text-gray-200 border border-border rounded-lg p-2 text-xs focus:border-indigo-500">
+              </div>
+              <div class="flex items-center justify-end gap-2 pt-1">
+                <button onclick="toggleManualCommForm('${idx}')" class="px-2.5 py-1.5 rounded-lg bg-surface text-gray-400 hover:text-white border border-border text-xs transition">Cancel</button>
+                <button onclick="submitManualComm('${idx}', '${esc(profName)}', ${p.row || idx}, '${esc(p.tab || 'Email_Drafts')}')" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1 shadow active:scale-95">
+                  <i class="fa-solid fa-floppy-disk"></i> Save Communication
+                </button>
+              </div>
+            </div>
+
+            <!-- Action Buttons Toolbar -->
             <div class="pt-1 flex items-center gap-1.5 flex-wrap">
               ${isPositive ? `
                 <button onclick="openInterviewPrep('${idx}')" class="px-2.5 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[10px] font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/30 ring-1 ring-emerald-400/50 transition active:scale-95">
@@ -1061,9 +1204,42 @@
                 </button>
               ` : ''}
               ${isNoReply ? `
-                <button onclick="triggerFollowUpDraft('${idx}', '${esc(profName)}', ${p.row || idx})" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold flex items-center gap-1 transition shadow active:scale-95">
+                <button onclick="openFollowUpComposer('${idx}', '${esc(profName)}', ${p.row || idx})" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold flex items-center gap-1 transition shadow active:scale-95">
                   <i class="fa-solid fa-pen-fancy text-[9px]"></i> ✍️ Generate Follow-Up
                 </button>
+              ` : ''}
+              <button onclick="toggleManualCommForm('${idx}')" class="px-2.5 py-1 rounded-lg bg-surface hover:bg-border text-indigo-300 border border-border text-[10px] font-bold flex items-center gap-1 transition active:scale-95">
+                <i class="fa-solid fa-plus text-[9px]"></i> ➕ Log Manual Email
+              </button>
+              ${!isDoNotContact ? `
+              <div class="relative inline-block text-left">
+                <button onclick="toggleCollabMenu('${idx}')" class="px-2.5 py-1 rounded-lg bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-700/40 text-[10px] font-bold flex items-center gap-1.5 transition active:scale-95">
+                  <i class="fa-solid fa-handshake text-[9px]"></i> <span>🤝 Propose Collaboration</span> <i class="fa-solid fa-chevron-down text-[8px]"></i>
+                </button>
+                <div id="collabMenu-${idx}" class="hidden absolute left-0 sm:right-0 sm:left-auto mt-1 w-64 bg-card border border-border rounded-xl shadow-2xl z-30 py-1 text-xs">
+                  <button onclick="generateCollabOutreach('${idx}', 'joint_paper')" class="w-full text-left px-3 py-2 hover:bg-surface text-gray-200 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-newspaper text-indigo-400 text-xs shrink-0"></i>
+                    <div>
+                      <div class="font-bold text-[11px]">Explore Joint Research Paper</div>
+                      <div class="text-[9px] text-gray-400">Co-authoring on mathematical oncology/epidemiology</div>
+                    </div>
+                  </button>
+                  <button onclick="generateCollabOutreach('${idx}', 'model_feedback')" class="w-full text-left px-3 py-2 hover:bg-surface text-gray-200 flex items-center gap-2 transition border-t border-border/40">
+                    <i class="fa-solid fa-calculator text-emerald-400 text-xs shrink-0"></i>
+                    <div>
+                      <div class="font-bold text-[11px]">Request Model Feedback</div>
+                      <div class="text-[9px] text-gray-400">Share mechanistic ODE/parameter calibration</div>
+                    </div>
+                  </button>
+                  <button onclick="generateCollabOutreach('${idx}', 'fractional_extension')" class="w-full text-left px-3 py-2 hover:bg-surface text-gray-200 flex items-center gap-2 transition border-t border-border/40">
+                    <i class="fa-solid fa-brain text-purple-400 text-xs shrink-0"></i>
+                    <div>
+                      <div class="font-bold text-[11px]">Independent Mechanistic-ML Extension</div>
+                      <div class="text-[9px] text-gray-400">Extend recent paper with PINNs & fractional memory</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
               ` : ''}
               ${email ? `
                 <a href="mailto:${esc(email)}" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1 transition shadow">
@@ -1450,9 +1626,8 @@ ${esc(body || '(No email body content)')}
       }
     }
 
-    // 3. Instant Tailored 2nd Draft (Follow-Up) Generator Engine
-    async function triggerFollowUpDraft(idx, profName, row) {
-      // 1. Resolve professor record p
+    // Helper to resolve professor object across active lists
+    function resolveProfRecord(idx, profName, row) {
       let p = null;
       if (idx !== undefined && currentModalRenderedList && currentModalRenderedList[idx]) {
         p = currentModalRenderedList[idx];
@@ -1466,76 +1641,218 @@ ${esc(body || '(No email body content)')}
       if (!p && idx !== undefined && (globalSentProfs || [])[idx]) {
         p = globalSentProfs[idx];
       }
+      return p;
+    }
+
+    // Toggle UI Helpers
+    function toggleCollabMenu(idx) {
+      const m = document.getElementById('collabMenu-' + idx);
+      if (m) m.classList.toggle('hidden');
+    }
+
+    function toggleManualCommForm(idx) {
+      const f = document.getElementById('commForm-' + idx);
+      if (f) f.classList.toggle('hidden');
+    }
+
+    function closeComposer(idx) {
+      const c = document.getElementById('composerBox-' + idx);
+      if (c) c.classList.add('hidden');
+    }
+
+    // Category A Follow-Up Composer (Editable in card)
+    function openFollowUpComposer(idx, profName, row) {
+      const p = resolveProfRecord(idx, profName, row);
       if (!p) {
         showToast("❌ Could not locate professor record.");
         return;
       }
 
-      showToast(`✍️ Generating tailored 2nd Draft for ${p.prof || 'PI'}...`);
+      // Ensure detail card is opened
+      const detail = document.getElementById('detail-' + idx);
+      if (detail && detail.classList.contains('hidden')) {
+        toggleProfDetail(idx);
+      }
 
-      const followUpSubject = p.subject && !p.subject.startsWith('Re:') ? `Re: ${p.subject}` : `Re: Prospective PhD Student Inquiry — ${p.prof}`;
+      const composer = document.getElementById('composerBox-' + idx);
+      if (!composer) return;
+      composer.classList.remove('hidden');
+
+      const followUpSubject = p.subject && !p.subject.startsWith('Re:') ? `Re: ${p.subject}` : `Re: Prospective PhD Student Inquiry — ${p.prof || 'PI'}`;
       const pitchContext = (p.notes || p.body || '').replace(/^No Reply.*?(—|-)\s*/i, '').trim();
       const lastName = (p.prof || 'Professor').trim().split(' ').slice(-1)[0];
       const followUpBody = `Dear Professor ${lastName},\n\nI hope this email finds you well. I am writing to briefly follow up on my previous email sent on ${p.date || 'recently'} regarding prospective PhD supervision in your research group at ${p.inst || 'your institution'}.\n\n${pitchContext ? 'In my earlier note, I highlighted how my published Q1 work in mathematical epidemiology and fractional/compartmental modeling aligns with your research (' + pitchContext.slice(0, 180) + ').\n\n' : ''}I remain very enthusiastic about the possibility of applying to your group for the Fall 2027 intake. Please let me know if you might have any openings for doctoral candidates, or if you recommend submitting a formal application through the department portal.\n\nThank you very much for your time and consideration.\n\nBest regards,\nSoumitro Kumar Das (Shuvro)\nM.Sc. in Applied Mathematics, University of Rajshahi`;
 
+      const titleEl = document.getElementById('composerTitle-' + idx);
+      if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Follow-Up Email Composer (Category A)';
+      const subjEl = document.getElementById('composerSubj-' + idx);
+      if (subjEl) subjEl.value = followUpSubject;
+      const bodyEl = document.getElementById('composerBody-' + idx);
+      if (bodyEl) bodyEl.value = followUpBody;
+
+      composer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      showToast("✍️ Follow-up draft loaded into composer!");
+    }
+
+    // Alias for existing follow-up button calls
+    const triggerFollowUpDraft = openFollowUpComposer;
+
+    // Launch Gmail with current composer subject & body
+    function launchComposerInGmail(idx, recipientEmail) {
+      const subj = (document.getElementById('composerSubj-' + idx)?.value || '').trim();
+      const body = (document.getElementById('composerBody-' + idx)?.value || '').trim();
+      const email = recipientEmail || '';
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+      window.open(gmailUrl, '_blank', 'noopener');
+      showToast("🚀 Opened in Gmail!");
+    }
+
+    // Mark Follow-Up Sent
+    async function markFollowUpSent(idx, profName, row, tabName) {
       const today = getDhakaDate();
-      const newDraftItem = {
-        date: today,
-        prof: p.prof,
-        email: p.email,
-        subject: followUpSubject,
-        body: followUpBody,
-        inst: p.inst,
-        dispatch: 'DRAFT',
-        status: 'No Reply',
-        notes: '2nd Follow-Up Draft (' + (p.date || today) + ')',
-        f1: p.f1 || '',
-        f2: p.f2 || '',
-        deadline: p.deadline || '',
-        portal: p.portal || '',
-        profile_url: p.profile_url || '',
-        last_contact: today
-      };
-
-      // Instantly inject into global drafts workbench
-      if (!Array.isArray(globalDraftsReady)) globalDraftsReady = [];
-      globalDraftsReady.unshift(newDraftItem);
-
-      if (document.getElementById('statDrafted')) {
-        document.getElementById('statDrafted').innerText = globalDraftsReady.length;
-      }
-
-      // Immediately open Drafts Ready workbench
-      showList('drafts');
-      showToast("🚀 2nd Draft Ready in Workbench!");
-
-      // Save to Google Sheet Tab 2 in background
+      showToast(`⏳ Marking follow-up sent for ${profName}...`);
       try {
-        await postGAS({
-          action: 'append_email_draft',
-          values: [
-            today,
-            p.prof,
-            p.email,
-            followUpSubject,
-            followUpBody,
-            p.inst,
-            'DRAFT',
-            'No Reply',
-            '2nd Follow-Up Draft (' + (p.date || today) + ')',
-            p.f1 || '',
-            p.f2 || '',
-            p.deadline || '',
-            p.portal || '',
-            p.profile_url || '',
-            today
-          ]
+        const res = await postGAS({
+          action: 'log_manual_comm',
+          tab: tabName || 'Email_Drafts',
+          row: row,
+          expect_prof: profName,
+          direction: 'Sent by Me (Follow-Up)',
+          date: today,
+          status: 'No Reply',
+          notes: `2nd Follow-Up sent via Gmail on ${today}`
         });
-        showToast("✅ 2nd Follow-Up Draft saved to Sheet!");
-      } catch (err) {
-        console.error("Failed to append draft to sheet:", err);
-        showToast("⚠️ Draft ready in app, but Sheet sync failed: " + err.message);
+        const target = (globalSentProfs || []).find(p => p.row == row || (p.prof || p.name) === profName);
+        if (target) {
+          target.last_contact = today;
+          target.last_contact_date = today;
+          target.status = 'No Reply';
+          target.notes = res.notes || (target.notes ? `${target.notes}\n[${today} Sent by Me (Follow-Up)]: 2nd Follow-Up sent via Gmail on ${today}` : `[${today} Sent by Me (Follow-Up)]: 2nd Follow-Up sent via Gmail on ${today}`);
+        }
+        closeComposer(idx);
+        showToast(`✅ Follow-up marked sent for ${profName}!`);
+        renderModalView();
+        fetchLiveStats();
+      } catch (e) {
+        showToast(`❌ Failed to mark follow-up: ${e.message}`);
       }
+    }
+
+    // Category B: Mark Replied / Handled toggle
+    async function markRepliedHandled(idx, profName, row, tabName) {
+      const today = getDhakaDate();
+      const target = (globalSentProfs || []).find(p => p.row == row || (p.prof || p.name) === profName);
+      const currentStatus = target ? String(target.status || '') : '';
+      const isHandled = currentStatus.toLowerCase().includes('handled') || currentStatus.toLowerCase().includes('closed');
+      const newStatus = isHandled ? 'Positive' : 'Replied - Handled';
+
+      showToast(`⏳ Marking ${profName} as ${newStatus}...`);
+      try {
+        const res = await postGAS({
+          action: 'log_manual_comm',
+          tab: tabName || 'Email_Drafts',
+          row: row,
+          expect_prof: profName,
+          direction: isHandled ? 'Reopened in CRM' : 'Handled in CRM',
+          date: today,
+          status: newStatus,
+          notes: isHandled ? `Lead response reopened in CRM on ${today}` : `Lead response handled in CRM on ${today}`
+        });
+        if (target) {
+          target.status = newStatus;
+          target.last_contact = today;
+          target.notes = res.notes || target.notes;
+        }
+        showToast(`✅ ${profName} marked as ${newStatus}!`);
+        renderModalView();
+        fetchLiveStats();
+      } catch (e) {
+        showToast(`❌ Failed to update handled status: ${e.message}`);
+      }
+    }
+
+    // Manual Email & Communication Logger Submission
+    async function submitManualComm(idx, profName, row, tabName) {
+      const dir = document.getElementById('commDir-' + idx)?.value || 'Sent by Me (via Gmail)';
+      const date = document.getElementById('commDate-' + idx)?.value || getDhakaDate();
+      const status = document.getElementById('commStatus-' + idx)?.value || 'No Reply';
+      const notes = (document.getElementById('commNotes-' + idx)?.value || '').trim();
+
+      showToast(`⏳ Logging communication for ${profName}...`);
+      try {
+        const res = await postGAS({
+          action: 'log_manual_comm',
+          tab: tabName || 'Email_Drafts',
+          row: row,
+          expect_prof: profName,
+          direction: dir,
+          date: date,
+          status: status,
+          notes: notes
+        });
+        const target = (globalSentProfs || []).find(p => p.row == row || (p.prof || p.name) === profName);
+        if (target) {
+          target.status = status;
+          target.last_contact = date;
+          target.last_contact_date = date;
+          target.notes = res.notes || target.notes;
+        }
+        toggleManualCommForm(idx);
+        showToast(`✅ Communication logged for ${profName}!`);
+        renderModalView();
+        fetchLiveStats();
+      } catch (e) {
+        showToast(`❌ Logging failed: ${e.message}`);
+      }
+    }
+
+    // Research Collaboration Outreach Generator (Section 10.1)
+    function generateCollabOutreach(idx, templateType) {
+      const p = resolveProfRecord(idx);
+      if (!p) {
+        showToast("❌ Could not locate professor record.");
+        return;
+      }
+
+      // Close dropdown menu
+      const menu = document.getElementById('collabMenu-' + idx);
+      if (menu) menu.classList.add('hidden');
+
+      // Open detail card and composer
+      const detail = document.getElementById('detail-' + idx);
+      if (detail && detail.classList.contains('hidden')) toggleProfDetail(idx);
+
+      const composer = document.getElementById('composerBox-' + idx);
+      if (!composer) return;
+      composer.classList.remove('hidden');
+
+      const lastName = (p.prof || 'Professor').trim().split(' ').slice(-1)[0];
+      const paperTopic = (p.paper || p.opp || 'mathematical biology & dynamical systems').replace(/^None indexed/i, 'dynamical systems in biological modeling').trim();
+
+      let subj = '';
+      let body = '';
+
+      if (templateType === 'joint_paper') {
+        subj = `Research Inquiry: Potential Joint Modeling Work — ${p.inst || 'Mathematical Biology'}`;
+        body = `Dear Professor ${lastName},\n\nI hope this email finds you well. I have been following your group's impactful publications, particularly your work concerning ${paperTopic}.\n\nAs a computational biomathematician specializing in compartmental dynamical systems, parameter estimation, and optimal control, I am writing to explore potential avenues for peer-level research collaboration. I recently published first-author work in mathematical epidemiology establishing validated mechanistic frameworks, and I believe combining your domain datasets with our mathematical modeling formulation could yield a strong joint publication.\n\nI would welcome a brief asynchronous exchange or a 15-minute introductory call if your schedule permits to discuss whether this might align with your group's current research interests.\n\nThank you very much for your time and consideration.\n\nBest regards,\nSoumitro Kumar Das (Shuvro)\nResearcher, Mathematical Biology & Dynamical Systems\nUniversity of Rajshahi`;
+      } else if (templateType === 'model_feedback') {
+        subj = `Feedback Request: Mechanistic Dynamical Framework for ${p.inst || 'Biological Modeling'}`;
+        body = `Dear Professor ${lastName},\n\nI hope this note finds you well. I recently read your compelling work on ${paperTopic} and wanted to congratulate your team on the rigorous findings.\n\nIn parallel, my research focus centers on parameter estimation, sensitivity analysis, and stability proofs for mechanistic biological systems. I have developed a compartmental ODE framework designed to address kinetic dynamics relevant to ${paperTopic}, and given your deep expertise in this domain, I would be deeply grateful for your expert perspective on a couple of biological assumptions in our model.\n\nIf you are open to glancing at a two-page draft summary and equations, I would be honored to share it at your convenience. No detailed review is expected—even a few pointers would be immensely valuable.\n\nThank you for your dedication to the field.\n\nWarm regards,\nSoumitro Kumar Das (Shuvro)\nApplied Mathematics & Biomathematics\nUniversity of Rajshahi`;
+      } else {
+        // fractional_extension
+        subj = `Model Extension: Physics-Informed & Fractional Memory Dynamics for ${p.inst || 'Biomathematics'}`;
+        body = `Dear Professor ${lastName},\n\nI hope you are having a productive week. I am reaching out after studying your group's recent findings regarding ${paperTopic}.\n\nMy computational background involves augmenting classical mechanistic systems with Physics-Informed Neural Networks (PINNs) and fractional-order derivatives to capture non-local memory and anomalous kinetics often present in complex biological environments. I noticed that the dynamics reported in your work present an exciting opportunity to apply a fractional/neural-ODE extension without disrupting the underlying biological conservation laws.\n\nI am currently preparing an independent manuscript and would love to credit your seminal foundational work, or discuss whether this formulation could serve as a collaborative bridge between our methodological tools and your experimental context.\n\nThank you for your time and continued contributions to science.\n\nSincerely,\nSoumitro Kumar Das (Shuvro)\nApplied Mathematics, University of Rajshahi`;
+      }
+
+      const titleEl = document.getElementById('composerTitle-' + idx);
+      if (titleEl) titleEl.innerHTML = '<i class="fa-solid fa-handshake text-indigo-400"></i> Research Collaboration Composer';
+      const subjEl = document.getElementById('composerSubj-' + idx);
+      if (subjEl) subjEl.value = subj;
+      const bodyEl = document.getElementById('composerBody-' + idx);
+      if (bodyEl) bodyEl.value = body;
+
+      composer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      showToast("🤝 Collaboration template loaded into composer!");
     }
 
     // 3. Focused Interview Prep Mode Engine
@@ -1835,7 +2152,7 @@ ${esc(body || '(No email body content)')}
       const title = document.getElementById('listTitle');
 
       const isScrapedMode = currentModalFilter.startsWith('scraped_');
-      const outreachIds = ['drafts', 'all', 'positive', 'neutral', 'deadlines', 'followup', 'snoozed', 'declined'];
+      const outreachIds = ['drafts', 'all', 'positive', 'neutral', 'deadlines', 'followup-a', 'followup-b', 'snoozed', 'declined'];
       const scrapedIds = ['scraped-all', 'scraped-week', 'scraped-today', 'scraped-pending', 'scraped-approved', 'scraped-rejected'];
 
       if (isScrapedMode) {
@@ -1877,7 +2194,8 @@ ${esc(body || '(No email body content)')}
         { id: 'positive', key: 'positive' },
         { id: 'neutral', key: 'neutral' },
         { id: 'deadlines', key: 'deadlines' },
-        { id: 'followup', key: 'followup' },
+        { id: 'followup-a', key: 'followup_unanswered' },
+        { id: 'followup-b', key: 'followup_replied' },
         { id: 'snoozed', key: 'snoozed' },
         { id: 'declined', key: 'declined' },
         { id: 'scraped-all', key: 'scraped_all' },
@@ -1891,7 +2209,10 @@ ${esc(body || '(No email body content)')}
       allFilterButtons.forEach(t => {
         const btn = document.getElementById('tabFilter-' + t.id);
         if (btn) {
-          if (t.key === currentModalFilter || (t.id === 'all' && currentModalFilter === 'sent')) {
+          const isMatch = t.key === currentModalFilter || 
+                          (t.id === 'all' && currentModalFilter === 'sent') || 
+                          (t.id === 'followup-a' && currentModalFilter === 'followup');
+          if (isMatch) {
             btn.className = "px-2.5 py-1 rounded-lg font-bold bg-indigo-600 text-white shadow text-[10px] transition shrink-0";
           } else {
             btn.className = "px-2.5 py-1 rounded-lg font-bold text-gray-400 hover:text-white bg-surface border border-border/50 text-[10px] transition shrink-0";
@@ -1995,12 +2316,13 @@ ${esc(body || '(No email body content)')}
         { id: 'positive', key: 'positive', title: '<i class="fa-solid fa-thumbs-up text-emerald-400 mr-2"></i> Positive Replies' },
         { id: 'neutral', key: 'neutral', title: '<i class="fa-solid fa-clock text-cyan-400 mr-2"></i> Neutral / Redirects' },
         { id: 'deadlines', key: 'deadlines', title: '<i class="fa-solid fa-calendar-days text-purple-400 mr-2"></i> Deadlines & Portals' },
-        { id: 'followup', key: 'followup', title: '<i class="fa-solid fa-rotate text-amber-400 mr-2"></i> Follow-Up Queue' },
+        { id: 'followup-a', key: 'followup_unanswered', title: '<i class="fa-solid fa-clock-rotate-left text-amber-400 mr-2"></i> Category A: Unanswered Outbound' },
+        { id: 'followup-b', key: 'followup_replied', title: '<i class="fa-solid fa-inbox text-emerald-400 mr-2"></i> Category B: Replied — Needs My Response' },
         { id: 'snoozed', key: 'snoozed', title: '<i class="fa-solid fa-moon text-amber-400 mr-2"></i> Snoozed Leads' },
         { id: 'declined', key: 'declined', title: '<i class="fa-solid fa-ban text-rose-400 mr-2"></i> Declined Leads' }
       ];
 
-      const currentTab = tabs.find(t => t.key === currentModalFilter) || tabs[0];
+      const currentTab = tabs.find(t => t.key === currentModalFilter || (currentModalFilter === 'followup' && t.id === 'followup-a')) || tabs[0];
       title.innerHTML = currentTab.title;
 
       if (currentModalFilter === 'drafts') {
@@ -2062,13 +2384,23 @@ ${esc(body || '(No email body content)')}
 
           return hasValidDeadline || hasPortal || hasNotesDeadline;
         });
-      } else if (currentModalFilter === 'followup') {
+      } else if (currentModalFilter === 'followup_unanswered' || currentModalFilter === 'followup') {
         list = list.filter(p => {
           const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
           const isSnoozed = p && p.snooze_until && today < p.snooze_until;
           if (isSnoozed) return false;
-          if (s.includes('pos') || s.includes('accept') || s.includes('dec') || s.includes('rej') || s.includes('bounce')) return false;
+          if (s.includes('pos') || s.includes('accept') || s.includes('dec') || s.includes('rej') || s.includes('bounce') || s.includes('handled')) return false;
           return !s || s === 'no reply' || s === 'pending' || s === 'sent' || s.includes('follow');
+        });
+      } else if (currentModalFilter === 'followup_replied') {
+        list = list.filter(p => {
+          const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
+          const isSnoozed = p && p.snooze_until && today < p.snooze_until;
+          if (isSnoozed) return false;
+          if (s.includes('dec') || s.includes('rej') || s.includes('bounce')) return false;
+          const isReplied = s.includes('pos') || s.includes('accept') || s.includes('neut') || s.includes('redir') || s.includes('apply') || s.includes('interview') || s.includes('call') || s.includes('replied');
+          const isHandled = s.includes('handled') || s.includes('closed');
+          return isReplied && !isHandled;
         });
       } else if (currentModalFilter === 'snoozed') {
         list = list.filter(p => {
