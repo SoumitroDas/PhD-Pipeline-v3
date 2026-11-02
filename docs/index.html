@@ -63,8 +63,8 @@
       transform: rotate(15deg);
       transition: opacity 0.15s ease;
     }
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+    .no-scrollbar { -ms-overflow-style: none !important; scrollbar-width: none !important; }
   </style>
 </head>
 <body class="min-h-screen pb-20 flex flex-col justify-between">
@@ -160,6 +160,20 @@
 
   <!-- MAIN SCROLLABLE CONTENT (RESPONSIVE MAX-WIDTH) -->
   <main class="max-w-4xl mx-auto w-full px-4 pt-3 space-y-4">
+
+    <!-- BACKEND VERSION WARNING BANNER -->
+    <div id="backendVersionWarning" class="hidden p-3 bg-amber-950/70 border border-amber-500/50 rounded-xl text-amber-200 text-xs flex items-start gap-2.5 shadow-lg shadow-amber-950/40">
+      <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm mt-0.5 shrink-0"></i>
+      <div class="flex-1 min-w-0">
+        <span class="font-extrabold text-amber-300 block mb-0.5">⚠️ Outdated Google Apps Script Deployment</span>
+        <span class="text-[11px] text-amber-200/90 leading-relaxed block">
+          Your Google Apps Script deployment is running an older version (<span id="warnVerStr" class="mono font-bold text-amber-100">unknown</span>)! Click <strong>Deploy &gt; Manage Deployments &gt; Edit &gt; New Version</strong> in Apps Script, or update your Web App URL in the Gear icon.
+        </span>
+      </div>
+      <button onclick="document.getElementById('backendVersionWarning').classList.add('hidden')" class="text-amber-400 hover:text-white p-1 rounded transition shrink-0" title="Dismiss warning">
+        <i class="fa-solid fa-xmark text-xs"></i>
+      </button>
+    </div>
 
     <!-- VIEW A: TINDER-STYLE SWIPE REVIEW CARD CONTAINER (TAB 1) -->
     <section id="viewSwipe" class="space-y-3">
@@ -480,7 +494,7 @@
           </div>
         </div>
         <!-- Modal Actionable Queue Filters -->
-        <div class="px-3 py-2 bg-surface/60 border-b border-border/60 flex items-center gap-1.5 overflow-x-auto text-[10px]">
+        <div class="px-3 py-2 bg-surface/60 border-b border-border/60 flex flex-wrap items-center gap-1.5 no-scrollbar text-[10px]">
           <button id="tabFilter-drafts" onclick="showList('drafts')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">📝 Drafts Ready</button>
           <button id="tabFilter-all" onclick="showList('sent')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">All Sent</button>
           <button id="tabFilter-positive" onclick="showList('positive')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🟢 Positive</button>
@@ -1675,6 +1689,7 @@ ${esc(body || '(No email body content)')}
           });
         }
         title.innerHTML = `<i class="fa-solid fa-pen-to-square text-blue-400 mr-2"></i> Drafts Ready for Dispatch <span class="text-[11px] text-gray-400 font-normal">(${dList.length})</span>`;
+        currentModalRenderedList = dList;
         if (dList.length === 0) {
           content.innerHTML = `
             <div class="text-center p-8 space-y-3">
@@ -1709,18 +1724,24 @@ ${esc(body || '(No email body content)')}
       } else if (currentModalFilter === 'deadlines') {
         list = list.filter(p => {
           if (typeof p !== 'object' || p === null) return false;
-          const d = (p.deadline || p.app_deadline || '').toLowerCase();
-          const s = (p.status || '').toLowerCase();
-          if (!d || d === 'n/a' || d === 'rolling' || d.startsWith('closed') || d.includes('undeliverable') || d.includes('expired')) return false;
+          const s = String(p.status || '').toLowerCase();
           if (s.includes('dec') || s.includes('rej') || s.includes('bounce')) return false;
-          return true;
+
+          const d = String(p.deadline || p.app_deadline || '').trim();
+          const hasValidDeadline = !!d && !/^(rolling|n\/a|none|closed|do not contact|historical)/i.test(d);
+          const hasPortal = !!(p.portal && String(p.portal).trim().startsWith('http'));
+          const notesText = String(p.notes || p.reply_notes || '');
+          const hasNotesDeadline = /\b(dec|jan|feb|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|september|oct|october|nov|november|fall|spring|portal|apply|deadline|cycle)\b/i.test(notesText);
+
+          return hasValidDeadline || hasPortal || hasNotesDeadline;
         });
       } else if (currentModalFilter === 'followup') {
         list = list.filter(p => {
           const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
           const isSnoozed = p && p.snooze_until && today < p.snooze_until;
           if (isSnoozed) return false;
-          return !s || s === 'no reply' || s === 'pending' || s === 'sent';
+          if (s.includes('pos') || s.includes('accept') || s.includes('dec') || s.includes('rej') || s.includes('bounce')) return false;
+          return !s || s === 'no reply' || s === 'pending' || s === 'sent' || s.includes('follow');
         });
       } else if (currentModalFilter === 'snoozed') {
         list = list.filter(p => {
@@ -1879,15 +1900,25 @@ ${esc(body || '(No email body content)')}
         document.getElementById('statSent').innerText = j.stats.sent;
         if (document.getElementById('statPositive')) document.getElementById('statPositive').innerText = j.stats.positive;
         
-        // Drafts Ready sync
+        // Backend Version Stamp Check
+        const warnBanner = document.getElementById('backendVersionWarning');
+        const warnVerStr = document.getElementById('warnVerStr');
+        if (warnBanner) {
+          if (!j.backend_version || j.backend_version !== 'v3.3') {
+            if (warnVerStr) warnVerStr.innerText = j.backend_version || 'pre-v3.3';
+            warnBanner.classList.remove('hidden');
+          } else {
+            warnBanner.classList.add('hidden');
+          }
+        }
+
+        // Drafts Ready sync: strictly rely on j.draftsReady length, NEVER fall back to j.stats.drafted
         if (j.draftsReady && Array.isArray(j.draftsReady)) {
           globalDraftsReady = j.draftsReady;
-        } else if (j.leads && Array.isArray(j.leads)) {
-          globalDraftsReady = j.leads.filter(l => (l.dispatch || '').toUpperCase() === 'DRAFT');
         } else {
           globalDraftsReady = [];
         }
-        const draftCount = (globalDraftsReady.length || (j.stats && j.stats.drafted) || 0);
+        const draftCount = globalDraftsReady.length;
         if (document.getElementById('statDrafted')) {
           document.getElementById('statDrafted').innerText = draftCount;
         }
