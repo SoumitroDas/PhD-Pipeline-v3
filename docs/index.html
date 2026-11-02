@@ -682,6 +682,22 @@
               </div>
             </div>
 
+            <!-- Sleek Single Dropdown Priority Selector (Task 28A) -->
+            <div id="modalPriorityContainer" class="relative flex items-center gap-1">
+              <label for="modalPrioritySelect" class="text-[10px] font-bold text-gray-400 shrink-0 hidden sm:inline">⚡ Priority:</label>
+              <div class="relative">
+                <select id="modalPrioritySelect" onchange="setModalPriority(this.value)"
+                        class="bg-surface hover:bg-border text-gray-200 border border-border rounded-lg text-[10px] font-semibold pl-2 pr-6 py-1 focus:outline-none focus:border-indigo-500 cursor-pointer transition appearance-none shadow-sm">
+                  <option value="ALL">All Priorities</option>
+                  <option value="P1">🔥 P1 - High</option>
+                  <option value="P2">⚡ P2 - Medium</option>
+                  <option value="P3">💤 P3 - Low</option>
+                  <option value="P4">❄️ P4 - Dormant</option>
+                </select>
+                <i class="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-gray-400 pointer-events-none"></i>
+              </div>
+            </div>
+
             <!-- Sleek Single Dropdown Sort Selector -->
             <div id="modalSortContainer" class="relative flex items-center gap-1.5">
               <label for="modalSortSelect" class="text-[10px] font-bold text-gray-400 shrink-0 hidden sm:inline">⇅ Sort By:</label>
@@ -723,15 +739,7 @@
           <button id="tabFilter-scraped-rejected" onclick="showList('scraped_rejected')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0 hidden">❌ Declined</button>
           <button id="tabFilter-switch-outreach" onclick="showList('sent')" class="px-2.5 py-1 rounded-lg font-bold text-indigo-300 hover:text-white bg-indigo-950/40 border border-indigo-700/50 text-[10px] transition shrink-0 hidden">📨 Outreach CRM</button>
         </div>
-        <!-- Priority Sub-Filter (P1–P4) Bar (Task 27D) -->
-        <div id="modalPriorityBar" class="px-3 py-1.5 bg-surface/50 border-b border-border/50 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[10px]">
-          <span class="text-gray-400 font-bold shrink-0 hidden sm:inline">⚡ Priority:</span>
-          <button id="prioFilter-ALL" onclick="setModalPriority('ALL')" class="px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-indigo-600 text-white shadow-sm">All</button>
-          <button id="prioFilter-P1" onclick="setModalPriority('P1')" class="px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/60">🔥 P1 High</button>
-          <button id="prioFilter-P2" onclick="setModalPriority('P2')" class="px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/60">⚡ P2 Med</button>
-          <button id="prioFilter-P3" onclick="setModalPriority('P3')" class="px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/60">💤 P3 Low</button>
-          <button id="prioFilter-P4" onclick="setModalPriority('P4')" class="px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/60">❄️ P4 Dormant</button>
-        </div>
+
         <div id="listContent" class="p-3 overflow-y-auto space-y-2 text-xs text-gray-300 flex-1"></div>
       </div>
     </div>
@@ -1438,8 +1446,27 @@
         if (!isNaN(diff) && diff >= 0) daysSinceLastContact = diff;
       }
 
-      const scholarFallback = `https://scholar.google.com/scholar?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic / Research Institution' ? inst.split('|')[0].trim() : ''))}`;
-      const directProfileUrl = (typeof p === 'object' && p !== null ? (p.profile_url || p.profile || p.direct_profile || '') : '') || scholarFallback;
+      const openAlexFallback = `https://openalex.org/search?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic / Research Institution' ? inst.split('|')[0].trim() : ''))}`;
+      let directProfileUrl = (typeof p === 'object' && p !== null ? (p.profile_url || p.profile || p.direct_profile || '') : '') || '';
+      if (!directProfileUrl || directProfileUrl.includes('google.com/scholar')) {
+        directProfileUrl = openAlexFallback;
+      }
+
+      const hasValidEmail = email && email !== 'Not logged' && email.includes('@') && !email.toLowerCase().includes('missing');
+      const emailBadgeHtml = hasValidEmail ? `
+        <span class="inline-flex items-center gap-1.5 font-mono text-[10px] text-indigo-300 bg-card px-2 py-0.5 rounded border border-border/80 shadow-sm" onclick="event.stopPropagation()">
+          <i class="fa-regular fa-envelope text-indigo-400 text-[9px]"></i>
+          <span class="select-all">${esc(email)}</span>
+          <button onclick="event.stopPropagation(); copyToClipboard('${esc(email)}', '📋 Email address copied!');" title="Copy email address" class="ml-1 text-gray-400 hover:text-white transition">
+            <i class="fa-regular fa-copy text-[9px]"></i>
+          </button>
+        </span>
+      ` : `
+        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-950/40 px-2 py-0.5 rounded border border-rose-500/30" onclick="event.stopPropagation()">
+          <i class="fa-solid fa-triangle-exclamation text-[9px]"></i>
+          <span>Missing Email</span>
+        </span>
+      `;
       const paperLink = (typeof p === 'object' && p !== null ? (p.paper_link || p.paper || p.doi || '') : '') || '';
 
       const isDeadlineActive = deadline && deadline !== 'Rolling' && deadline !== 'N/A' && !deadline.toLowerCase().startsWith('closed') && !deadline.toLowerCase().includes('expired');
@@ -1548,7 +1575,10 @@
                 </span>
                 ` : ''}
               </div>
-              <div class="text-[10px] text-gray-400 mt-0.5 truncate">${esc(inst)}</div>
+              <div class="text-[10px] text-gray-400 mt-1 flex items-center gap-2 flex-wrap">
+                <span class="truncate max-w-xs">${esc(inst)}</span>
+                ${emailBadgeHtml}
+              </div>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
               ${snoozeBadge}
@@ -1569,7 +1599,7 @@
               </div>
               <div>
                 <span class="text-gray-500 block uppercase font-bold text-[8px]">Email</span>
-                <span class="text-indigo-400 font-mono select-all">${esc(email || 'Not logged')}</span>
+                ${emailBadgeHtml}
               </div>
             </div>
 
@@ -1843,8 +1873,8 @@
         statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">❌ DECLINED</span>';
       }
 
-      const scholarFallback = `https://scholar.google.com/scholar?q=${encodeURIComponent((p.prof || '') + ' ' + (p.inst || ''))}`;
-      const profileUrl = p.profile_url || p.link || scholarFallback;
+      const openAlexFallback = `https://openalex.org/search?q=${encodeURIComponent((p.prof || '') + ' ' + (p.inst || ''))}`;
+      const profileUrl = (p.profile_url && !p.profile_url.includes('google.com/scholar')) ? p.profile_url : (p.link && !p.link.includes('doi.org') ? p.link : openAlexFallback);
 
       const extractDoiUrl = (str, fallback) => {
         if (!str) return fallback || '';
@@ -1959,8 +1989,27 @@
       const body = (typeof p === 'object' && p !== null ? (p.body || p.full_body || p.email_body || '') : '') || '';
       const deadline = (typeof p === 'object' && p !== null ? (p.deadline || p.app_deadline || '') : '') || 'Rolling';
 
-      const scholarFallback = `https://scholar.google.com/scholar?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic / Research Institution' ? inst.split('|')[0].trim() : ''))}`;
-      const directProfileUrl = (typeof p === 'object' && p !== null ? (p.profile_url || p.profile || p.direct_profile || '') : '') || scholarFallback;
+      const openAlexFallback = `https://openalex.org/search?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic / Research Institution' ? inst.split('|')[0].trim() : ''))}`;
+      let directProfileUrl = (typeof p === 'object' && p !== null ? (p.profile_url || p.profile || p.direct_profile || '') : '') || '';
+      if (!directProfileUrl || directProfileUrl.includes('google.com/scholar')) {
+        directProfileUrl = openAlexFallback;
+      }
+
+      const hasValidEmail = email && email !== 'Not logged' && email.includes('@') && !email.toLowerCase().includes('missing');
+      const emailBadgeHtml = hasValidEmail ? `
+        <span class="inline-flex items-center gap-1.5 font-mono text-[10px] text-indigo-300 bg-card px-2 py-0.5 rounded border border-border/80 shadow-sm">
+          <i class="fa-regular fa-envelope text-indigo-400 text-[9px]"></i>
+          <span class="select-all">${esc(email)}</span>
+          <button onclick="copyToClipboard('${esc(email)}', '📋 Email address copied!');" title="Copy email address" class="ml-1 text-gray-400 hover:text-white transition">
+            <i class="fa-regular fa-copy text-[9px]"></i>
+          </button>
+        </span>
+      ` : `
+        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-rose-400 bg-rose-950/40 px-2 py-0.5 rounded border border-rose-500/30">
+          <i class="fa-solid fa-triangle-exclamation text-[9px]"></i>
+          <span>Missing Email</span>
+        </span>
+      `;
 
       const mailtoUrl = email ? `mailto:${esc(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` : '#';
 
@@ -1985,8 +2034,12 @@
               </div>
               <div class="text-[10px] text-gray-400 mt-0.5 truncate">${esc(inst)}</div>
             </div>
-            <div class="shrink-0 text-right">
-              <span class="text-[10px] font-mono text-indigo-400 select-all block">${esc(email || 'No email logged')}</span>
+            <div class="shrink-0 flex items-center gap-1.5">
+              ${emailBadgeHtml}
+              <a href="${esc(safeUrl(directProfileUrl))}" target="_blank" rel="noopener noreferrer"
+                 class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 flex items-center gap-1 transition">
+                <i class="fa-solid fa-graduation-cap text-[9px]"></i> Profile ↗
+              </a>
             </div>
           </div>
 
@@ -2436,8 +2489,8 @@ ${esc(body || '(No email body content)')}
       const notes = p.notes || p.reply_notes || 'Positive response received. PI expressed interest in scheduling a discussion.';
       const deadline = p.deadline || 'Rolling';
       const portal = p.portal || '';
-      const scholarFallback = `https://scholar.google.com/scholar?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic Institution' ? inst.split('|')[0].trim() : ''))}`;
-      const profileUrl = p.profile_url || p.profile || scholarFallback;
+      const openAlexFallback = `https://openalex.org/search?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic Institution' ? inst.split('|')[0].trim() : ''))}`;
+      const profileUrl = (p.profile_url && !p.profile_url.includes('google.com/scholar')) ? p.profile_url : (p.profile || openAlexFallback);
       const paper1 = p.paper_link || p.paper || p.doi || '';
 
       document.getElementById('prepProfName').innerText = profName;
@@ -2716,16 +2769,10 @@ ${esc(body || '(No email body content)')}
 
     function setModalPriority(priority) {
       currentModalPriority = priority || 'ALL';
-      ['ALL', 'P1', 'P2', 'P3', 'P4'].forEach(p => {
-        const btn = document.getElementById('prioFilter-' + p);
-        if (btn) {
-          if (p === currentModalPriority) {
-            btn.className = "px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-indigo-600 text-white shadow-sm";
-          } else {
-            btn.className = "px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/60";
-          }
-        }
-      });
+      const select = document.getElementById('modalPrioritySelect');
+      if (select && select.value !== currentModalPriority) {
+        select.value = currentModalPriority;
+      }
       renderModalView();
     }
 
@@ -3553,7 +3600,8 @@ ${esc(body || '(No email body content)')}
         const paper2Display = lead.paper2 || lead.paper_2 || '';
 
         // Profile vs. Paper Link Separation:
-        const directProfileUrl = lead.profile_url || lead.profile || (lead.link && !lead.link.includes('doi.org') && !lead.link.includes('sciencedirect') && !lead.link.includes('ncbi.nlm.nih.gov') ? lead.link : `https://scholar.google.com/scholar?q=${encodeURIComponent((lead.prof || '') + ' ' + (lead.inst || ''))}`);
+        const openAlexFallback = `https://openalex.org/search?q=${encodeURIComponent((lead.prof || '') + ' ' + (lead.inst || ''))}`;
+        const directProfileUrl = (lead.profile_url && !lead.profile_url.includes('google.com/scholar')) ? lead.profile_url : (lead.profile || (lead.link && !lead.link.includes('doi.org') && !lead.link.includes('sciencedirect') && !lead.link.includes('ncbi.nlm.nih.gov') ? lead.link : openAlexFallback));
 
         const extractDoiUrl = (str, fallback) => {
           if (!str) return fallback || '';
