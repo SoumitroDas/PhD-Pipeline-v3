@@ -39,6 +39,26 @@ on:
         required: false
         type: boolean
         default: false
+      area:
+        description: 'Research Area Cluster (e.g. epidemiology, pinns, parameter_estimation, fractional, predator_prey, all)'
+        required: false
+        type: string
+        default: 'all'
+      country:
+        description: 'Target Country (e.g. USA, UK, Germany, Canada, Australia, Sweden)'
+        required: false
+        type: string
+        default: ''
+      university:
+        description: 'Target University (e.g. University of Oxford, Waterloo)'
+        required: false
+        type: string
+        default: ''
+      department:
+        description: 'Target Department (e.g. Applied Mathematics, Mathematical Biology)'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   run-pipeline:
@@ -79,11 +99,25 @@ jobs:
             DRY_RUN_FLAG="--dry-run"
           fi
 
+          SCOUT_EXTRA_ARGS=""
+          if [ -n "${{ inputs.area }}" ] && [ "${{ inputs.area }}" != "all" ]; then
+            SCOUT_EXTRA_ARGS="$SCOUT_EXTRA_ARGS --cluster ${{ inputs.area }}"
+          fi
+          if [ -n "${{ inputs.country }}" ]; then
+            SCOUT_EXTRA_ARGS="$SCOUT_EXTRA_ARGS --country \"${{ inputs.country }}\""
+          fi
+          if [ -n "${{ inputs.university }}" ]; then
+            SCOUT_EXTRA_ARGS="$SCOUT_EXTRA_ARGS --university \"${{ inputs.university }}\""
+          fi
+          if [ -n "${{ inputs.department }}" ]; then
+            SCOUT_EXTRA_ARGS="$SCOUT_EXTRA_ARGS --department \"${{ inputs.department }}\""
+          fi
+
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TARGET="$INPUT_DAEMON"
             echo "Executing manually requested daemon: $TARGET"
             if [ "$TARGET" = "scout" ] || [ "$TARGET" = "all" ]; then
-              python src/scout_v3.py $DRY_RUN_FLAG
+              python src/scout_v3.py $DRY_RUN_FLAG $SCOUT_EXTRA_ARGS
             fi
             if [ "$TARGET" = "drafter" ] || [ "$TARGET" = "all" ]; then
               python src/drafter_v3.py $DRY_RUN_FLAG

@@ -566,9 +566,13 @@ function doPost(e) {
       if (data.type) extraInputs.type = String(data.type);
       if (data.prof) extraInputs.prof = String(data.prof);
       if (data.row) extraInputs.row = String(data.row);
+      if (data.research_area || data.area || data.cluster) extraInputs.area = String(data.research_area || data.area || data.cluster);
+      if (data.target_country || data.country) extraInputs.country = String(data.target_country || data.country);
+      if (data.target_university || data.university) extraInputs.university = String(data.target_university || data.university);
+      if (data.target_department || data.department) extraInputs.department = String(data.target_department || data.department);
 
       triggerGitHubWorkflow(daemon, extraInputs);
-      return ContentService.createTextOutput(JSON.stringify({ ok: true, daemon: daemon })).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, daemon: daemon, inputs: extraInputs })).setMimeType(ContentService.MimeType.JSON);
     }
 
     // 9. ACTION: sync_calendar (Auto-syncs application deadlines to Google Calendar)

@@ -87,7 +87,7 @@
 
       <!-- Quick Actions: 4 Pipeline Automation Triggers, Diagnostics, Reset Credentials & Sheet -->
       <div class="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-        <button onclick="triggerDaemon('scout')" id="btnRunScoutHeader" title="Run Scout Manual Trigger"
+        <button onclick="openScoutDiscoveryModal()" id="btnRunScoutHeader" title="Run Targeted Scout Discovery"
                 class="px-2 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95 shrink-0">
           <i class="fa-solid fa-bolt text-amber-300 text-[10px]"></i>
           <span>Scout</span>
@@ -253,7 +253,7 @@
             <p class="text-[9px] text-gray-400">Autonomous Prospecting & Intake</p>
           </div>
         </div>
-        <button onclick="triggerScout()" id="btnRunScout" title="Run Scout Manual Trigger"
+        <button onclick="openScoutDiscoveryModal()" id="btnRunScout" title="Run Targeted Scout Discovery"
                 class="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold flex items-center gap-1 transition active:scale-95 shadow-sm">
           <i class="fa-solid fa-bolt text-amber-300 text-[9px]"></i>
           <span>⚡ Run Scout</span>
@@ -853,6 +853,129 @@
           <div class="text-center py-6 text-gray-400">
             <i class="fa-solid fa-stethoscope text-2xl text-emerald-400 mb-2 block"></i>
             <p class="text-xs">Click Run Diagnostics to test your live pipeline.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TARGETED SCOUT DISCOVERY MODAL OVERLAY -->
+    <div id="scoutDiscoveryModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <div class="bg-card border border-border rounded-2xl w-full max-w-lg flex flex-col shadow-2xl overflow-hidden animate-fade-in">
+        <!-- Scout Modal Header -->
+        <div class="p-3.5 border-b border-border flex justify-between items-center bg-surface/50 shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-amber-500 flex items-center justify-center text-white text-xs shadow-md shadow-indigo-600/30">
+              <i class="fa-solid fa-satellite-dish"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-xs font-bold text-white">Targeted Scout Discovery</h3>
+                <span class="px-1.5 py-0.5 text-[9px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded uppercase">v3.4 Multi-Source</span>
+              </div>
+              <p class="text-[10px] text-gray-400">Biomathematics Lead Discovery & Verification</p>
+            </div>
+          </div>
+          <button onclick="closeScoutDiscoveryModal()" title="Close" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface border border-border/60 transition">
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+
+        <!-- Scout Modal Content -->
+        <div class="p-4 space-y-3.5 max-h-[75vh] overflow-y-auto text-xs">
+          <!-- Information Callout -->
+          <div class="bg-indigo-950/40 border border-indigo-500/30 rounded-xl p-3 flex items-start gap-2 text-indigo-200 text-[11px] leading-relaxed">
+            <i class="fa-solid fa-circle-nodes text-indigo-400 mt-0.5 shrink-0 text-sm"></i>
+            <div>
+              <span class="font-bold text-white">4 Multi-Source Discovery Modes:</span>
+              <span>Scans OpenAlex, Crossref, and arXiv API using hard-negative filtering (discards wet-lab/clinical) and 4D rubric scoring.</span>
+            </div>
+          </div>
+
+          <!-- Mode 1: Research Area Cluster -->
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-atom text-indigo-400"></i>
+              <span>Mode 1: Research Area Cluster</span>
+            </label>
+            <select id="scoutClusterSelect" class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+              <option value="all">⚡ All 5 Clusters (Epidemiology, PINNs, Inverse, Fractional, Predator-Prey)</option>
+              <option value="epidemiology">🔬 Cluster A: Compartmental ODEs & Epidemiology (SEIR, Dengue, R0)</option>
+              <option value="parameter_estimation">🎯 Cluster B: Parameter Estimation & Inverse Problems (Identifiability)</option>
+              <option value="pinns">🧠 Cluster C: Physics-Informed Neural Networks & SciML in Biology</option>
+              <option value="fractional">📐 Cluster D: Fractional Calculus & Caputo Derivatives in Biology</option>
+              <option value="predator_prey">🦊 Cluster E: Predator-Prey & Harvesting Dynamics (Bifurcations)</option>
+            </select>
+          </div>
+
+          <!-- Mode 2: Target Country -->
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-globe text-emerald-400"></i>
+              <span>Mode 2: Target Country Filter</span>
+            </label>
+            <select id="scoutCountrySelect" class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+              <option value="">🌍 All Countries (Global Intake)</option>
+              <option value="USA">🇺🇸 United States (USA)</option>
+              <option value="UK">🇬🇧 United Kingdom (UK)</option>
+              <option value="Canada">🇨🇦 Canada</option>
+              <option value="Germany">🇩🇪 Germany</option>
+              <option value="Australia">🇦🇺 Australia</option>
+              <option value="Sweden">🇸🇪 Sweden</option>
+              <option value="Finland">🇫🇮 Finland</option>
+              <option value="Netherlands">🇳🇱 Netherlands</option>
+              <option value="Switzerland">🇨🇭 Switzerland</option>
+              <option value="France">🇫🇷 France</option>
+              <option value="Belgium">🇧🇪 Belgium</option>
+              <option value="Singapore">🇸🇬 Singapore</option>
+              <option value="Norway">🇳🇴 Norway</option>
+              <option value="Japan">🇯🇵 Japan</option>
+            </select>
+          </div>
+
+          <!-- Mode 3: Target University -->
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-building-columns text-cyan-400"></i>
+              <span>Mode 3: Target University (Optional)</span>
+            </label>
+            <input type="text" id="scoutTargetUniversity" placeholder="e.g. Oxford, Waterloo, Heidelberg, Toronto (Leave blank for any)"
+                   class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition" />
+          </div>
+
+          <!-- Mode 4: Target Department -->
+          <div class="space-y-1">
+            <label class="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+              <i class="fa-solid fa-graduation-cap text-amber-400"></i>
+              <span>Mode 4: Target Department (Optional)</span>
+            </label>
+            <select id="scoutDepartmentSelect" class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 transition">
+              <option value="">🏢 Any Applicable Department</option>
+              <option value="Department of Mathematics">Department of Mathematics</option>
+              <option value="Applied Mathematics">Applied Mathematics</option>
+              <option value="Mathematical Biology">Mathematical Biology</option>
+              <option value="Biostatistics & Epidemiology">Biostatistics & Epidemiology</option>
+              <option value="Computational Biology">Computational Biology</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Scout Modal Footer -->
+        <div class="p-3.5 border-t border-border bg-surface/50 flex items-center justify-between gap-2 shrink-0">
+          <button onclick="triggerDaemon('scout'); closeScoutDiscoveryModal();"
+                  class="px-3 py-2 rounded-xl bg-surface hover:bg-border border border-border/80 text-gray-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition active:scale-95">
+            <i class="fa-solid fa-bolt text-amber-300"></i>
+            <span>Quick Run (All)</span>
+          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="closeScoutDiscoveryModal()"
+                    class="px-3 py-2 rounded-xl bg-surface/80 hover:bg-border text-gray-400 hover:text-white text-xs transition">
+              Cancel
+            </button>
+            <button onclick="launchTargetedScout()"
+                    class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-amber-600 hover:from-indigo-500 hover:to-amber-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition active:scale-95">
+              <i class="fa-solid fa-rocket"></i>
+              <span>Run Targeted Scout</span>
+            </button>
           </div>
         </div>
       </div>
@@ -3361,7 +3484,7 @@ ${esc(body || '(No email body content)')}
     }
 
     // Backend-Relayed Daemon Triggers (Zero-Secret, No GITHUB_PAT on frontend)
-    async function triggerDaemon(daemon) {
+    async function triggerDaemon(daemon, params = {}) {
       const daemonNames = {
         scout: '⚡ Scout',
         drafter: '✍️ Drafter',
@@ -3371,15 +3494,35 @@ ${esc(body || '(No email body content)')}
       const label = daemonNames[daemon] || daemon;
       showToast(`🚀 Triggering ${label}...`);
       try {
-        await postGAS({ action: 'trigger_' + daemon });
+        const payload = Object.assign({ action: 'trigger_' + daemon }, params);
+        await postGAS(payload);
         showToast(`✅ ${label} triggered on GitHub! Check Actions tab.`);
       } catch (e) {
         showToast(`❌ ${label} trigger failed: ` + e.message);
       }
     }
 
+    function openScoutDiscoveryModal() {
+      const modal = document.getElementById('scoutDiscoveryModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeScoutDiscoveryModal() {
+      const modal = document.getElementById('scoutDiscoveryModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function launchTargetedScout() {
+      const area = document.getElementById('scoutClusterSelect')?.value || 'all';
+      const country = document.getElementById('scoutCountrySelect')?.value || '';
+      const university = document.getElementById('scoutTargetUniversity')?.value.trim() || '';
+      const department = document.getElementById('scoutDepartmentSelect')?.value || '';
+      closeScoutDiscoveryModal();
+      triggerDaemon('scout', { area, country, university, department });
+    }
+
     const triggerDrafter = () => triggerDaemon('drafter');
-    const triggerScout = () => triggerDaemon('scout');
+    const triggerScout = () => openScoutDiscoveryModal();
     const triggerNagger = () => triggerDaemon('nagger');
     const triggerRadar = () => triggerDaemon('radar');
 
