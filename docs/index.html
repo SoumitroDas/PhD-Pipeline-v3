@@ -220,7 +220,7 @@
         </button>
       </div>
 
-      <div class="grid grid-cols-2 gap-2 text-center pt-0.5">
+      <div class="grid grid-cols-3 gap-2 text-center pt-0.5">
         <div class="bg-surface/80 p-2.5 rounded-xl border border-border/60">
           <div id="statScraped" class="text-lg font-black text-indigo-400 mono">--</div>
           <div class="text-[9px] text-gray-400 uppercase font-semibold">Scraped Leads</div>
@@ -228,6 +228,10 @@
         <div class="bg-surface/80 p-2.5 rounded-xl border border-border/60">
           <div id="statApproved" class="text-lg font-black text-emerald-400 mono">--</div>
           <div class="text-[9px] text-gray-400 uppercase font-semibold">Approved (Deck)</div>
+        </div>
+        <div class="bg-surface/80 p-2.5 rounded-xl border border-border/60">
+          <div id="statRejected" class="text-lg font-black text-rose-400 mono">--</div>
+          <div class="text-[9px] text-gray-400 uppercase font-semibold">Rejected Leads</div>
         </div>
       </div>
     </div>
@@ -1749,6 +1753,7 @@ ${esc(body || '(No email body content)')}
         
         document.getElementById('statScraped').innerText = j.stats.scraped;
         document.getElementById('statApproved').innerText = j.stats.approved;
+        if (document.getElementById('statRejected')) document.getElementById('statRejected').innerText = (j.stats && j.stats.rejected !== undefined) ? j.stats.rejected : 0;
         document.getElementById('statSent').innerText = j.stats.sent;
         if (document.getElementById('statPositive')) document.getElementById('statPositive').innerText = j.stats.positive;
         
