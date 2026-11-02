@@ -1,5 +1,5 @@
 /**
- * PhD Outreach Pipeline v3.1 - Google Apps Script Backend Proxy
+ * PhD Outreach Pipeline v3.6 - Google Apps Script Backend Proxy
  * Serves PWA client requests with APP_SECRET token authentication.
  *
  * Tab Schema:
@@ -11,7 +11,7 @@
  */
 
 const SHEET_ID = PropertiesService.getScriptProperties().getProperty("SHEET_ID") || "YOUR_SHEET_ID_HERE";
-const BACKEND_VERSION = "v3.4";
+const BACKEND_VERSION = "v3.6";
 
 function getStoredSecret() {
   const sp = PropertiesService.getScriptProperties();
@@ -672,7 +672,7 @@ function doPost(e) {
       const sysPrompt = "You are the AI Academic Intelligence Assistant for Soumitro Kumar Das (M.Sc. Applied Mathematics, researching Compartmental Epidemiological Modeling, Parameter Estimation, PINNs/Neural ODEs, Fractional Calculus, and Predator-Prey/Harvesting systems).\n" +
         "Use his live CRM & Scraped Leads database below to answer questions about professors, compatibility, follow-ups, email drafting, and literature:\n" +
         JSON.stringify(data.crm_data || {});
-      const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+      const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
       let lastErr = "";
       for (let m = 0; m < models.length; m++) {
         const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[m] + ":generateContent?key=" + encodeURIComponent(apiKey);
@@ -1031,7 +1031,7 @@ function triggerGitHubWorkflow(daemonName, extraInputs) {
 function callGeminiAPI(prompt, systemInstruction) {
   const apiKey = (PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY") || "").trim();
   if (!apiKey) return "";
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+  const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
   for (let m = 0; m < models.length; m++) {
     try {
       const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[m] + ":generateContent?key=" + encodeURIComponent(apiKey);
