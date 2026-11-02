@@ -194,42 +194,68 @@
       </div>
     </section>
 
-    <!-- PIPELINE PERFORMANCE DASHBOARD (PLACED BELOW <section id="viewSwipe">) -->
+    <!-- 🤖 SCOUT AGENT STATUS (SEPARATE TOP CARD) -->
+    <div id="viewScoutAgent" class="bg-card border border-border/80 rounded-2xl p-3 shadow-md space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-xs">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>🤖 Scout Agent Status</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            </h3>
+            <p class="text-[9px] text-gray-400">Autonomous Prospecting & Intake</p>
+          </div>
+        </div>
+        <button onclick="triggerScout()" id="btnRunScout" title="Run Scout Manual Trigger"
+                class="px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold flex items-center gap-1 transition active:scale-95 shadow-sm">
+          <i class="fa-solid fa-bolt text-amber-300 text-[9px]"></i>
+          <span>Run Scout</span>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-center pt-0.5">
+        <div class="bg-surface/80 p-2 rounded-xl border border-border/60">
+          <div id="statScraped" class="text-base font-black text-indigo-400 mono">--</div>
+          <div class="text-[9px] text-gray-400 uppercase font-semibold">Scraped Leads</div>
+        </div>
+        <div class="bg-surface/80 p-2 rounded-xl border border-border/60">
+          <div id="statApproved" class="text-base font-black text-emerald-400 mono">--</div>
+          <div class="text-[9px] text-gray-400 uppercase font-semibold">Approved (Deck)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🚀 CRM DISPATCH VELOCITY (HUMAN OUTREACH CARD) -->
     <div id="viewPerformance" class="bg-card border border-border rounded-2xl p-4 shadow-xl space-y-3">
       <div class="flex items-center justify-between">
         <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400">Pipeline Performance</h2>
-          <p class="text-sm font-extrabold text-white">Funnel & Dispatch Velocity</p>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400">Human Outreach CRM</h2>
+          <p class="text-sm font-extrabold text-white">CRM Dispatch Velocity</p>
         </div>
-        <div class="flex items-center gap-1.5">
-          <button onclick="triggerDrafter()" id="btnRunDrafter" title="Run Drafter Manual Trigger"
-                  class="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-blue-600/30 transition active:scale-95">
-            <i class="fa-solid fa-pen-nib text-cyan-300 text-[10px]"></i>
-            <span>Run Drafter</span>
-          </button>
-          <button onclick="triggerScout()" id="btnRunScout" title="Run Scout Manual Trigger"
-                  class="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-indigo-600/30 transition active:scale-95">
-            <i class="fa-solid fa-bolt text-amber-300 text-[10px]"></i>
-            <span>Run Scout</span>
-          </button>
-        </div>
+        <button onclick="triggerDrafter()" id="btnRunDrafter" title="Run Drafter Manual Trigger"
+                class="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-blue-600/30 transition active:scale-95">
+          <i class="fa-solid fa-pen-nib text-cyan-300 text-[10px]"></i>
+          <span>Run Drafter</span>
+        </button>
       </div>
 
-      <!-- Quick Metrics Counters -->
-      <div class="grid grid-cols-4 gap-1.5 mb-2 text-center">
-        <div class="bg-surface p-2 rounded-xl border border-border">
-          <div id="statScraped" class="text-base font-black text-indigo-400 mono">--</div><div class="text-[9px] text-gray-400 uppercase">Scraped</div>
+      <!-- Quick Metrics Counters: 3 Focused Human Metrics -->
+      <div class="grid grid-cols-3 gap-2 mb-2 text-center">
+        <div onclick="showList('drafts')" class="bg-surface p-2.5 rounded-xl border border-blue-500/30 cursor-pointer hover:bg-surface/80 active:scale-95 transition-all shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+          <div id="statDrafted" class="text-lg font-black text-blue-400 mono">--</div>
+          <div class="text-[9px] text-blue-400 font-bold uppercase">Drafts Ready</div>
         </div>
-        <div onclick="showList('drafts')" class="bg-surface p-2 rounded-xl border border-blue-500/30 cursor-pointer hover:bg-surface/80 active:scale-95 transition-all shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-          <div id="statDrafted" class="text-base font-black text-blue-400 mono">--</div><div class="text-[9px] text-blue-400 font-bold uppercase">Drafts Ready</div>
+        <div onclick="showList('sent')" class="bg-surface p-2.5 rounded-xl border border-border cursor-pointer hover:bg-surface/80 active:scale-95 transition-all">
+          <div id="statSent" class="text-lg font-black text-amber-400 mono">--</div>
+          <div class="text-[9px] text-gray-400 uppercase font-semibold">Dispatched Total</div>
         </div>
-        <div onclick="showList('sent')" class="bg-surface p-2 rounded-xl border border-border cursor-pointer hover:bg-surface/80 active:scale-95 transition-all">
-          <div id="statSent" class="text-base font-black text-amber-400 mono">--</div><div class="text-[9px] text-gray-400 uppercase">Dispatched</div>
+        <div onclick="showList('positive')" class="bg-surface p-2.5 rounded-xl border border-border cursor-pointer hover:bg-surface/80 active:scale-95 transition-all shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+          <div id="statPositive" class="text-lg font-black text-emerald-400 mono">--</div>
+          <div class="text-[9px] text-emerald-500/80 font-bold uppercase">Positive Replies</div>
         </div>
-        <div onclick="showList('positive')" class="bg-surface p-2 rounded-xl border border-border cursor-pointer hover:bg-surface/80 active:scale-95 transition-all shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-          <div id="statPositive" class="text-base font-black text-emerald-400 mono">--</div><div class="text-[9px] text-emerald-500/70 font-bold uppercase">Positive</div>
-        </div>
-        <span id="statApproved" class="hidden"></span>
       </div>
 
       <!-- Quick CRM Actionable Queue Badges -->
@@ -251,7 +277,7 @@
         </button>
       </div>
 
-      <!-- Funnel Chart Canvas -->
+      <!-- Focused 3-Bar Chart Canvas -->
       <div class="h-28 w-full">
         <canvas id="analyticsChart"></canvas>
       </div>
@@ -398,11 +424,24 @@
     <!-- METRIC & CRM DRILL-DOWN MODAL -->
     <div id="listModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
       <div class="bg-card border border-border rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-        <div class="p-3.5 border-b border-border flex justify-between items-center bg-surface/40">
-          <h3 id="listTitle" class="font-bold text-sm text-white flex items-center"></h3>
-          <button onclick="document.getElementById('listModal').classList.add('hidden')" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-surface transition">
-            <i class="fa-solid fa-xmark text-sm"></i>
-          </button>
+        <div class="p-3 border-b border-border flex justify-between items-center bg-surface/40 gap-2">
+          <h3 id="listTitle" class="font-bold text-sm text-white flex items-center truncate"></h3>
+          <div class="flex items-center gap-2 shrink-0">
+            <!-- Sleek Single Dropdown Sort Selector -->
+            <div id="modalSortContainer" class="relative">
+              <select id="modalSortSelect" onchange="setModalSort(this.value)"
+                      class="bg-surface hover:bg-border text-gray-200 border border-border rounded-lg text-[10px] font-semibold pl-2 pr-6 py-1 focus:outline-none focus:border-indigo-500 cursor-pointer transition appearance-none shadow-sm">
+                <option value="name">🔤 Name (A–Z)</option>
+                <option value="lastContact">🕒 Last Contact</option>
+                <option value="firstContact">📅 First Contact</option>
+                <option value="deadline">⏳ Deadline</option>
+              </select>
+              <i class="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-gray-400 pointer-events-none"></i>
+            </div>
+            <button onclick="document.getElementById('listModal').classList.add('hidden')" class="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-surface transition">
+              <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+          </div>
         </div>
         <!-- Modal Actionable Queue Filters -->
         <div class="px-3 py-2 bg-surface/60 border-b border-border/60 flex items-center gap-1.5 overflow-x-auto text-[10px]">
@@ -414,14 +453,6 @@
           <button id="tabFilter-followup" onclick="showList('followup')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">⚪ Follow-Up</button>
           <button id="tabFilter-snoozed" onclick="showList('snoozed')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">💤 Snoozed</button>
           <button id="tabFilter-declined" onclick="showList('declined')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🔴 Declined</button>
-        </div>
-        <!-- Modal Multi-Sorting Control Bar -->
-        <div id="modalSortBar" class="px-3 py-1.5 bg-card/90 border-b border-border/50 flex items-center gap-1.5 overflow-x-auto text-[9px] text-gray-400">
-          <span class="font-bold uppercase tracking-wider text-[8px] text-gray-500 mr-1 shrink-0"><i class="fa-solid fa-arrow-down-short-wide mr-0.5"></i> Sort:</span>
-          <button id="sortBtn-name" onclick="setModalSort('name')" class="px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40">🔤 Name (A–Z)</button>
-          <button id="sortBtn-lastContact" onclick="setModalSort('lastContact')" class="px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40">🕒 Last Contact</button>
-          <button id="sortBtn-firstContact" onclick="setModalSort('firstContact')" class="px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40">📅 First Contact</button>
-          <button id="sortBtn-deadline" onclick="setModalSort('deadline')" class="px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40">⏳ Deadline</button>
         </div>
         <div id="listContent" class="p-3 overflow-y-auto space-y-2 text-xs text-gray-300 flex-1"></div>
       </div>
@@ -679,7 +710,9 @@
 
       const isPositive = statusRaw.toLowerCase().includes('pos') || statusRaw.toLowerCase().includes('accept') || statusRaw.toLowerCase().includes('interview') || statusRaw.toLowerCase().includes('call');
       const isNeutral = statusRaw.toLowerCase().includes('neut') || statusRaw.toLowerCase().includes('redir') || statusRaw.toLowerCase().includes('apply');
+      const isDeclined = statusRaw.toLowerCase().includes('dec') || statusRaw.toLowerCase().includes('rej') || statusRaw.toLowerCase().includes('bounce');
       const isPositiveOrNeutral = isPositive || isNeutral;
+      const isNoReply = !isPositive && !isNeutral && !isDeclined;
 
       const emailBtn = email ? `
         <a href="mailto:${esc(email)}" onclick="event.stopPropagation()"
@@ -687,6 +720,15 @@
            class="px-2 py-0.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold inline-flex items-center gap-1 transition active:scale-95 shrink-0">
           <i class="fa-solid fa-envelope text-[9px]"></i> Email
         </a>
+      ` : '';
+
+      // 3. 2nd Draft Generator (Follow-Up) Button for ⚪ No Reply / Active leads
+      const followUpBtn = isNoReply ? `
+        <button onclick="event.stopPropagation(); triggerFollowUpDraft('${idx}', '${esc(profName)}', ${p.row || idx})"
+                title="Queue a 2nd-touch follow-up draft"
+                class="px-2 py-0.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold inline-flex items-center gap-1 transition active:scale-95 shrink-0">
+          <i class="fa-solid fa-pen-fancy text-indigo-400 text-[9px]"></i> Follow-Up
+        </button>
       ` : '';
 
       // 3. Glowing Enter Prep Mode button for 🟢 Positive leads, replacing Email button
@@ -739,6 +781,7 @@
               ${snoozeBadge}
               <span class="text-[9px] px-2 py-0.5 rounded-md font-bold uppercase ${badge.cls}">${esc(badge.label)}</span>
               ${snoozeBtn}
+              ${followUpBtn}
               ${mainActionBtn}
             </div>
           </div>
@@ -787,6 +830,11 @@
               ${isPositive ? `
                 <button onclick="openInterviewPrep('${idx}')" class="px-2.5 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[10px] font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/30 ring-1 ring-emerald-400/50 transition active:scale-95">
                   <i class="fa-solid fa-microphone-lines text-emerald-200 text-[9px]"></i> 🎙️ Launch Interview Prep
+                </button>
+              ` : ''}
+              ${isNoReply ? `
+                <button onclick="triggerFollowUpDraft('${idx}', '${esc(profName)}', ${p.row || idx})" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold flex items-center gap-1 transition shadow active:scale-95">
+                  <i class="fa-solid fa-pen-fancy text-[9px]"></i> ✍️ Follow-Up Draft
                 </button>
               ` : ''}
               ${email ? `
@@ -1051,6 +1099,25 @@ ${esc(body || '(No email body content)')}
       }
     }
 
+    // 3. 2nd Draft (Follow-Up) Generator Engine
+    async function triggerFollowUpDraft(idx, profName, row) {
+      showToast(`✍️ Queueing follow-up draft for ${profName}...`);
+      try {
+        const res = await postGAS({
+          action: 'trigger_drafter',
+          type: 'follow_up',
+          prof: profName,
+          row: Number(row)
+        });
+        showToast(`✅ Follow-up draft queued for ${profName}!`);
+        setTimeout(fetchLiveStats, 1200);
+      } catch (err) {
+        console.error('Follow-up error:', err);
+        showToast(`Follow-up draft request sent for ${profName}`);
+        setTimeout(fetchLiveStats, 1500);
+      }
+    }
+
     // 3. Focused Interview Prep Mode Engine
     function openInterviewPrep(idx) {
       const p = (globalSentProfs || [])[idx];
@@ -1160,6 +1227,10 @@ ${esc(body || '(No email body content)')}
 
     function setModalSort(sortKey) {
       currentModalSort = sortKey;
+      const select = document.getElementById('modalSortSelect');
+      if (select && select.value !== sortKey) {
+        select.value = sortKey;
+      }
       renderModalView();
     }
 
@@ -1199,13 +1270,18 @@ ${esc(body || '(No email body content)')}
         }
       });
 
-      const sortBar = document.getElementById('modalSortBar');
-      if (sortBar) {
+      // Toggle Single Dropdown Sort Menu Visibility
+      const sortContainer = document.getElementById('modalSortContainer');
+      if (sortContainer) {
         if (currentModalFilter === 'drafts') {
-          sortBar.classList.add('hidden');
+          sortContainer.classList.add('hidden');
         } else {
-          sortBar.classList.remove('hidden');
+          sortContainer.classList.remove('hidden');
         }
+      }
+      const sortSelect = document.getElementById('modalSortSelect');
+      if (sortSelect) {
+        sortSelect.value = currentModalSort;
       }
 
       if (currentModalFilter === 'drafts') {
@@ -1238,18 +1314,6 @@ ${esc(body || '(No email body content)')}
         }
         return;
       }
-
-      // Update Sort Pills UI
-      ['name', 'lastContact', 'firstContact', 'deadline'].forEach(k => {
-        const btn = document.getElementById('sortBtn-' + k);
-        if (btn) {
-          if (k === currentModalSort) {
-            btn.className = "px-2 py-0.5 rounded-md font-bold transition shrink-0 bg-indigo-600 text-white shadow text-[9px]";
-          } else {
-            btn.className = "px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40 text-[9px]";
-          }
-        }
-      });
 
       let list = (globalSentProfs || []).slice();
       const today = getDhakaDate();
@@ -1367,11 +1431,11 @@ ${esc(body || '(No email body content)')}
       analyticsChart = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: ['Scraped', 'Approved', 'Drafted', 'Sent', 'Positive'],
+          labels: ['Drafts Ready', 'Dispatched Total', 'Positive Replies'],
           datasets: [{
-            label: 'Pipeline',
-            data: [0, 0, 0, 0, 0],
-            backgroundColor: ['#6366f1', '#10b981', '#3b82f6', '#f59e0b', '#22c55e'],
+            label: 'Outreach',
+            data: [0, 0, 0],
+            backgroundColor: ['#3b82f6', '#f59e0b', '#10b981'],
             borderRadius: 6
           }]
         },
@@ -1435,7 +1499,7 @@ ${esc(body || '(No email body content)')}
         }
 
         if (typeof analyticsChart !== 'undefined') {
-          analyticsChart.data.datasets[0].data = [j.stats.scraped, j.stats.approved, j.stats.drafted, j.stats.sent, j.stats.positive];
+          analyticsChart.data.datasets[0].data = [draftCount, j.stats.sent, j.stats.positive];
           analyticsChart.update();
         }
 
@@ -1541,11 +1605,19 @@ ${esc(body || '(No email body content)')}
       activeNav.className = "py-2 rounded-lg bg-indigo-600 text-white shadow transition text-center";
 
       const perfDiv = document.getElementById('viewPerformance');
+      const scoutDiv = document.getElementById('viewScoutAgent');
       if (perfDiv) {
         if (viewName === 'swipe') {
           perfDiv.classList.remove('hidden');
         } else {
           perfDiv.classList.add('hidden');
+        }
+      }
+      if (scoutDiv) {
+        if (viewName === 'swipe') {
+          scoutDiv.classList.remove('hidden');
+        } else {
+          scoutDiv.classList.add('hidden');
         }
       }
     }
