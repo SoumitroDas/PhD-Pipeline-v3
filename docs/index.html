@@ -2,7 +2,7 @@
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#121212" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -12,9 +12,9 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
-  <!-- Tailwind CSS & Chart.js & Hammer.js -->
+  <!-- Tailwind CSS & Pinned Chart.js & Hammer.js -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
 
   <script>
@@ -82,15 +82,20 @@
       </div>
     </div>
 
-    <!-- Quick Actions: Configure GAS & Open Sheet -->
+    <!-- Quick Actions: Run Scout, Reset Credentials & Open Sheet -->
     <div class="flex items-center gap-1.5">
-      <button onclick="configureGasUrl()" title="Configure Google Apps Script URL"
-              class="p-2 rounded-lg bg-card hover:bg-border text-gray-400 hover:text-white border border-border transition">
-        <i class="fa-solid fa-gear text-xs"></i>
+      <button onclick="triggerScout()" id="btnRunScoutHeader" title="Run Scout Manual Trigger"
+              class="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-indigo-600/30 transition active:scale-95">
+        <i class="fa-solid fa-bolt text-amber-300 text-[10px]"></i>
+        <span>Run Scout</span>
       </button>
-      <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit"
+      <button onclick="resetCredentials()" title="Configure GAS URL & Secret"
+              class="p-2 rounded-lg bg-card hover:bg-border text-gray-300 hover:text-white border border-border transition active:scale-95">
+        <i class="fa-solid fa-gear text-xs text-indigo-400"></i>
+      </button>
+      <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit#gid=0"
          target="_blank" rel="noopener noreferrer"
-         class="px-3 py-1.5 rounded-lg bg-card hover:bg-border text-gray-200 text-xs font-semibold flex items-center gap-1.5 border border-border transition">
+         class="px-2.5 py-1.5 rounded-lg bg-card hover:bg-border text-gray-200 text-xs font-semibold flex items-center gap-1 border border-border transition">
         <i class="fa-solid fa-table text-emerald-400"></i>
         <span class="text-[11px]">Sheet</span>
       </a>
@@ -119,7 +124,6 @@
   <main class="max-w-md mx-auto w-full px-4 pt-3 space-y-4">
 
     <!-- VIEW A: TINDER-STYLE SWIPE REVIEW CARD CONTAINER (TAB 1) -->
-    <!-- REORDERED TO THE VERY TOP FOR INSTANT MOBILE THUMB INTERACTION -->
     <section id="viewSwipe" class="space-y-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-1.5">
@@ -169,44 +173,43 @@
           <span id="undoCount" class="text-[10px] px-1.5 py-0.5 rounded-full bg-surface text-gray-400 border border-border hidden">0</span>
         </button>
       </div>
+    </section>
 
-      <!-- PIPELINE PERFORMANCE DASHBOARD (REORDERED: BELOW THE SWIPE DECK) -->
-      <div class="bg-card border border-border rounded-2xl p-4 shadow-xl space-y-3 mt-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400">Pipeline Performance</h2>
-            <p class="text-sm font-extrabold text-white">Funnel & Dispatch Velocity</p>
-          </div>
-          <!-- Manual Scout Trigger Button -->
-          <button onclick="triggerScout()" id="btnRunScout"
-                  class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition active:scale-95">
-            <i class="fa-solid fa-bolt text-amber-300"></i>
-            <span>Run Scout</span>
-          </button>
+    <!-- PIPELINE PERFORMANCE DASHBOARD (PLACED BELOW <section id="viewSwipe">) -->
+    <div id="viewPerformance" class="bg-card border border-border rounded-2xl p-4 shadow-xl space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400">Pipeline Performance</h2>
+          <p class="text-sm font-extrabold text-white">Funnel & Dispatch Velocity</p>
         </div>
+        <button onclick="triggerScout()" id="btnRunScout"
+                class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition active:scale-95">
+          <i class="fa-solid fa-bolt text-amber-300"></i>
+          <span>Run Scout</span>
+        </button>
+      </div>
 
-        <!-- Quick Metrics Counters -->
-        <div class="grid grid-cols-3 gap-2 text-center">
-          <div class="bg-surface p-2 rounded-xl border border-border">
-            <div id="statScraped" class="text-base font-black text-indigo-400 mono">--</div>
-            <div class="text-[9px] text-gray-400 uppercase font-semibold">Scraped</div>
-          </div>
-          <div class="bg-surface p-2 rounded-xl border border-border">
-            <div id="statApproved" class="text-base font-black text-emerald-400 mono">--</div>
-            <div class="text-[9px] text-gray-400 uppercase font-semibold">Approved</div>
-          </div>
-          <div class="bg-surface p-2 rounded-xl border border-border">
-            <div id="statSent" class="text-base font-black text-amber-400 mono">--</div>
-            <div class="text-[9px] text-gray-400 uppercase font-semibold">Dispatched</div>
-          </div>
+      <!-- Quick Metrics Counters -->
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div class="bg-surface p-2 rounded-xl border border-border">
+          <div id="statScraped" class="text-base font-black text-indigo-400 mono">--</div>
+          <div class="text-[9px] text-gray-400 uppercase font-semibold">Scraped</div>
         </div>
-
-        <!-- Funnel Chart Canvas -->
-        <div class="h-28 w-full">
-          <canvas id="analyticsChart"></canvas>
+        <div class="bg-surface p-2 rounded-xl border border-border">
+          <div id="statApproved" class="text-base font-black text-emerald-400 mono">--</div>
+          <div class="text-[9px] text-gray-400 uppercase font-semibold">Approved</div>
+        </div>
+        <div class="bg-surface p-2 rounded-xl border border-border">
+          <div id="statSent" class="text-base font-black text-amber-400 mono">--</div>
+          <div class="text-[9px] text-gray-400 uppercase font-semibold">Dispatched</div>
         </div>
       </div>
-    </section>
+
+      <!-- Funnel Chart Canvas -->
+      <div class="h-28 w-full">
+        <canvas id="analyticsChart"></canvas>
+      </div>
+    </div>
 
     <!-- VIEW B: SMART DROP LEAD (TAB 5: MANUAL_INGEST) -->
     <section id="viewDrop" class="hidden space-y-3">
@@ -257,10 +260,16 @@
         </div>
 
         <p class="text-[11px] text-gray-400 leading-relaxed">
-          Sent an email manually from your personal client? Log it here. It bypasses Tab 1 and sets status to <strong>SENT</strong> so Nagger tracks Day-10 & Day-21 follow-ups.
+          Sent an email manually from your personal client? Log it here. It bypasses Tab 1 and sets status to <strong>SENT</strong> in Tab 2 so Nagger tracks Day-10 & Day-21 follow-ups.
         </p>
 
         <div class="space-y-2">
+          <div>
+            <label class="text-[10px] text-gray-400 block mb-1">Dispatch Date (Asia/Dhaka):</label>
+            <input id="manualSentDate" type="date"
+                   class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 transition" />
+          </div>
+
           <input id="manualPiName" type="text" placeholder="Professor Name (e.g. Prof. Alan Turing)"
                  class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition" />
           
@@ -278,7 +287,7 @@
           <button onclick="submitManualSent()" class="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition shadow-lg shadow-emerald-600/30">
             <i class="fa-solid fa-check"></i> Register as SENT
           </button>
-          <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit"
+          <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit#gid=1908064977"
              target="_blank" rel="noopener noreferrer"
              class="py-2.5 rounded-xl bg-surface hover:bg-border text-gray-300 border border-border text-xs font-semibold flex items-center justify-center gap-1.5 transition">
             <i class="fa-solid fa-table"></i> View Tab 2
@@ -298,9 +307,19 @@
           <span class="text-[10px] text-gray-400">Classify & Notify</span>
         </div>
 
+        <p class="text-[11px] text-gray-400 leading-relaxed">
+          Received a professor response? Select their name from your active outreach list to update Tab 2 immediately.
+        </p>
+
         <div class="space-y-2">
-          <input id="quickPiName" type="text" placeholder="Target Professor Name (e.g. Dr. Mark)"
-                 class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+          <!-- Dynamic Select Dropdown populated from sentProfs -->
+          <div>
+            <label class="text-[10px] text-gray-400 block mb-1">Target Professor:</label>
+            <select id="quickPiName"
+                    class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              <option value="">-- Select Target Professor --</option>
+            </select>
+          </div>
           <textarea id="quickReplyNotes" rows="3" placeholder="Paste professor's response snippet here..."
                     class="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"></textarea>
         </div>
@@ -339,12 +358,12 @@
       <i class="fa-solid fa-magnifying-glass text-sm"></i>
       <span class="text-[10px] font-semibold">Tab 1: Leads</span>
     </a>
-    <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit"
+    <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit#gid=1908064977"
        target="_blank" rel="noopener noreferrer" class="flex flex-col items-center gap-1 text-indigo-400 hover:text-indigo-300 transition">
       <i class="fa-solid fa-envelope-open-text text-sm"></i>
       <span class="text-[10px] font-semibold">Tab 2: Drafts</span>
     </a>
-    <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit"
+    <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit#gid=1384074094"
        target="_blank" rel="noopener noreferrer" class="flex flex-col items-center gap-1 text-gray-400 hover:text-white transition">
       <i class="fa-solid fa-satellite-dish text-sm"></i>
       <span class="text-[10px] font-semibold">Tab 3: Radar</span>
@@ -353,73 +372,236 @@
 
   <!-- CLIENT LOGIC & PWA SCRIPT -->
   <script>
-    const SHEET_ID = '18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E';
-    const GITHUB_REPO = 'SoumitroDas/PhD-Pipeline-v3';
+    // 1. Security & Timezone Helpers (XSS Protection)
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const safeUrl = u => { try { const x = new URL(u); return x.protocol === 'https:' ? x.href : '#'; } catch { return '#'; } };
+    const getDhakaDate = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
 
-    // 1. Google Apps Script Web App URL Manager
-    function getGasUrl(forcePrompt = false) {
-      let url = localStorage.getItem('GAS_URL');
-      if (!url || forcePrompt) {
-        url = prompt('Enter your Google Apps Script Web App Exec URL (https://script.google.com/macros/s/.../exec):', url || '');
-        if (url && url.trim()) {
-          url = url.trim();
-          localStorage.setItem('GAS_URL', url);
-          showToast('✅ Saved Google Apps Script URL.');
-        }
-      }
-      return url ? url.trim() : '';
+    function getDhakaISOString() {
+      const now = new Date();
+      const dhaka = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Dhaka' }));
+      const pad = n => String(n).padStart(2, '0');
+      const yyyy = dhaka.getFullYear();
+      const mm = pad(dhaka.getMonth() + 1);
+      const dd = pad(dhaka.getDate());
+      const hh = pad(dhaka.getHours());
+      const min = pad(dhaka.getMinutes());
+      const ss = pad(dhaka.getSeconds());
+      return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}+06:00`;
     }
 
-    function configureGasUrl() {
-      getGasUrl(true);
-      fetchLiveStats();
-    }
-
-    // Dynamic Live Leads Array (Populated from Google Sheet)
+    // Global state
     let liveLeads = [];
-    let swipeHistory = [];
     let currentCardIndex = 0;
+    let swipeHistory = [];
+    let analyticsChart;
+    let isBusy = false;
+
     const container = document.getElementById('swipeContainer');
     const counterElem = document.getElementById('cardCounter');
 
-    // Fallback Mock Leads if offline or GAS not yet configured
-    const defaultFallbackLeads = [
-      {
-        row: 2,
-        prof: "Prof. Christian Borgs",
-        inst: "UC Berkeley / Department of Mathematics",
-        opp: "Funded PhD Studentship: Compartmental Graph Epidemiology & Dynamical Systems",
-        paper: "Nonlinear Dynamics in Hypergraph Network Epidemics",
-        link: "https://doi.org/10.1038/s41567-024",
-        email: "cborgs@berkeley.edu",
-        fit: "9/10",
-        deadline: "Dec 15, 2026"
-      },
-      {
-        row: 3,
-        prof: "Dr. Laura P. Schaposnik",
-        inst: "University of Illinois Chicago",
-        opp: "Doctoral Position: Mathematical Biology & Geometric Vector ODE Models",
-        paper: "Fractional Geometric Dynamics in Dengue Transmission",
-        link: "https://doi.org/10.1016/j.jde.2025",
-        email: "schapos@uic.edu",
-        fit: "10/10",
-        deadline: "Rolling / Fall 2027"
-      },
-      {
-        row: 4,
-        prof: "Prof. Mark Alber",
-        inst: "UC Riverside / Interdisciplinary Mathematical Biology",
-        opp: "Graduate Research Fellowship: Physics-Informed Neural Networks for Multiscale ODEs",
-        paper: "PINNs Parameter Identifiability in Carrying-Capacity Biological Systems",
-        link: "https://doi.org/10.1016/j.jcp.2025",
-        email: "malber@ucr.edu",
-        fit: "9/10",
-        deadline: "Jan 10, 2027"
-      }
-    ];
+    // Delegated click listener for data-open and data-mail (XSS immune)
+    container.addEventListener('click', e => {
+      const o = e.target.closest('[data-open]');
+      if (o && o.dataset.open && o.dataset.open !== '#') window.open(o.dataset.open, '_blank', 'noopener');
+      const m = e.target.closest('[data-mail]');
+      if (m && /^[^@\s'"<>()]+@[^@\s'"<>()]+$/.test(m.dataset.mail)) location.href = 'mailto:' + m.dataset.mail;
+    });
 
-    // 2. Navigation View Switcher
+    // 2. Secure API Wrapper (postGAS)
+    async function postGAS(payload) {
+      const url = localStorage.getItem('PHD_GAS_URL');
+      payload.secret = localStorage.getItem('PHD_APP_SECRET');
+      if (!url || !payload.secret) throw new Error('Missing URL or Secret. Tap gear icon to setup.');
+      const r = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.error || 'Backend rejected request');
+      return j;
+    }
+
+    // Initialize Chart & Fetch Data on Window Load
+    window.onload = () => {
+      const dateInput = document.getElementById('manualSentDate');
+      if (dateInput) dateInput.value = getDhakaDate();
+
+      const ctx = document.getElementById('analyticsChart').getContext('2d');
+      analyticsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Scraped', 'Approved', 'Drafted', 'Sent', 'Positive'],
+          datasets: [{
+            label: 'Pipeline',
+            data: [0, 0, 0, 0, 0],
+            backgroundColor: ['#6366f1', '#10b981', '#3b82f6', '#f59e0b', '#22c55e'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#888', font: { size: 8 } } },
+            y: { grid: { color: '#333' }, ticks: { color: '#888', font: { size: 8 } } }
+          }
+        }
+      });
+      fetchLiveStats();
+    };
+
+    // Credentials Management (URL & Secret Token)
+    function resetCredentials() {
+      const currentUrl = localStorage.getItem('PHD_GAS_URL') || '';
+      const currentSecret = localStorage.getItem('PHD_APP_SECRET') || '';
+
+      const url = prompt("Enter your Google Apps Script Web App URL:", currentUrl);
+      if (url !== null && url.trim()) {
+        localStorage.setItem('PHD_GAS_URL', url.trim());
+      }
+
+      const secret = prompt("Enter your backend APP_SECRET token:", currentSecret);
+      if (secret !== null && secret.trim()) {
+        localStorage.setItem('PHD_APP_SECRET', secret.trim());
+      }
+
+      if (url || secret) {
+        showToast('🔐 Credentials updated!');
+        fetchLiveStats();
+      }
+    }
+    const resetGASUrl = resetCredentials;
+
+    // POST-based fetchLiveStats: Secret never exposed in GET query string or cached
+    async function fetchLiveStats() {
+      let url = localStorage.getItem('PHD_GAS_URL');
+      let secret = localStorage.getItem('PHD_APP_SECRET');
+
+      if (!url || !secret) {
+        resetCredentials();
+        url = localStorage.getItem('PHD_GAS_URL');
+        secret = localStorage.getItem('PHD_APP_SECRET');
+        if (!url || !secret) return;
+      }
+
+      showToast("🔄 Syncing with Google Sheets...");
+      try {
+        const data = await postGAS({ action: 'list' });
+
+        const stats = data.stats || {};
+        document.getElementById('statScraped').innerText = stats.scraped ?? 0;
+        document.getElementById('statApproved').innerText = stats.approved ?? 0;
+        document.getElementById('statSent').innerText = stats.sent ?? 0;
+
+        analyticsChart.data.datasets[0].data = [
+          stats.scraped ?? 0,
+          stats.approved ?? 0,
+          stats.drafted ?? 0,
+          stats.sent ?? 0,
+          stats.positive ?? 0
+        ];
+        analyticsChart.update();
+
+        liveLeads = (data.leads || []).map((l, idx) => ({
+          row: l.row || (idx + 2),
+          prof: l.prof || l.name || 'Target Professor',
+          inst: l.inst || l.institution || 'University',
+          opp: l.opp || l.opportunity || l.field_match || 'PhD Opportunity',
+          paper: l.paper || l.paper_title || '',
+          link: l.link || l.posting_link || '#',
+          email: l.email || '',
+          fit: l.fit || l.field_match || '',
+          deadline: l.deadline || 'Rolling'
+        }));
+        currentCardIndex = 0;
+        swipeHistory = [];
+        renderDeck();
+
+        // Populate sent professors dropdown in View D
+        const piSelect = document.getElementById('quickPiName');
+        if (piSelect && Array.isArray(data.sentProfs)) {
+          piSelect.innerHTML = '<option value="">-- Select Target Professor --</option>' +
+            data.sentProfs.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+        }
+
+        showToast("✅ Cloud sync complete!");
+      } catch (e) {
+        showToast(`❌ Sync Error: ${e.message}`);
+      }
+    }
+
+    // Identity-Verified Swipes with expect_prof validation
+    async function handleDecision(cardEl, direction) {
+      if (isBusy) return;
+      isBusy = true;
+
+      const lead = liveLeads[currentCardIndex];
+      if (!lead) {
+        isBusy = false;
+        return;
+      }
+      const action = direction === 'right' ? 'ACCEPT' : 'DECLINE';
+
+      // Synchronously update swipeHistory and increment currentCardIndex
+      swipeHistory.push({ lead: lead, direction: direction, index: currentCardIndex });
+      currentCardIndex++;
+
+      // Animate the card off-screen and show the toast
+      const flyX = direction === 'right' ? window.innerWidth + 200 : -window.innerWidth - 200;
+      cardEl.style.transform = `translate(${flyX}px, 0px) rotate(${direction === 'right' ? 30 : -30}deg)`;
+      cardEl.style.opacity = '0';
+      showToast(`${action === 'ACCEPT' ? '✅ ACCEPTED' : '❌ DECLINED'}: ${lead.prof}`);
+
+      setTimeout(() => {
+        isBusy = false;
+        renderDeck();
+      }, 250);
+
+      // Await postGAS with expect_prof. If network fails or row mismatch occurs, rollback by identity
+      try {
+        await postGAS({ action: 'swipe', row: lead.row, expect_prof: lead.prof, decision: action });
+      } catch (err) {
+        isBusy = false;
+        showToast(`❌ Sync Failed: ${err.message}. Rolling back...`);
+        revertDecision(lead);
+      }
+    }
+
+    // Identity-based Rollback function
+    function revertDecision(lead) {
+      const i = swipeHistory.findIndex(h => h.lead.row === lead.row);
+      if (i === -1) return;
+      swipeHistory.splice(i, 1);
+      const pos = liveLeads.indexOf(lead);
+      if (pos !== -1) liveLeads.splice(pos, 1);
+      currentCardIndex--;
+      liveLeads.splice(currentCardIndex, 0, lead);
+      renderDeck();
+    }
+
+    // Strict Undo Verification: Await network BEFORE modifying UI
+    async function undoLastSwipe() {
+      if (isBusy || !swipeHistory.length) {
+        showToast('⚠️ No swipes to undo.');
+        return;
+      }
+      const last = swipeHistory[swipeHistory.length - 1];
+      try {
+        await postGAS({ action: 'swipe', row: last.lead.row, expect_prof: last.lead.prof, decision: 'PENDING_APPROVAL' });
+        swipeHistory.pop();
+        currentCardIndex--;
+        renderDeck();
+        showToast(`↩️ Undid decision for ${last.lead.prof}`);
+      } catch (e) {
+        showToast('❌ Undo not saved: ' + e.message);
+      }
+    }
+
+    function triggerSwipe(direction) {
+      const topCard = container.querySelector('.swipe-card:last-of-type');
+      if (topCard) handleDecision(topCard, direction);
+    }
+
+    // Navigation View Switcher
     function switchView(viewName) {
       const views = ['swipe', 'drop', 'manualSent', 'quickReply'];
       views.forEach(v => {
@@ -431,177 +613,17 @@
       const activeNav = document.getElementById(`nav${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`);
       activeView.classList.remove('hidden');
       activeNav.className = "py-2 rounded-lg bg-indigo-600 text-white shadow transition text-center";
-    }
 
-    // 3. Chart.js Analytics Funnel Setup
-    const ctx = document.getElementById('analyticsChart').getContext('2d');
-    const analyticsChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: ['Scraped (T1)', 'Approved (T1)', 'Drafted (T2)', 'Sent (T2)', 'Positive Reply'],
-        datasets: [{
-          label: 'Outreach Funnel',
-          data: [0, 0, 0, 0, 0],
-          backgroundColor: [
-            'rgba(99, 102, 241, 0.75)',
-            'rgba(16, 185, 129, 0.75)',
-            'rgba(59, 130, 246, 0.75)',
-            'rgba(245, 158, 11, 0.75)',
-            'rgba(34, 197, 94, 0.9)'
-          ],
-          borderRadius: 6,
-          borderSkipped: false
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: '#1a1a1a',
-            borderColor: '#333',
-            borderWidth: 1,
-            titleFont: { size: 10, family: 'Inter' },
-            bodyFont: { size: 10, family: 'Inter' }
-          }
-        },
-        scales: {
-          x: {
-            grid: { display: false },
-            ticks: { color: '#888', font: { size: 8, family: 'Inter' } }
-          },
-          y: {
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-            ticks: { color: '#888', font: { size: 8, family: 'Inter' }, stepSize: 5 }
-          }
-        }
-      }
-    });
-
-    // 4. Real-Time API Sync: fetchLiveStats()
-    async function fetchLiveStats() {
-      const url = getGasUrl();
-      if (!url) {
-        console.log('No GAS_URL set. Loading fallback leads.');
-        liveLeads = defaultFallbackLeads;
-        document.getElementById('statScraped').innerText = "18";
-        document.getElementById('statApproved').innerText = "7";
-        document.getElementById('statSent').innerText = "5";
-        analyticsChart.data.datasets[0].data = [18, 7, 7, 5, 2];
-        analyticsChart.update();
-        renderDeck();
-        return;
-      }
-
-      showToast('🔄 Fetching real-time leads & metrics from Google Sheet...');
-
-      try {
-        const resp = await fetch(url, { method: 'GET' });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-
-        // Update Funnel Counters & Chart
-        if (data.stats) {
-          const scraped = data.stats.scraped || 0;
-          const approved = data.stats.approved || 0;
-          const drafted = data.stats.drafted || 0;
-          const sent = data.stats.sent || 0;
-          const positive = data.stats.positive || 0;
-
-          document.getElementById('statScraped').innerText = scraped;
-          document.getElementById('statApproved').innerText = approved;
-          document.getElementById('statSent').innerText = sent;
-
-          analyticsChart.data.datasets[0].data = [scraped, approved, drafted, sent, positive];
-          analyticsChart.update();
-        }
-
-        // Replace mockLeads entirely with live leads from Sheet
-        if (Array.isArray(data.leads)) {
-          liveLeads = data.leads.map((l, idx) => ({
-            row: l.row || (idx + 2),
-            prof: l.prof || l.prof_name || l.name || 'Target Professor',
-            inst: l.inst || l.institution || 'University',
-            opp: l.opp || l.opportunity || l.opportunity_title || 'PhD Opportunity',
-            paper: l.paper || l.paper1 || 'Verified Research Paper',
-            link: l.link || l.posting_link || l.doi || '#',
-            email: l.email || '',
-            fit: l.fit || l.fit_score || '8/10',
-            deadline: l.deadline || 'Rolling'
-          }));
-          currentCardIndex = 0;
-          swipeHistory = [];
-          renderDeck();
-          showToast(`✅ Loaded ${liveLeads.length} live lead(s) from Tab 1.`);
-        }
-      } catch (err) {
-        console.warn('GAS fetch error:', err);
-        showToast(`⚠️ Could not reach Sheet (${err.message}). Using cached data.`);
-        if (liveLeads.length === 0) {
-          liveLeads = defaultFallbackLeads;
-          renderDeck();
-        }
-      }
-    }
-
-    // 5. Manual Scout Trigger via GitHub API
-    async function triggerScout() {
-      let pat = localStorage.getItem('GITHUB_PAT');
-      if (!pat) {
-        pat = prompt('Enter your GitHub Personal Access Token (PAT with actions:write scope):');
-        if (!pat || !pat.trim()) {
-          showToast('⚠️ Scout trigger cancelled. Token required.');
-          return;
-        }
-        pat = pat.trim();
-        localStorage.setItem('GITHUB_PAT', pat);
-      }
-
-      const btn = document.getElementById('btnRunScout');
-      const originalText = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Triggering...`;
-
-      showToast('⏳ Dispatching Scout workflow on GitHub Actions (Smain)...');
-
-      try {
-        const resp = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/phd_pipeline_v3.yml/dispatches`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${pat}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            ref: 'Smain',
-            inputs: {
-              daemon: 'scout',
-              dry_run: 'false'
-            }
-          })
-        });
-
-        if (resp.status === 204 || resp.ok) {
-          showToast('🚀 Scout successfully triggered on Smain! Check GitHub Actions tab.');
-        } else if (resp.status === 401) {
-          localStorage.removeItem('GITHUB_PAT');
-          showToast('❌ 401 Unauthorized: Invalid PAT. Cleared saved token. Tap again to re-enter.');
-        } else if (resp.status === 404) {
-          showToast(`❌ 404 Not Found: Check repo (${GITHUB_REPO}) or PAT workflow scope.`);
+      const perfDiv = document.getElementById('viewPerformance');
+      if (perfDiv) {
+        if (viewName === 'swipe') {
+          perfDiv.classList.remove('hidden');
         } else {
-          const errText = await resp.text();
-          showToast(`❌ Trigger failed (${resp.status}): ${errText.slice(0, 70)}`);
+          perfDiv.classList.add('hidden');
         }
-      } catch (err) {
-        showToast('❌ Network error contacting GitHub API: ' + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
       }
     }
 
-    // 6. Tinder-Style Swipe Deck Logic (With Clickable Non-Hijacked Spans)
     function updateUndoUI() {
       const undoBadge = document.getElementById('undoCount');
       if (swipeHistory.length > 0) {
@@ -612,6 +634,7 @@
       }
     }
 
+    // Template Sanitization with Zero-Hallucination Fallbacks
     function renderDeck() {
       container.querySelectorAll('.swipe-card').forEach(c => c.remove());
       const activeLeads = liveLeads.slice(currentCardIndex);
@@ -630,11 +653,15 @@
         card.style.zIndex = idx + 1;
 
         const emailBadge = lead.email
-          ? `<span onclick="window.location.href='mailto:${lead.email}'; event.stopPropagation();"
-                   class="text-emerald-400 font-semibold text-[11px] underline decoration-emerald-500 cursor-pointer hover:text-emerald-300 inline-flex items-center gap-1 ml-2">
-               <i class="fa-solid fa-envelope text-[10px]"></i> Email PI
+          ? `<span data-mail="${esc(lead.email)}"
+                   class="text-emerald-400 font-semibold text-[11px] underline decoration-emerald-500 cursor-pointer hover:text-emerald-300 inline-flex items-center gap-1 mt-1">
+               <i class="fa-solid fa-envelope text-[10px]"></i> Email PI (${esc(lead.email)})
              </span>`
           : '';
+
+        // Zero-Hallucination Fallbacks: fit defaults to '—', paper defaults to 'UNVERIFIED'
+        const fitDisplay = lead.fit ? lead.fit : '—';
+        const paperDisplay = lead.paper ? lead.paper : 'UNVERIFIED';
 
         card.innerHTML = `
           <div class="relative">
@@ -645,36 +672,31 @@
           <!-- Card Content (Scrollable with overflow-y-auto to fix layout) -->
           <div class="space-y-2 mt-2 overflow-y-auto max-h-[225px] pr-1">
             <div class="flex items-center justify-between">
-              <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold">Fit: ${lead.fit}</span>
-              <span class="text-[10px] text-gray-400 mono">📅 ${lead.deadline}</span>
+              <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold">Fit: ${esc(fitDisplay)}</span>
+              <span class="text-[10px] text-gray-400 mono">📅 ${esc(lead.deadline || 'Rolling')}</span>
             </div>
 
-            <!-- Clickable Professor Name (Bypasses Hammer.js touch hijacking) -->
+            <!-- Touch-Safe Professor Name Link -->
             <div>
-              <span onclick="window.open('${lead.link}', '_blank'); event.stopPropagation();"
-                    class="text-white font-extrabold text-base tracking-tight leading-tight hover:text-indigo-400 underline decoration-indigo-500 cursor-pointer inline-flex items-center gap-1.5">
-                ${lead.prof}
-                <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-indigo-400"></i>
-              </span>
+              <span data-open="${esc(safeUrl(lead.link))}" class="text-base font-extrabold text-white underline decoration-indigo-500 cursor-pointer block">${esc(lead.prof)} ↗</span>
               ${emailBadge}
-              <p class="text-xs text-indigo-300 font-medium mt-0.5">${lead.inst}</p>
+              <p class="text-xs text-indigo-300 font-medium mt-0.5">${esc(lead.inst || 'Research Institution')}</p>
             </div>
 
             <!-- Opportunity Scope -->
             <div class="p-2.5 rounded-lg bg-surface border border-border/80 space-y-1">
               <div class="text-[10px] uppercase font-bold text-gray-400">Opportunity:</div>
-              <p class="text-xs text-gray-200 leading-relaxed">${lead.opp}</p>
+              <p class="text-xs text-gray-200 leading-relaxed">${esc(lead.opp || 'Doctoral Research Position')}</p>
             </div>
 
-            <!-- Clickable Paper Title (Bypasses Hammer.js touch hijacking) -->
+            <!-- Touch-Safe Paper Title Link -->
             <div class="p-2.5 rounded-lg bg-surface/50 border border-border/60 space-y-1">
               <div class="text-[10px] uppercase font-bold text-emerald-400 flex items-center justify-between">
                 <span>Verified PI Paper:</span>
                 <span class="text-[9px] text-gray-500 font-normal">Tap to inspect</span>
               </div>
-              <span onclick="window.open('${lead.link}', '_blank'); event.stopPropagation();"
-                    class="text-[11px] text-gray-300 italic leading-snug hover:text-emerald-300 underline decoration-emerald-500 cursor-pointer block">
-                ${lead.paper} <i class="fa-solid fa-arrow-up-right-from-square text-[9px] ml-1 text-emerald-400"></i>
+              <span data-open="${esc(safeUrl(lead.link))}" class="text-xs font-semibold text-gray-200 underline decoration-indigo-500 cursor-pointer block italic">
+                ${esc(paperDisplay)} ↗
               </span>
             </div>
           </div>
@@ -699,138 +721,82 @@
         el.style.transition = 'none';
         el.style.transform = `translate(${e.deltaX}px, ${e.deltaY * 0.4}px) rotate(${e.deltaX * 0.05}deg)`;
         if (e.deltaX > 60) {
-          badgeAccept.style.opacity = Math.min(1, (e.deltaX - 60) / 100);
-          badgeDecline.style.opacity = 0;
+          if (badgeAccept) badgeAccept.style.opacity = Math.min(1, (e.deltaX - 60) / 100);
+          if (badgeDecline) badgeDecline.style.opacity = 0;
         } else if (e.deltaX < -60) {
-          badgeDecline.style.opacity = Math.min(1, (-e.deltaX - 60) / 100);
-          badgeAccept.style.opacity = 0;
+          if (badgeDecline) badgeDecline.style.opacity = Math.min(1, (-e.deltaX - 60) / 100);
+          if (badgeAccept) badgeAccept.style.opacity = 0;
         } else {
-          badgeAccept.style.opacity = 0;
-          badgeDecline.style.opacity = 0;
+          if (badgeAccept) badgeAccept.style.opacity = 0;
+          if (badgeDecline) badgeDecline.style.opacity = 0;
         }
       });
 
       mc.on('panend', (e) => {
         el.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.25s ease';
-        // Accidental Swipe Protection: Increased threshold to 160px
         if (e.deltaX > 160) {
           handleDecision(el, 'right');
         } else if (e.deltaX < -160) {
           handleDecision(el, 'left');
         } else {
           el.style.transform = 'translate(0px, 0px) rotate(0deg)';
-          badgeAccept.style.opacity = 0;
-          badgeDecline.style.opacity = 0;
+          if (badgeAccept) badgeAccept.style.opacity = 0;
+          if (badgeDecline) badgeDecline.style.opacity = 0;
         }
       });
     }
 
-    // Two-Way Swipe Sync Engine
-    function handleDecision(cardEl, direction) {
-      const lead = liveLeads[currentCardIndex];
-      const flyX = direction === 'right' ? window.innerWidth + 200 : -window.innerWidth - 200;
-      cardEl.style.transform = `translate(${flyX}px, 0px) rotate(${direction === 'right' ? 30 : -30}deg)`;
-      cardEl.style.opacity = '0';
-
-      const action = direction === 'right' ? 'ACCEPT' : 'DECLINE';
-      
-      // Push to swipe history for Undo
-      swipeHistory.push({
-        lead: lead,
-        direction: direction,
-        index: currentCardIndex
+    // Backend-Relayed Scout Trigger (Zero-Secret, No GITHUB_PAT on frontend)
+    async function triggerScout() {
+      const btns = [document.getElementById('btnRunScout'), document.getElementById('btnRunScoutHeader')].filter(Boolean);
+      btns.forEach(b => {
+        b.disabled = true;
+        b.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Triggering...`;
       });
 
-      showToast(`${action === 'ACCEPT' ? '✅ ACCEPTED' : '❌ DECLINED'}: ${lead.prof}`);
+      showToast('⏳ Dispatching Scout workflow via Secure Backend...');
 
-      // TWO-WAY CLOUD SYNC: POST DECISION TO GOOGLE APPS SCRIPT WEB APP
-      const gasUrl = getGasUrl();
-      if (gasUrl && lead && lead.row) {
-        fetch(gasUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'swipe',
-            row: lead.row,
-            decision: action
-          })
-        }).then(() => {
-          console.log(`[GAS Sync] Row ${lead.row} set to ${action}`);
-        }).catch(err => {
-          console.warn('[GAS Sync Warning]', err);
+      try {
+        await postGAS({ action: 'trigger_scout' });
+        showToast('🚀 Scout successfully dispatched on GitHub Actions!');
+      } catch (err) {
+        showToast('❌ Trigger failed: ' + err.message);
+      } finally {
+        btns.forEach(b => {
+          b.disabled = false;
+          b.innerHTML = `<i class="fa-solid fa-bolt text-amber-300"></i> <span>Run Scout</span>`;
         });
       }
-
-      setTimeout(() => {
-        currentCardIndex++;
-        renderDeck();
-      }, 250);
     }
 
-    function undoLastSwipe() {
-      if (swipeHistory.length === 0 || currentCardIndex === 0) {
-        showToast('⚠️ No swipes to undo.');
-        return;
-      }
-      const last = swipeHistory.pop();
-      currentCardIndex--;
-
-      // Reverse in Google Sheet if connected
-      const gasUrl = getGasUrl();
-      if (gasUrl && last.lead && last.lead.row) {
-        fetch(gasUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'swipe',
-            row: last.lead.row,
-            decision: 'Pending'
-          })
-        }).catch(() => {});
-      }
-
-      renderDeck();
-      showToast(`↩️ Undid decision for ${last.lead.prof}`);
-    }
-
-    function triggerSwipe(direction) {
-      const topCard = container.querySelector('.swipe-card:last-of-type');
-      if (topCard) handleDecision(topCard, direction);
-    }
-
-    // 7. Smart Drop Submission Engine (Tab 5: Manual_Ingest)
-    function submitSmartDrop() {
+    // Smart Drop Submission with Dhaka ISO Timestamp (+06:00 offset)
+    async function submitSmartDrop() {
       const text = document.getElementById('smartDropText').value.trim();
       if (!text) {
         alert('Please paste some opportunity text first.');
         return;
       }
-      const timestamp = new Date().toISOString();
-      const gasUrl = getGasUrl();
+      const timestamp = getDhakaISOString();
 
-      if (gasUrl) {
-        fetch(gasUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'append_manual_ingest',
-            tab: 'Manual_Ingest',
-            values: [timestamp, text, 'Pending Scout Parse']
-          })
-        })
-        .then(() => showToast('✅ Sent to Tab 5: Manual_Ingest via Sheet API'))
-        .catch(() => showToast('⚠️ Direct sync failed. Formatted row copied.'));
-      } else {
-        const rowText = `${timestamp}\t${text.replace(/\t|\n/g, ' ')}\tPending Scout Parse`;
-        navigator.clipboard.writeText(rowText).then(() => {
-          showToast(`📋 Copied formatted row for Tab 5: Manual_Ingest.`);
+      try {
+        await postGAS({
+          action: 'manual_ingest',
+          text: text,
+          timestamp: timestamp
         });
+        showToast('✅ Sent to Tab 5: Manual_Ingest via Sheet API');
+        document.getElementById('smartDropText').value = '';
+      } catch (err) {
+        showToast(`⚠️ Sync failed: ${err.message}. Row copied.`);
+        const rowText = `${timestamp}\t${text.replace(/\t|\n/g, ' ')}\tPending Scout Parse`;
+        navigator.clipboard.writeText(rowText);
+        document.getElementById('smartDropText').value = '';
       }
-      document.getElementById('smartDropText').value = '';
     }
 
-    // 8. Out-of-Band Sent Email Logger (Tab 2: Direct SENT)
-    function submitManualSent() {
+    // Out-of-Band Sent Email Logger (Tab 2: Email_Drafts)
+    async function submitManualSent() {
+      const sentDate = document.getElementById('manualSentDate').value || getDhakaDate();
       const profName = document.getElementById('manualPiName').value.trim();
       const email = document.getElementById('manualPiEmail').value.trim();
       const subject = document.getElementById('manualSubject').value.trim();
@@ -841,70 +807,68 @@
         return;
       }
 
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const f1Date = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
-      const f2Date = new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10);
+      const f1 = new Date(Date.now() + 10 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
+      const f2 = new Date(Date.now() + 21 * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
 
       const rowValues = [
-        todayStr, profName, email, subject, body,
-        "Out-of-band manual dispatch", "SENT", "No Reply", "", f1Date, f2Date
+        sentDate, profName, email, subject, body,
+        "Out-of-band manual dispatch", "SENT", "No Reply", "", f1, f2
       ];
 
-      const gasUrl = getGasUrl();
-      if (gasUrl) {
-        fetch(gasUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'append_email_draft',
-            tab: 'Email_Drafts',
-            values: rowValues
-          })
-        })
-        .then(() => showToast(`✅ Registered ${profName} as SENT in Tab 2`))
-        .catch(() => showToast(`⚠️ Direct sync failed. Row copied.`));
-      } else {
-        const rowText = rowValues.join('\t');
-        navigator.clipboard.writeText(rowText).then(() => {
-          showToast(`📋 Copied Tab 2 SENT row for ${profName}`);
+      try {
+        await postGAS({
+          action: 'append_email_draft',
+          tab: 'Email_Drafts',
+          values: rowValues
         });
+        showToast(`✅ Registered ${profName} as SENT in Tab 2`);
+        document.getElementById('manualPiName').value = '';
+        document.getElementById('manualPiEmail').value = '';
+        document.getElementById('manualSubject').value = '';
+        document.getElementById('manualBody').value = '';
+      } catch (err) {
+        showToast(`⚠️ Sync failed: ${err.message}. Row copied.`);
+        const rowText = rowValues.join('\t');
+        navigator.clipboard.writeText(rowText);
       }
-
-      document.getElementById('manualPiName').value = '';
-      document.getElementById('manualPiEmail').value = '';
-      document.getElementById('manualSubject').value = '';
-      document.getElementById('manualBody').value = '';
     }
 
-    // 9. Quick Reply Logger Engine
-    function logReply(category) {
-      const profName = document.getElementById('quickPiName').value.trim() || 'Target Professor';
+    // Quick Reply Logger Engine
+    async function logReply(category) {
+      const profSelect = document.getElementById('quickPiName');
+      const profName = profSelect ? profSelect.value.trim() : '';
+      if (!profName) {
+        alert('Please select a target professor from the dropdown.');
+        return;
+      }
       const notes = document.getElementById('quickReplyNotes').value.trim() || 'No additional notes provided.';
-      
-      const gasUrl = getGasUrl();
-      if (gasUrl) {
-        fetch(gasUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'log_reply',
-            prof_name: profName,
-            status: category,
-            notes: notes
-          })
-        }).then(() => console.log(`[GAS Sync] Reply logged for ${profName}`));
-      }
 
-      showToast(`Logged '${category}' for ${profName}`);
-      document.getElementById('quickReplyNotes').value = '';
+      try {
+        await postGAS({
+          action: 'log_reply',
+          prof_name: profName,
+          status: category,
+          notes: notes,
+          timestamp: getDhakaISOString()
+        });
+        showToast(`✅ Logged '${category}' for ${profName}`);
+        document.getElementById('quickReplyNotes').value = '';
+      } catch (err) {
+        showToast(`❌ Reply log error: ${err.message}`);
+      }
     }
 
-    // 10. Toast & Clipboard Utility
+    // Toast Utility
     function showToast(msg) {
       const toast = document.getElementById('quickToast');
       const toastMsg = document.getElementById('toastMsg');
       toastMsg.innerText = msg;
       toast.classList.remove('hidden');
+      setTimeout(() => {
+        if (toastMsg.innerText === msg) {
+          toast.classList.add('hidden');
+        }
+      }, 4000);
     }
 
     function copyToast() {
@@ -914,12 +878,7 @@
       });
     }
 
-    // Initial Startup: Fetch real-time data from Google Sheet
-    window.addEventListener('DOMContentLoaded', () => {
-      fetchLiveStats();
-    });
-
-    // 11. Service Worker Registration
+    // Service Worker Registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')

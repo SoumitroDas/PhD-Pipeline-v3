@@ -22,6 +22,11 @@ try:
 except ImportError:
     Credentials = None
 
+# Unified Status Constants
+ST_PENDING = "PENDING_APPROVAL"
+ST_APPROVED = "APPROVED"
+ST_REJECTED = "REJECTED"
+ST_DRAFTED = "PROCESSED_DRAFT_READY"
 
 SPREADSHEET_ID = os.getenv("PHD_SHEET_ID", "18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -50,6 +55,9 @@ HARD_REJECT_KEYWORDS = [
     "domestic students only", "uk nationals only", "us citizens only", "permanent residents only"
 ]
 
+_INVIS = re.compile(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\U000E0000-\U000E007F]")
+_CTRL  = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
+
 
 def load_candidate_cv_ground_truth(cv_path: Optional[str] = None) -> str:
     """
@@ -72,28 +80,31 @@ def load_candidate_cv_ground_truth(cv_path: Optional[str] = None) -> str:
     raise FileNotFoundError(f"Candidate CV ground truth file not found at: {path}")
 
 
-def sanitize_input(text: Any, max_len: int = 1500) -> str:
-    """Sanitizes raw external strings to prevent prompt injection and encoding crashes."""
+def sanitize_input(text: Any, max_len: int = 1500, keep_newlines: bool = False) -> str:
+    """
+    Sanitizes external strings to prevent prompt injection and encoding crashes.
+    Strips invisible unicode prompt injection characters and control characters, preserving newlines when requested.
+    """
     if text is None:
         return ""
-    clean = str(text).replace("\r", " ").replace("\n", " ").strip()
-    clean = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", clean)
-    return clean[:max_len]
+    s = _CTRL.sub("", _INVIS.sub("", str(text).replace("\r\n", "\n").replace("\r", "\n")))
+    s = s.replace("\n", "\n" if keep_newlines else " ").replace("\t", " ")
+    s = re.sub(r" {2,}", " ", s)
+    if keep_newlines:
+        s = re.sub(r"\n{3,}", "\n\n", s)
+    return s.strip()[:max_len]
 
 
 def sanitize_for_sheet(val: Any) -> Any:
     """
-    Prevents Google Sheets Formula Injection (CWE-1236).
-    Neutralizes formula triggers (=, +, -, @, tab, newline) by prepending a single quote.
+    Sanitizes values for Google Sheets.
+    With RAW valueInputOption, formula injection is neutralized without prepending an apostrophe.
     """
     if val is None:
         return ""
     if not isinstance(val, str):
         return val
-    stripped = val.strip()
-    if stripped and stripped[0] in ("=", "+", "-", "@", "\t", "\r"):
-        return "'" + stripped
-    return val
+    return val.strip()
 
 
 class CloudNotifier:
@@ -101,7 +112,7 @@ class CloudNotifier:
 
     @staticmethod
     def notify(message: str) -> None:
-        sanitized_msg = sanitize_input(message, max_len=3000)
+        sanitized_msg = sanitize_input(message, max_len=3000, keep_newlines=True)
         print(f"\n[NOTIFICATION] {sanitized_msg}\n")
         if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
             return
@@ -115,7 +126,6 @@ class CloudNotifier:
         try:
             resp = requests.post(url, json=payload, timeout=10)
             if resp.status_code == 400:
-                # Markdown parse failure fallback: send as plain text
                 payload.pop("parse_mode", None)
                 requests.post(url, json=payload, timeout=10)
         except Exception:
@@ -126,19 +136,19 @@ class CloudModelRouter:
     """
     Cloud Model Router using Google AI Studio.
     Gemini 2.5 Flash for scoring/extraction; Gemini 2.5 Pro for nuanced academic email drafting.
+    Models are configurable via GEMINI_FAST_MODEL and GEMINI_PRO_MODEL environment variables.
     """
 
     def __init__(self, api_key: str = GEMINI_API_KEY):
         self.api_key = api_key
-        self.fast_model = "gemini-2.5-flash"
-        self.pro_model = "gemini-2.5-pro"
+        self.fast_model = os.getenv("GEMINI_FAST_MODEL", "gemini-2.5-flash")
+        self.pro_model = os.getenv("GEMINI_PRO_MODEL", "gemini-2.5-pro")
 
     def generate(self, prompt: str, system_instruction: str = "", json_mode: bool = False, high_nuance: bool = False) -> str:
         if not self.api_key:
             raise RuntimeError("Missing GEMINI_API_KEY environment variable.")
 
         model = self.pro_model if high_nuance else self.fast_model
-        # Use headers instead of URL parameter to avoid leaking API key in HTTP request logs
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         headers = {
             "x-goog-api-key": self.api_key,
@@ -159,33 +169,54 @@ class CloudModelRouter:
         if system_instruction:
             payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
 
+        last_err = ""
         for attempt in range(3):
             try:
                 resp = requests.post(url, headers=headers, json=payload, timeout=45)
                 if resp.status_code == 429:
+                    last_err = f"HTTP 429 Rate Limited (attempt {attempt + 1})"
+                    print(f"[WARN] {last_err}")
                     time.sleep(5 * (attempt + 1))
                     continue
                 resp.raise_for_status()
                 data = resp.json()
-                return data["candidates"][0]["content"]["parts"][0]["text"]
+                candidates = data.get("candidates", [])
+                if not candidates:
+                    last_err = f"No candidates returned (HTTP {resp.status_code})"
+                    print(f"[WARN] {last_err}")
+                    time.sleep(3)
+                    continue
+
+                cand = candidates[0]
+                parts = cand.get("content", {}).get("parts", [])
+                if not parts:
+                    finish_reason = cand.get("finishReason", "UNKNOWN")
+                    last_err = f"Empty parts (finishReason: {finish_reason}, HTTP {resp.status_code})"
+                    print(f"[WARN] {last_err}")
+                    time.sleep(3)
+                    continue
+
+                return parts[0].get("text", "")
             except Exception as e:
-                if attempt == 2:
-                    raise RuntimeError("Cloud LLM call failed after 3 attempts.")
-                time.sleep(3)
-        return ""
+                last_err = f"{type(e).__name__}: {str(e)}"
+                print(f"[WARN] LLM attempt {attempt + 1} failed: {last_err}")
+                time.sleep(3 * (attempt + 1))
+
+        raise RuntimeError(f"LLM failed ({model}): {last_err}")
 
 
 class GoogleWorkspaceClient:
     """
-    Manages spreadsheet tabs securely:
+    Manages spreadsheet tabs securely with least-privilege spreadsheets scope:
     - Tab 1: Scraped_Leads
     - Tab 2: Email_Drafts
     - Tab 3: Literature_Radar
+    - Tab 4: Archive_History
+    - Tab 5: Manual_Ingest
     """
 
     SCOPES = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
+        "https://www.googleapis.com/auth/spreadsheets"
     ]
 
     def __init__(self):
@@ -215,7 +246,7 @@ class GoogleWorkspaceClient:
         return creds
 
     def ensure_three_tabs(self) -> None:
-        """Guarantees Scraped_Leads, Email_Drafts, and Literature_Radar tabs exist with headers."""
+        """Guarantees Scraped_Leads, Email_Drafts, Literature_Radar, and Manual_Ingest tabs exist."""
         meta = self.sheets.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
         existing_tabs = {s["properties"]["title"] for s in meta.get("sheets", [])}
         requests_body = []
@@ -224,12 +255,11 @@ class GoogleWorkspaceClient:
             "Scraped_Leads": [
                 "Date Found", "PI Name", "Institution", "Department", "Opportunity Title",
                 "Posting Link", "OpenAlex Verified Paper 1 & DOI", "OpenAlex Verified Paper 2 & DOI",
-                "Fit Score", "Deadline", "Your Decision (ACCEPT / DECLINE)"
+                "Fit Score", "Deadline", "Status"
             ],
             "Email_Drafts": [
                 "Date Drafted", "PI Name", "Email", "Subject Line", "Full Email Body",
-                "Pre-Send Checklist & CV Advice", "Dispatch Status (DRAFT / SENT)",
-                "PI Reply Status (No Reply / Positive / Neutral / Declined)",
+                "Pre-Send Checklist & CV Advice", "Dispatch Status", "PI Reply Status",
                 "Reply Summary / Notes", "F1 Due", "F2 Due"
             ],
             "Literature_Radar": [
@@ -256,11 +286,14 @@ class GoogleWorkspaceClient:
                 if tab_name not in existing_tabs:
                     self.append_row(headers, tab_name=tab_name)
 
-    def get_all_rows(self, tab_name: str) -> List[List[str]]:
-        res = self.sheets.spreadsheets().values().get(
-            spreadsheetId=SPREADSHEET_ID,
-            range=f"{tab_name}!A1:Z2500"
-        ).execute()
+    def get_all_rows(self, tab_name: str, raw: bool = False) -> List[List[str]]:
+        kwargs: Dict[str, Any] = {
+            "spreadsheetId": SPREADSHEET_ID,
+            "range": f"{tab_name}!A1:Z2500"
+        }
+        if raw:
+            kwargs["valueRenderOption"] = "UNFORMATTED_VALUE"
+        res = self.sheets.spreadsheets().values().get(**kwargs).execute()
         return res.get("values", [])
 
     def append_row(self, values: List[Any], tab_name: str) -> None:
@@ -268,9 +301,19 @@ class GoogleWorkspaceClient:
         self.sheets.spreadsheets().values().append(
             spreadsheetId=SPREADSHEET_ID,
             range=f"{tab_name}!A1",
-            valueInputOption="USER_ENTERED",
+            valueInputOption="RAW",
             insertDataOption="INSERT_ROWS",
             body={"values": [safe_values]}
+        ).execute()
+
+    def append_rows(self, rows: List[List[Any]], tab_name: str) -> None:
+        safe_rows = [[sanitize_for_sheet(c) for c in r] for r in rows]
+        self.sheets.spreadsheets().values().append(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"{tab_name}!A1",
+            valueInputOption="RAW",
+            insertDataOption="INSERT_ROWS",
+            body={"values": safe_rows}
         ).execute()
 
     def update_cell_range(self, cell_range: str, values: List[List[Any]], tab_name: str) -> None:
@@ -278,7 +321,7 @@ class GoogleWorkspaceClient:
         self.sheets.spreadsheets().values().update(
             spreadsheetId=SPREADSHEET_ID,
             range=f"{tab_name}!{cell_range}",
-            valueInputOption="USER_ENTERED",
+            valueInputOption="RAW",
             body={"values": safe_values}
         ).execute()
 

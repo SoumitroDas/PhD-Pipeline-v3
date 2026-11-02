@@ -1,48 +1,32 @@
-const CACHE_NAME = 'phd-command-v3-cache-v1';
-const urlsToCache = [
-  './',
-  './index.html',
-  './manifest.json',
+const CACHE = 'phd-command-v3-cache-v2';
+const SHELL = ['./', './index.html', './manifest.json'];
+const CDN = [
   'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/chart.js',
+  'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
 ];
-
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(urlsToCache).catch(err => {
-        console.warn('Cache install partial fail:', err);
-      });
-    })
-  );
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
-      );
-    })
-  );
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      const fetchPromise = fetch(event.request).then(networkResponse => {
-        if (networkResponse && networkResponse.status === 200) {
-          const resClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone));
-        }
-        return networkResponse;
-      }).catch(() => cached);
-      return cached || fetchPromise;
-    })
-  );
+self.addEventListener('install', e => e.waitUntil((async () => {
+  const c = await caches.open(CACHE);
+  await c.addAll(SHELL);
+  await Promise.allSettled(CDN.map(u => c.add(u)));
+  await self.skipWaiting();
+})()));
+self.addEventListener('activate', e => e.waitUntil((async () => {
+  for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
+  await self.clients.claim();
+})()));
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const u = new URL(req.url);
+  if (/google(usercontent)?\.com$/.test(u.hostname) && u.hostname !== 'fonts.googleapis.com' || u.searchParams.has('secret')) return;
+  if (req.mode === 'navigate') {
+    e.respondWith(fetch(req).then(r => { caches.open(CACHE).then(c => c.put(req, r.clone())); return r; }).catch(() => caches.match('./index.html')));
+    return;
+  }
+  e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(r => {
+    if (r.ok || r.type === 'opaque') caches.open(CACHE).then(c => c.put(req, r.clone()));
+    return r;
+  })));
 });
