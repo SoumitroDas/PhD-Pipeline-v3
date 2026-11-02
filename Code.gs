@@ -999,6 +999,25 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 16. ACTION: fix_profile_url (Updates Col N: Direct Profile URL)
+    if (data.action === "fix_profile_url") {
+      const tabName = data.tab || "Email_Drafts";
+      const tab = getSheetCaseInsensitive(ss, tabName);
+      if (!tab) throw new Error("Tab not found: " + tabName);
+      const row = Number(data.row);
+      if (!row || row < 2) throw new Error("Invalid row index");
+
+      if (data.expect_prof) {
+        const curProf = String(tab.getRange(row, 2).getValue()).trim();
+        if (curProf && curProf.toLowerCase() !== String(data.expect_prof).trim().toLowerCase()) {
+          throw new Error("Row mismatch: expected " + data.expect_prof + " but found " + curProf);
+        }
+      }
+
+      tab.getRange(row, 14).setValue(String(data.profile_url || "").trim()); // Col N (Col 14): Direct Profile URL
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, row: row, profile_url: data.profile_url })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     throw new Error("Unknown action: " + data.action);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({
