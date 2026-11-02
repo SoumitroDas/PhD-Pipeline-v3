@@ -204,31 +204,42 @@
         </div>
       </div>
 
-      <!-- Swipe Action Buttons (Decline / Accept) -->
-      <div class="grid grid-cols-2 gap-3 pt-1">
-        <button onclick="triggerSwipe('left')" class="flex items-center justify-center gap-2 py-3 rounded-xl bg-red-950/40 hover:bg-red-900/50 text-red-400 border border-red-800/40 text-xs font-extrabold shadow-sm active:scale-95 transition">
-          <i class="fa-solid fa-xmark text-sm"></i>
-          <span>DECLINE (Left)</span>
+      <!-- Prev/Next Navigation for Card Deck -->
+      <div class="flex items-center justify-between gap-2 px-1 pt-1">
+        <button id="btnPrevLead" onclick="prevLeadCard()" class="px-3.5 py-2 rounded-xl bg-surface hover:bg-border text-gray-300 border border-border text-xs font-bold flex items-center gap-1.5 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
+          <i class="fa-solid fa-chevron-left text-[10px]"></i> Prev
         </button>
-        <button onclick="triggerSwipe('right')" class="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-800/40 text-xs font-extrabold shadow-sm active:scale-95 transition">
-          <i class="fa-solid fa-heart text-sm"></i>
-          <span>ACCEPT (Right)</span>
+        <span id="deckCounter" class="text-xs font-bold text-gray-300 mono bg-surface/80 px-3 py-1.5 rounded-lg border border-border/70">Lead 0 of 0</span>
+        <button id="btnNextLead" onclick="nextLeadCard()" class="px-3.5 py-2 rounded-xl bg-surface hover:bg-border text-gray-300 border border-border text-xs font-bold flex items-center gap-1.5 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
+          Next <i class="fa-solid fa-chevron-right text-[10px]"></i>
         </button>
       </div>
 
-      <!-- Undo Last Swipe Button -->
+      <!-- Explicit Action Buttons (Decline / Accept) -->
+      <div class="grid grid-cols-2 gap-3 pt-1">
+        <button id="btnDeclineLead" onclick="executeCardDecision('DECLINE')" class="flex items-center justify-center gap-2 py-3 rounded-xl bg-red-950/40 hover:bg-red-900/50 text-red-400 border border-red-800/40 text-xs font-extrabold shadow-sm active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none">
+          <i class="fa-solid fa-xmark text-sm"></i>
+          <span>DECLINE</span>
+        </button>
+        <button id="btnAcceptLead" onclick="executeCardDecision('ACCEPT')" class="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-400 border border-emerald-800/40 text-xs font-extrabold shadow-sm active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none">
+          <i class="fa-solid fa-heart text-sm"></i>
+          <span>ACCEPT</span>
+        </button>
+      </div>
+
+      <!-- Undo Last Decision Button -->
       <div class="pt-1">
         <button onclick="undoLastSwipe()" id="btnUndo"
                 class="w-full py-2.5 rounded-xl bg-card hover:bg-border text-gray-300 border border-border text-xs font-semibold flex items-center justify-center gap-2 transition active:scale-95">
           <i class="fa-solid fa-rotate-left text-indigo-400"></i>
-          <span>Undo Last Swipe</span>
+          <span>Undo Last Decision</span>
           <span id="undoCount" class="text-[10px] px-1.5 py-0.5 rounded-full bg-surface text-gray-400 border border-border hidden">0</span>
         </button>
       </div>
     </section>
 
     <!-- 🤖 AI AGENT STATUS (TOP CARD) -->
-    <div id="viewScoutAgent" class="bg-card border border-border/80 rounded-2xl p-3.5 shadow-md space-y-2.5">
+    <div id="viewScoutAgent" class="bg-card border border-border/80 rounded-2xl p-3.5 shadow-md space-y-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <div class="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-xs">
@@ -249,18 +260,70 @@
         </button>
       </div>
 
-      <div class="grid grid-cols-3 gap-2 text-center pt-0.5">
-        <div class="bg-surface/80 p-2.5 rounded-xl border border-border/60">
-          <div id="statScraped" class="text-lg font-black text-indigo-400 mono">--</div>
-          <div class="text-[9px] text-gray-400 uppercase font-semibold">Scraped Leads</div>
+      <!-- Compact Collapsible Automation Legend -->
+      <details class="group bg-surface/50 border border-border/70 rounded-xl overflow-hidden text-xs">
+        <summary class="px-3 py-1.5 cursor-pointer font-bold text-gray-300 hover:text-white flex items-center justify-between transition select-none bg-surface/80 text-[10px]">
+          <span class="flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-info text-indigo-400"></i>
+            <span>ℹ️ What do the 4 Automations do?</span>
+          </span>
+          <i class="fa-solid fa-chevron-down text-[9px] text-gray-500 group-open:rotate-180 transition-transform duration-200"></i>
+        </summary>
+        <div class="p-2.5 border-t border-border/60 space-y-1.5 text-[10px] leading-relaxed text-gray-300">
+          <div class="flex items-start gap-1.5">
+            <span class="font-bold text-amber-400 shrink-0">⚡ Scout:</span>
+            <span class="text-gray-400">Prospecting daemon searching OpenAlex & faculty directories to discover candidate PIs into Tab 1 (<span class="mono text-gray-300">Scraped_Leads</span>).</span>
+          </div>
+          <div class="flex items-start gap-1.5">
+            <span class="font-bold text-blue-400 shrink-0">✍️ Drafter:</span>
+            <span class="text-gray-400">Synthesizes PI recent papers with your research statement to generate high-touch outreach drafts in Tab 2 (<span class="mono text-gray-300">Email_Drafts</span>).</span>
+          </div>
+          <div class="flex items-start gap-1.5">
+            <span class="font-bold text-amber-300 shrink-0">🔔 Nagger:</span>
+            <span class="text-gray-400">Schedules follow-ups for unresponsive leads (7-day and 14-day cadences) and prepares 2nd-touch drafts.</span>
+          </div>
+          <div class="flex items-start gap-1.5">
+            <span class="font-bold text-purple-400 shrink-0">📡 Radar:</span>
+            <span class="text-gray-400">Monitors institutional deadlines, funding opportunities, and department portal links for your target PIs.</span>
+          </div>
         </div>
-        <div class="bg-surface/80 p-2.5 rounded-xl border border-border/60">
-          <div id="statApproved" class="text-lg font-black text-emerald-400 mono">--</div>
-          <div class="text-[9px] text-gray-400 uppercase font-semibold">Approved (Deck)</div>
+      </details>
+
+      <!-- Row 1 (Scraping Velocity): Total Scraped, This Week, Today -->
+      <div class="space-y-1">
+        <div class="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-0.5">Scraping Velocity</div>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div onclick="showList('scraped_all')" class="bg-surface/80 hover:bg-surface hover:border-indigo-500/60 p-2.5 rounded-xl border border-border/60 cursor-pointer transition active:scale-95 group">
+            <div id="statScraped" class="text-lg font-black text-indigo-400 group-hover:text-indigo-300 mono">--</div>
+            <div class="text-[9px] text-gray-400 uppercase font-semibold">Total Scraped</div>
+          </div>
+          <div onclick="showList('scraped_week')" class="bg-surface/80 hover:bg-surface hover:border-indigo-500/60 p-2.5 rounded-xl border border-border/60 cursor-pointer transition active:scale-95 group">
+            <div id="statScrapedWeek" class="text-lg font-black text-cyan-400 group-hover:text-cyan-300 mono">--</div>
+            <div class="text-[9px] text-gray-400 uppercase font-semibold">This Week</div>
+          </div>
+          <div onclick="showList('scraped_today')" class="bg-surface/80 hover:bg-surface hover:border-indigo-500/60 p-2.5 rounded-xl border border-border/60 cursor-pointer transition active:scale-95 group">
+            <div id="statScrapedToday" class="text-lg font-black text-sky-400 group-hover:text-sky-300 mono">--</div>
+            <div class="text-[9px] text-gray-400 uppercase font-semibold">Today</div>
+          </div>
         </div>
-        <div class="bg-surface/80 p-2.5 rounded-xl border border-border/60">
-          <div id="statRejected" class="text-lg font-black text-rose-400 mono">--</div>
-          <div class="text-[9px] text-gray-400 uppercase font-semibold">Rejected Leads</div>
+      </div>
+
+      <!-- Row 2 (Lead Evaluation Decisions): Pending Review, Approved, Declined / Rejected -->
+      <div class="space-y-1">
+        <div class="text-[9px] font-bold uppercase tracking-wider text-gray-400 px-0.5">Evaluation Status</div>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div onclick="showList('scraped_pending')" class="bg-surface/80 hover:bg-surface hover:border-amber-500/60 p-2.5 rounded-xl border border-border/60 cursor-pointer transition active:scale-95 group">
+            <div id="statScrapedPending" class="text-lg font-black text-amber-400 group-hover:text-amber-300 mono">--</div>
+            <div class="text-[9px] text-gray-400 uppercase font-semibold">Pending Review</div>
+          </div>
+          <div onclick="showList('scraped_approved')" class="bg-surface/80 hover:bg-surface hover:border-emerald-500/60 p-2.5 rounded-xl border border-border/60 cursor-pointer transition active:scale-95 group">
+            <div id="statApproved" class="text-lg font-black text-emerald-400 group-hover:text-emerald-300 mono">--</div>
+            <div class="text-[9px] text-gray-400 uppercase font-semibold">Approved (Deck)</div>
+          </div>
+          <div onclick="showList('scraped_rejected')" class="bg-surface/80 hover:bg-surface hover:border-rose-500/60 p-2.5 rounded-xl border border-border/60 cursor-pointer transition active:scale-95 group">
+            <div id="statRejected" class="text-lg font-black text-rose-400 group-hover:text-rose-300 mono">--</div>
+            <div class="text-[9px] text-gray-400 uppercase font-semibold">Declined / Rej</div>
+          </div>
         </div>
       </div>
     </div>
@@ -494,7 +557,8 @@
           </div>
         </div>
         <!-- Modal Actionable Queue Filters -->
-        <div class="px-3 py-2 bg-surface/60 border-b border-border/60 flex flex-wrap items-center gap-1.5 no-scrollbar text-[10px]">
+        <div id="modalFilterBar" class="px-3 py-2 bg-surface/60 border-b border-border/60 flex flex-wrap items-center gap-1.5 no-scrollbar text-[10px]">
+          <!-- Outreach CRM Filters -->
           <button id="tabFilter-drafts" onclick="showList('drafts')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">📝 Drafts Ready</button>
           <button id="tabFilter-all" onclick="showList('sent')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">All Sent</button>
           <button id="tabFilter-positive" onclick="showList('positive')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🟢 Positive</button>
@@ -503,6 +567,15 @@
           <button id="tabFilter-followup" onclick="showList('followup')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">⚪ Follow-Up</button>
           <button id="tabFilter-snoozed" onclick="showList('snoozed')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">💤 Snoozed</button>
           <button id="tabFilter-declined" onclick="showList('declined')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🔴 Declined</button>
+
+          <!-- Scraped Leads Filters -->
+          <button id="tabFilter-scraped-all" onclick="showList('scraped_all')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">⚡ Scraped Leads</button>
+          <button id="tabFilter-scraped-week" onclick="showList('scraped_week')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0 hidden">📅 This Week</button>
+          <button id="tabFilter-scraped-today" onclick="showList('scraped_today')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0 hidden">⚡ Today</button>
+          <button id="tabFilter-scraped-pending" onclick="showList('scraped_pending')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0 hidden">⏳ Pending</button>
+          <button id="tabFilter-scraped-approved" onclick="showList('scraped_approved')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0 hidden">💚 Approved</button>
+          <button id="tabFilter-scraped-rejected" onclick="showList('scraped_rejected')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0 hidden">❌ Declined</button>
+          <button id="tabFilter-switch-outreach" onclick="showList('sent')" class="px-2.5 py-1 rounded-lg font-bold text-indigo-300 hover:text-white bg-indigo-950/40 border border-indigo-700/50 text-[10px] transition shrink-0 hidden">📨 Outreach CRM</button>
         </div>
         <div id="listContent" class="p-3 overflow-y-auto space-y-2 text-xs text-gray-300 flex-1"></div>
       </div>
@@ -788,6 +861,7 @@
     let liveLeads = [];
     let globalSentProfs = [];
     let globalDraftsReady = [];
+    let globalAllScrapedLeads = [];
     let currentCardIndex = 0;
     let swipeHistory = [];
     let analyticsChart;
@@ -1032,6 +1106,129 @@
         if (chev) {
           chev.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
         }
+      }
+    }
+
+    // Render Scraped Lead Interactive Card for Scraped/Approved/Rejected Lists
+    function renderScrapedLeadCard(p, idx) {
+      const profName = esc(p.prof || 'Unknown Professor');
+      const inst = esc(p.inst || 'Research Institution');
+      const dept = esc(p.dept || '');
+      const opp = esc(p.opp || 'Doctoral Research Position');
+      const fitDisplay = esc(p.fit || '—');
+      const deadline = esc(p.deadline || 'Rolling');
+      const email = esc(p.email || '');
+      const normStatus = (p.status || 'PENDING_APPROVAL').toUpperCase();
+
+      let statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">⏳ PENDING</span>';
+      if (normStatus === 'APPROVED') {
+        statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">💚 APPROVED</span>';
+      } else if (normStatus === 'REJECTED') {
+        statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">❌ DECLINED</span>';
+      }
+
+      const scholarFallback = `https://scholar.google.com/scholar?q=${encodeURIComponent((p.prof || '') + ' ' + (p.inst || ''))}`;
+      const profileUrl = p.profile_url || p.link || scholarFallback;
+
+      const extractDoiUrl = (str, fallback) => {
+        if (!str) return fallback || '';
+        const m = str.match(/https?:\/\/[^\s)]+/);
+        if (m) return m[0];
+        const doiMatch = str.match(/10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+/);
+        if (doiMatch) return `https://doi.org/${doiMatch[0]}`;
+        return fallback || '';
+      };
+
+      const paper1 = p.paper || '';
+      const paper2 = p.paper2 || '';
+      const paper1Url = extractDoiUrl(paper1, '');
+      const paper2Url = extractDoiUrl(paper2, '');
+
+      return `
+        <div class="bg-surface/90 border border-border/80 hover:border-indigo-500/40 rounded-xl p-3.5 space-y-2.5 transition">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold">Fit: ${fitDisplay}</span>
+              <span class="text-[10px] text-gray-400 mono">📅 ${deadline}</span>
+              ${p.date ? `<span class="text-[9px] text-gray-500 mono">Found: ${esc(p.date)}</span>` : ''}
+            </div>
+            <div>${statusBadge}</div>
+          </div>
+
+          <div>
+            <div class="flex items-baseline gap-2 flex-wrap">
+              <span data-open="${esc(safeUrl(profileUrl))}" class="text-sm font-black text-white hover:text-indigo-400 cursor-pointer transition underline decoration-indigo-500/50">
+                ${profName} <span class="text-[11px] text-indigo-400 font-semibold">🎓 Profile ↗</span>
+              </span>
+              ${email ? `
+                <span data-mail="${email}" class="text-emerald-400 text-xs font-semibold cursor-pointer hover:underline inline-flex items-center gap-1">
+                  <i class="fa-solid fa-envelope text-[10px]"></i> ${email}
+                </span>
+              ` : ''}
+            </div>
+            <p class="text-xs text-indigo-300 font-medium mt-0.5">${inst}${dept ? ' • ' + dept : ''}</p>
+          </div>
+
+          <div class="p-2 rounded-lg bg-card/70 border border-border/60 text-xs text-gray-200 space-y-0.5">
+            <span class="text-[9px] uppercase font-bold text-gray-400 block">Opportunity:</span>
+            <p class="text-[11px] leading-relaxed text-gray-300">
+              ${p.link ? `<a href="${esc(safeUrl(p.link))}" target="_blank" rel="noopener noreferrer" class="text-indigo-300 hover:underline">${opp} ↗</a>` : opp}
+            </p>
+          </div>
+
+          ${(paper1 || (paper2 && paper2 !== 'None indexed')) ? `
+            <div class="p-2 rounded-lg bg-surface/50 border border-border/60 space-y-1">
+              <div class="text-[9px] uppercase font-bold text-emerald-400 flex items-center justify-between">
+                <span><i class="fa-solid fa-file-lines mr-1"></i> Verified PI Papers:</span>
+                <span class="text-[9px] text-gray-500 font-normal">Tap to inspect</span>
+              </div>
+              ${paper1 ? (paper1Url ? `
+                <span data-open="${esc(safeUrl(paper1Url))}" class="text-[11px] font-semibold text-gray-200 underline decoration-emerald-500/60 cursor-pointer block italic hover:text-emerald-300 transition">
+                  📄 Paper 1: ${esc(paper1)} ↗
+                </span>
+              ` : `
+                <span class="text-[11px] font-semibold text-gray-400 block italic">📄 Paper 1: ${esc(paper1)}</span>
+              `) : ''}
+              ${paper2 && paper2 !== 'None indexed' ? (paper2Url ? `
+                <span data-open="${esc(safeUrl(paper2Url))}" class="text-[11px] font-semibold text-gray-200 underline decoration-emerald-500/60 cursor-pointer block italic hover:text-emerald-300 transition border-t border-border/40 pt-1 mt-1">
+                  📄 Paper 2: ${esc(paper2)} ↗
+                </span>
+              ` : `
+                <span class="text-[11px] font-semibold text-gray-400 block italic border-t border-border/40 pt-1 mt-1">📄 Paper 2: ${esc(paper2)}</span>
+              `) : ''}
+            </div>
+          ` : ''}
+
+          <div class="flex items-center justify-end gap-2 pt-1 border-t border-border/50">
+            <button onclick="setScrapedLeadStatus(${p.row}, '${esc(p.prof)}', 'DECLINE')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 active:scale-95 ${normStatus === 'REJECTED' ? 'bg-rose-900/60 text-rose-200 border border-rose-500/50' : 'bg-surface hover:bg-rose-950/40 text-rose-400 border border-border'}">
+              <i class="fa-solid fa-xmark"></i> ${normStatus === 'REJECTED' ? 'Declined ✓' : 'Decline'}
+            </button>
+            <button onclick="setScrapedLeadStatus(${p.row}, '${esc(p.prof)}', 'ACCEPT')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 active:scale-95 ${normStatus === 'APPROVED' ? 'bg-emerald-900/60 text-emerald-200 border border-emerald-500/50' : 'bg-surface hover:bg-emerald-950/40 text-emerald-400 border border-border'}">
+              <i class="fa-solid fa-heart"></i> ${normStatus === 'APPROVED' ? 'Approved ✓' : 'Approve'}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function setScrapedLeadStatus(row, profName, decision) {
+      showToast(`⏳ Updating ${profName} to ${decision === 'ACCEPT' ? 'Approved' : 'Declined'}...`);
+      try {
+        await postGAS({ action: 'swipe', row: row, expect_prof: profName, decision: decision });
+        const norm = decision === 'ACCEPT' ? 'APPROVED' : 'REJECTED';
+        const target = globalAllScrapedLeads.find(l => l.row === row || l.prof === profName);
+        if (target) target.status = norm;
+
+        const liveIdx = liveLeads.findIndex(l => l.row === row || l.prof === profName);
+        if (liveIdx !== -1) {
+          liveLeads.splice(liveIdx, 1);
+          renderDeck();
+        }
+        showToast(`✅ ${profName} marked as ${decision === 'ACCEPT' ? 'Approved' : 'Declined'}`);
+        renderModalView();
+        fetchLiveStats();
+      } catch (e) {
+        showToast(`❌ Failed to update status: ${e.message}`);
       }
     }
 
@@ -1637,21 +1834,61 @@ ${esc(body || '(No email body content)')}
       const content = document.getElementById('listContent');
       const title = document.getElementById('listTitle');
 
-      const tabs = [
-        { id: 'drafts', key: 'drafts', title: '<i class="fa-solid fa-pen-to-square text-blue-400 mr-2"></i> Drafts Ready for Dispatch' },
-        { id: 'all', key: 'sent', title: '<i class="fa-solid fa-paper-plane text-amber-400 mr-2"></i> Dispatched Emails' },
-        { id: 'positive', key: 'positive', title: '<i class="fa-solid fa-thumbs-up text-emerald-400 mr-2"></i> Positive Replies' },
-        { id: 'neutral', key: 'neutral', title: '<i class="fa-solid fa-clock text-cyan-400 mr-2"></i> Neutral / Redirects' },
-        { id: 'deadlines', key: 'deadlines', title: '<i class="fa-solid fa-calendar-days text-purple-400 mr-2"></i> Deadlines & Portals' },
-        { id: 'followup', key: 'followup', title: '<i class="fa-solid fa-rotate text-amber-400 mr-2"></i> Follow-Up Queue' },
-        { id: 'snoozed', key: 'snoozed', title: '<i class="fa-solid fa-moon text-amber-400 mr-2"></i> Snoozed Leads' },
-        { id: 'declined', key: 'declined', title: '<i class="fa-solid fa-ban text-rose-400 mr-2"></i> Declined Leads' }
+      const isScrapedMode = currentModalFilter.startsWith('scraped_');
+      const outreachIds = ['drafts', 'all', 'positive', 'neutral', 'deadlines', 'followup', 'snoozed', 'declined'];
+      const scrapedIds = ['scraped-all', 'scraped-week', 'scraped-today', 'scraped-pending', 'scraped-approved', 'scraped-rejected'];
+
+      if (isScrapedMode) {
+        outreachIds.forEach(id => {
+          const btn = document.getElementById('tabFilter-' + id);
+          if (btn) btn.classList.add('hidden');
+        });
+        scrapedIds.forEach(id => {
+          const btn = document.getElementById('tabFilter-' + id);
+          if (btn) btn.classList.remove('hidden');
+        });
+        const switchOutreach = document.getElementById('tabFilter-switch-outreach');
+        if (switchOutreach) switchOutreach.classList.remove('hidden');
+        const switchScraped = document.getElementById('tabFilter-scraped-all');
+        if (switchScraped) switchScraped.innerHTML = '⚡ All Scraped';
+      } else {
+        outreachIds.forEach(id => {
+          const btn = document.getElementById('tabFilter-' + id);
+          if (btn) btn.classList.remove('hidden');
+        });
+        scrapedIds.forEach(id => {
+          const btn = document.getElementById('tabFilter-' + id);
+          if (btn) {
+            if (id === 'scraped-all') {
+              btn.classList.remove('hidden');
+              btn.innerHTML = '⚡ Scraped Leads';
+            } else {
+              btn.classList.add('hidden');
+            }
+          }
+        });
+        const switchOutreach = document.getElementById('tabFilter-switch-outreach');
+        if (switchOutreach) switchOutreach.classList.add('hidden');
+      }
+
+      const allFilterButtons = [
+        { id: 'drafts', key: 'drafts' },
+        { id: 'all', key: 'sent' },
+        { id: 'positive', key: 'positive' },
+        { id: 'neutral', key: 'neutral' },
+        { id: 'deadlines', key: 'deadlines' },
+        { id: 'followup', key: 'followup' },
+        { id: 'snoozed', key: 'snoozed' },
+        { id: 'declined', key: 'declined' },
+        { id: 'scraped-all', key: 'scraped_all' },
+        { id: 'scraped-week', key: 'scraped_week' },
+        { id: 'scraped-today', key: 'scraped_today' },
+        { id: 'scraped-pending', key: 'scraped_pending' },
+        { id: 'scraped-approved', key: 'scraped_approved' },
+        { id: 'scraped-rejected', key: 'scraped_rejected' }
       ];
 
-      const currentTab = tabs.find(t => t.key === currentModalFilter) || tabs[0];
-      title.innerHTML = currentTab.title;
-
-      tabs.forEach(t => {
+      allFilterButtons.forEach(t => {
         const btn = document.getElementById('tabFilter-' + t.id);
         if (btn) {
           if (t.key === currentModalFilter || (t.id === 'all' && currentModalFilter === 'sent')) {
@@ -1675,6 +1912,96 @@ ${esc(body || '(No email body content)')}
       if (sortSelect) {
         sortSelect.value = currentModalSort;
       }
+
+      // Handle Scraped Leads Mode
+      if (isScrapedMode) {
+        let sList = (globalAllScrapedLeads || []).slice();
+        const today = getDhakaDate();
+        const nowMs = new Date(today + "T00:00:00Z").getTime();
+
+        if (currentModalFilter === 'scraped_today') {
+          sList = sList.filter(p => (p.date || '').slice(0, 10) === today);
+        } else if (currentModalFilter === 'scraped_week') {
+          sList = sList.filter(p => {
+            const dStr = (p.date || '').slice(0, 10);
+            if (!dStr) return false;
+            const dMs = new Date(dStr + "T00:00:00Z").getTime();
+            return !isNaN(dMs) && (nowMs - dMs) >= 0 && (nowMs - dMs) <= 7 * 86400000;
+          });
+        } else if (currentModalFilter === 'scraped_pending') {
+          sList = sList.filter(p => (p.status || '').toUpperCase() === 'PENDING_APPROVAL');
+        } else if (currentModalFilter === 'scraped_approved') {
+          sList = sList.filter(p => (p.status || '').toUpperCase() === 'APPROVED');
+        } else if (currentModalFilter === 'scraped_rejected') {
+          sList = sList.filter(p => (p.status || '').toUpperCase() === 'REJECTED');
+        }
+
+        // Omni-Search on Scraped Leads
+        if (currentOmniQuery) {
+          sList = sList.filter(p => {
+            const prof = String(p.prof || '').toLowerCase();
+            const inst = String(p.inst || '').toLowerCase();
+            const dept = String(p.dept || '').toLowerCase();
+            const opp = String(p.opp || '').toLowerCase();
+            const paper = String(p.paper || '').toLowerCase();
+            const paper2 = String(p.paper2 || '').toLowerCase();
+            const email = String(p.email || '').toLowerCase();
+            return prof.includes(currentOmniQuery) || inst.includes(currentOmniQuery) || dept.includes(currentOmniQuery) || opp.includes(currentOmniQuery) || paper.includes(currentOmniQuery) || paper2.includes(currentOmniQuery) || email.includes(currentOmniQuery);
+          });
+        }
+
+        // Sorting
+        if (currentModalSort === 'name') {
+          sList.sort((a, b) => (a.prof || '').localeCompare(b.prof || ''));
+        } else if (currentModalSort === 'last_contact' || currentModalSort === 'first_contact') {
+          sList.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        } else if (currentModalSort === 'deadline') {
+          sList.sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''));
+        }
+
+        const scrapedTitles = {
+          scraped_all: '<i class="fa-solid fa-bolt text-indigo-400 mr-2"></i> All Scraped Leads',
+          scraped_week: '<i class="fa-solid fa-calendar-week text-cyan-400 mr-2"></i> Scraped This Week',
+          scraped_today: '<i class="fa-solid fa-bolt text-sky-400 mr-2"></i> Scraped Today',
+          scraped_pending: '<i class="fa-solid fa-clock text-amber-400 mr-2"></i> Pending Review (Deck)',
+          scraped_approved: '<i class="fa-solid fa-thumbs-up text-emerald-400 mr-2"></i> Approved Leads (Deck)',
+          scraped_rejected: '<i class="fa-solid fa-ban text-rose-400 mr-2"></i> Declined / Rejected Leads'
+        };
+        const titleHeader = scrapedTitles[currentModalFilter] || '<i class="fa-solid fa-bolt text-indigo-400 mr-2"></i> Scraped Leads';
+        title.innerHTML = `${titleHeader} <span class="text-[11px] text-gray-400 font-normal">(${sList.length})</span>`;
+        currentModalRenderedList = sList;
+
+        if (sList.length === 0) {
+          content.innerHTML = `
+            <div class="text-center p-8 space-y-3">
+              <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mx-auto flex items-center justify-center text-xl">
+                <i class="fa-solid fa-inbox"></i>
+              </div>
+              <p class="text-gray-400 text-xs font-semibold">No scraped leads found in this view.</p>
+              <button onclick="triggerScout()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold inline-flex items-center gap-1.5 shadow transition active:scale-95">
+                <i class="fa-solid fa-bolt text-amber-300"></i> Trigger Scout Now
+              </button>
+            </div>
+          `;
+        } else {
+          content.innerHTML = sList.map((p, idx) => renderScrapedLeadCard(p, idx)).join('');
+        }
+        return;
+      }
+
+      const tabs = [
+        { id: 'drafts', key: 'drafts', title: '<i class="fa-solid fa-pen-to-square text-blue-400 mr-2"></i> Drafts Ready for Dispatch' },
+        { id: 'all', key: 'sent', title: '<i class="fa-solid fa-paper-plane text-amber-400 mr-2"></i> Dispatched Emails' },
+        { id: 'positive', key: 'positive', title: '<i class="fa-solid fa-thumbs-up text-emerald-400 mr-2"></i> Positive Replies' },
+        { id: 'neutral', key: 'neutral', title: '<i class="fa-solid fa-clock text-cyan-400 mr-2"></i> Neutral / Redirects' },
+        { id: 'deadlines', key: 'deadlines', title: '<i class="fa-solid fa-calendar-days text-purple-400 mr-2"></i> Deadlines & Portals' },
+        { id: 'followup', key: 'followup', title: '<i class="fa-solid fa-rotate text-amber-400 mr-2"></i> Follow-Up Queue' },
+        { id: 'snoozed', key: 'snoozed', title: '<i class="fa-solid fa-moon text-amber-400 mr-2"></i> Snoozed Leads' },
+        { id: 'declined', key: 'declined', title: '<i class="fa-solid fa-ban text-rose-400 mr-2"></i> Declined Leads' }
+      ];
+
+      const currentTab = tabs.find(t => t.key === currentModalFilter) || tabs[0];
+      title.innerHTML = currentTab.title;
 
       if (currentModalFilter === 'drafts') {
         let dList = (globalDraftsReady || []).slice();
@@ -1894,11 +2221,15 @@ ${esc(body || '(No email body content)')}
       try {
         const j = await postGAS({ action: 'list' });
         
-        document.getElementById('statScraped').innerText = j.stats.scraped;
-        document.getElementById('statApproved').innerText = j.stats.approved;
+        globalAllScrapedLeads = j.allScrapedLeads || [];
+        if (document.getElementById('statScraped')) document.getElementById('statScraped').innerText = j.stats.scraped || 0;
+        if (document.getElementById('statScrapedWeek')) document.getElementById('statScrapedWeek').innerText = (j.stats && j.stats.scrapedWeek !== undefined) ? j.stats.scrapedWeek : 0;
+        if (document.getElementById('statScrapedToday')) document.getElementById('statScrapedToday').innerText = (j.stats && j.stats.scrapedToday !== undefined) ? j.stats.scrapedToday : 0;
+        if (document.getElementById('statScrapedPending')) document.getElementById('statScrapedPending').innerText = (j.stats && j.stats.pending !== undefined) ? j.stats.pending : 0;
+        if (document.getElementById('statApproved')) document.getElementById('statApproved').innerText = j.stats.approved || 0;
         if (document.getElementById('statRejected')) document.getElementById('statRejected').innerText = (j.stats && j.stats.rejected !== undefined) ? j.stats.rejected : 0;
-        document.getElementById('statSent').innerText = j.stats.sent;
-        if (document.getElementById('statPositive')) document.getElementById('statPositive').innerText = j.stats.positive;
+        if (document.getElementById('statSent')) document.getElementById('statSent').innerText = j.stats.sent || 0;
+        if (document.getElementById('statPositive')) document.getElementById('statPositive').innerText = j.stats.positive || 0;
         
         // Backend Version Stamp Check
         const warnBanner = document.getElementById('backendVersionWarning');
@@ -1924,7 +2255,7 @@ ${esc(body || '(No email body content)')}
         }
 
         if (typeof analyticsChart !== 'undefined') {
-          analyticsChart.data.datasets[0].data = [draftCount, j.stats.sent, j.stats.positive];
+          analyticsChart.data.datasets[0].data = [draftCount, j.stats.sent || 0, j.stats.positive || 0];
           analyticsChart.update();
         }
 
@@ -1944,76 +2275,123 @@ ${esc(body || '(No email body content)')}
       }
     }
 
-    // Identity-Verified Swipes with expect_prof validation
-    async function handleDecision(cardEl, direction) {
-      if (isBusy) return;
-      isBusy = true;
-
-      const lead = liveLeads[currentCardIndex];
-      if (!lead) {
-        isBusy = false;
-        return;
+    // Lead Deck Navigation & Filter Helper
+    function getActiveLeads() {
+      let active = liveLeads || [];
+      if (currentOmniQuery) {
+        active = active.filter(l => {
+          const name = String(l.prof || l.name || '').toLowerCase();
+          const inst = String(l.inst || l.institution || '').toLowerCase();
+          const paper = String(l.paper_title || l.paper || '').toLowerCase();
+          const match = String(l.field_match || l.opp || l.notes || '').toLowerCase();
+          return name.includes(currentOmniQuery) || inst.includes(currentOmniQuery) || paper.includes(currentOmniQuery) || match.includes(currentOmniQuery);
+        });
       }
-      const action = direction === 'right' ? 'ACCEPT' : 'DECLINE';
+      return active;
+    }
 
-      // Synchronously update swipeHistory and increment currentCardIndex
-      swipeHistory.push({ lead: lead, direction: direction, index: currentCardIndex });
-      currentCardIndex++;
+    function nextLeadCard() {
+      const active = getActiveLeads();
+      if (currentCardIndex < active.length - 1) {
+        currentCardIndex++;
+        renderDeck();
+      }
+    }
 
-      // Animate the card off-screen and show the toast
-      const flyX = direction === 'right' ? window.innerWidth + 200 : -window.innerWidth - 200;
-      cardEl.style.transform = `translate(${flyX}px, 0px) rotate(${direction === 'right' ? 30 : -30}deg)`;
-      cardEl.style.opacity = '0';
-      showToast(`${action === 'ACCEPT' ? '✅ ACCEPTED' : '❌ DECLINED'}: ${lead.prof}`);
+    function prevLeadCard() {
+      if (currentCardIndex > 0) {
+        currentCardIndex--;
+        renderDeck();
+      }
+    }
+
+    // Explicit Decision Execution (Accept / Decline strictly via buttons)
+    async function executeCardDecision(decision) {
+      if (isBusy) return;
+      const active = getActiveLeads();
+      const currentLead = active[currentCardIndex];
+      if (!currentLead) return;
+
+      isBusy = true;
+      const actionName = decision === 'ACCEPT' ? 'ACCEPTED' : 'DECLINED';
+      showToast(`${decision === 'ACCEPT' ? '✅' : '❌'} ${actionName}: ${currentLead.prof}`);
+
+      // Animate top card off screen
+      const topCard = container.querySelector('.swipe-card:last-of-type');
+      if (topCard) {
+        topCard.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.25s ease';
+        topCard.style.transform = `translate(${decision === 'ACCEPT' ? 260 : -260}px, 0) rotate(${decision === 'ACCEPT' ? 20 : -20}deg)`;
+        topCard.style.opacity = '0';
+      }
+
+      // Record in undo history
+      swipeHistory.push({ lead: currentLead, decision: decision, index: currentCardIndex });
+
+      // Remove from liveLeads
+      const pos = liveLeads.indexOf(currentLead);
+      if (pos !== -1) liveLeads.splice(pos, 1);
+
+      // Update in globalAllScrapedLeads
+      const scrapedTarget = globalAllScrapedLeads.find(l => l.row === currentLead.row || l.prof === currentLead.prof);
+      if (scrapedTarget) scrapedTarget.status = (decision === 'ACCEPT' ? 'APPROVED' : 'REJECTED');
+
+      // Adjust currentCardIndex
+      const newActive = getActiveLeads();
+      if (currentCardIndex >= newActive.length && currentCardIndex > 0) {
+        currentCardIndex = newActive.length - 1;
+      }
 
       setTimeout(() => {
         isBusy = false;
         renderDeck();
-      }, 250);
+      }, 260);
 
-      // Await postGAS with expect_prof. If network fails or row mismatch occurs, rollback by identity
+      // Await postGAS with expect_prof validation
       try {
-        await postGAS({ action: 'swipe', row: lead.row, expect_prof: lead.prof, decision: action });
+        await postGAS({ action: 'swipe', row: currentLead.row, expect_prof: currentLead.prof, decision: decision });
+        fetchLiveStats();
       } catch (err) {
         isBusy = false;
         showToast(`❌ Sync Failed: ${err.message}. Rolling back...`);
-        revertDecision(lead);
+        const histIdx = swipeHistory.findIndex(h => h.lead.row === currentLead.row);
+        if (histIdx !== -1) swipeHistory.splice(histIdx, 1);
+        if (pos !== -1) liveLeads.splice(pos, 0, currentLead);
+        if (scrapedTarget) scrapedTarget.status = 'PENDING_APPROVAL';
+        renderDeck();
       }
     }
 
-    // Identity-based Rollback function
-    function revertDecision(lead) {
-      const i = swipeHistory.findIndex(h => h.lead.row === lead.row);
-      if (i === -1) return;
-      swipeHistory.splice(i, 1);
-      const pos = liveLeads.indexOf(lead);
-      if (pos !== -1) liveLeads.splice(pos, 1);
-      currentCardIndex--;
-      liveLeads.splice(currentCardIndex, 0, lead);
-      renderDeck();
+    // Legacy wrapper compatibility
+    async function handleDecision(cardEl, direction) {
+      const decision = direction === 'right' ? 'ACCEPT' : 'DECLINE';
+      return executeCardDecision(decision);
+    }
+
+    function triggerSwipe(direction) {
+      const decision = direction === 'right' ? 'ACCEPT' : 'DECLINE';
+      return executeCardDecision(decision);
     }
 
     // Strict Undo Verification: Await network BEFORE modifying UI
     async function undoLastSwipe() {
       if (isBusy || !swipeHistory.length) {
-        showToast('⚠️ No swipes to undo.');
+        showToast('⚠️ No decisions to undo.');
         return;
       }
       const last = swipeHistory[swipeHistory.length - 1];
       try {
         await postGAS({ action: 'swipe', row: last.lead.row, expect_prof: last.lead.prof, decision: 'PENDING_APPROVAL' });
         swipeHistory.pop();
-        currentCardIndex--;
+        liveLeads.splice(last.index, 0, last.lead);
+        currentCardIndex = last.index;
+        const scrapedTarget = globalAllScrapedLeads.find(l => l.row === last.lead.row || l.prof === last.lead.prof);
+        if (scrapedTarget) scrapedTarget.status = 'PENDING_APPROVAL';
         renderDeck();
         showToast(`↩️ Undid decision for ${last.lead.prof}`);
+        fetchLiveStats();
       } catch (e) {
         showToast('❌ Undo not saved: ' + e.message);
       }
-    }
-
-    function triggerSwipe(direction) {
-      const topCard = container.querySelector('.swipe-card:last-of-type');
-      if (topCard) handleDecision(topCard, direction);
     }
 
     // Navigation View Switcher
@@ -2057,19 +2435,37 @@ ${esc(body || '(No email body content)')}
       }
     }
 
-    // Template Sanitization with Zero-Hallucination Fallbacks
+    // Template Sanitization with Zero-Hallucination Fallbacks & Prev/Next Deck Deck Rendering
     function renderDeck() {
       container.querySelectorAll('.swipe-card').forEach(c => c.remove());
-      let activeLeads = liveLeads.slice(currentCardIndex);
-      if (currentOmniQuery) {
-        activeLeads = activeLeads.filter(l => {
-          const name = String(l.prof || l.name || '').toLowerCase();
-          const inst = String(l.inst || l.institution || '').toLowerCase();
-          const paper = String(l.paper_title || l.paper || '').toLowerCase();
-          const match = String(l.field_match || l.opp || l.notes || '').toLowerCase();
-          return name.includes(currentOmniQuery) || inst.includes(currentOmniQuery) || paper.includes(currentOmniQuery) || match.includes(currentOmniQuery);
-        });
+      const activeLeads = getActiveLeads();
+      
+      if (currentCardIndex >= activeLeads.length && activeLeads.length > 0) {
+        currentCardIndex = activeLeads.length - 1;
       }
+
+      // Update Card Counter and Prev/Next buttons
+      const deckCounterEl = document.getElementById('deckCounter');
+      const btnPrevEl = document.getElementById('btnPrevLead');
+      const btnNextEl = document.getElementById('btnNextLead');
+      const btnAcceptEl = document.getElementById('btnAcceptLead');
+      const btnDeclineEl = document.getElementById('btnDeclineLead');
+
+      if (activeLeads.length === 0) {
+        currentCardIndex = 0;
+        if (deckCounterEl) deckCounterEl.innerText = 'Lead 0 of 0';
+        if (btnPrevEl) btnPrevEl.disabled = true;
+        if (btnNextEl) btnNextEl.disabled = true;
+        if (btnAcceptEl) btnAcceptEl.disabled = true;
+        if (btnDeclineEl) btnDeclineEl.disabled = true;
+      } else {
+        if (deckCounterEl) deckCounterEl.innerText = `Lead ${currentCardIndex + 1} of ${activeLeads.length}`;
+        if (btnPrevEl) btnPrevEl.disabled = (currentCardIndex <= 0);
+        if (btnNextEl) btnNextEl.disabled = (currentCardIndex >= activeLeads.length - 1);
+        if (btnAcceptEl) btnAcceptEl.disabled = false;
+        if (btnDeclineEl) btnDeclineEl.disabled = false;
+      }
+
       counterElem.innerText = `Remaining: ${activeLeads.length}`;
       updateUndoUI();
 
@@ -2097,7 +2493,8 @@ ${esc(body || '(No email body content)')}
       }
       if (emptyEl) emptyEl.classList.add('hidden');
 
-      activeLeads.slice(0, 3).reverse().forEach((lead, idx) => {
+      // Slice top cards from currentCardIndex onwards (max 3 stacked)
+      activeLeads.slice(currentCardIndex, currentCardIndex + 3).reverse().forEach((lead, idx) => {
         const card = document.createElement('div');
         card.className = "swipe-card bg-card border border-border rounded-xl p-4 flex flex-col justify-between";
         card.style.zIndex = idx + 1;
@@ -2115,7 +2512,6 @@ ${esc(body || '(No email body content)')}
         const paper2Display = lead.paper2 || lead.paper_2 || '';
 
         // Profile vs. Paper Link Separation:
-        // Professor profile directs directly to lead.profile_url (OpenAlex / ORCID / faculty page), falling back to Google Scholar
         const directProfileUrl = lead.profile_url || lead.profile || (lead.link && !lead.link.includes('doi.org') && !lead.link.includes('sciencedirect') && !lead.link.includes('ncbi.nlm.nih.gov') ? lead.link : `https://scholar.google.com/scholar?q=${encodeURIComponent((lead.prof || '') + ' ' + (lead.inst || ''))}`);
 
         const extractDoiUrl = (str, fallback) => {
@@ -2127,14 +2523,13 @@ ${esc(body || '(No email body content)')}
           return fallback || '';
         };
 
-        // Verified research paper links strictly to DOI / direct paper publication link
         const paperUrl = lead.paper_link || extractDoiUrl(paperDisplay, lead.doi);
         const paper2Url = lead.paper2_link || extractDoiUrl(paper2Display, '');
 
         card.innerHTML = `
-          <div class="relative">
-            <span class="badge-accept absolute top-0 right-0 px-3 py-1 bg-emerald-500/20 border-2 border-emerald-400 text-emerald-300 font-extrabold text-xs rounded-lg uppercase">ACCEPT</span>
-            <span class="badge-decline absolute top-0 left-0 px-3 py-1 bg-red-500/20 border-2 border-red-400 text-red-300 font-extrabold text-xs rounded-lg uppercase">DECLINE</span>
+          <div class="relative pointer-events-none">
+            <span class="badge-prev absolute top-0 left-0 px-2.5 py-1 bg-indigo-600/90 border border-indigo-400 text-white font-extrabold text-[10px] rounded-lg uppercase opacity-0 transition-opacity">⬅️ PREV</span>
+            <span class="badge-next absolute top-0 right-0 px-2.5 py-1 bg-indigo-600/90 border border-indigo-400 text-white font-extrabold text-[10px] rounded-lg uppercase opacity-0 transition-opacity">NEXT ➡️</span>
           </div>
 
           <!-- Card Content (Scrollable with overflow-y-auto to fix layout) -->
@@ -2189,8 +2584,8 @@ ${esc(body || '(No email body content)')}
           </div>
 
           <div class="pt-2 border-t border-border flex items-center justify-between text-[10px] text-gray-500">
-            <span>👈 Left: Decline</span>
-            <span>Right: Accept 👉</span>
+            <span>👈 Swipe Left: Next</span>
+            <span>Swipe Right: Prev 👉</span>
           </div>
         `;
 
@@ -2211,36 +2606,39 @@ ${esc(body || '(No email body content)')}
       }
     }
 
+    // Touch & Swipe Gestures (Horizontal pan: Left = Next Lead, Right = Prev Lead)
     function initHammer(el) {
       const mc = new Hammer(el);
-      const badgeAccept = el.querySelector('.badge-accept');
-      const badgeDecline = el.querySelector('.badge-decline');
+      const badgeNext = el.querySelector('.badge-next');
+      const badgePrev = el.querySelector('.badge-prev');
 
       mc.on('pan', (e) => {
         el.style.transition = 'none';
-        el.style.transform = `translate(${e.deltaX}px, ${e.deltaY * 0.4}px) rotate(${e.deltaX * 0.05}deg)`;
-        if (e.deltaX > 60) {
-          if (badgeAccept) badgeAccept.style.opacity = Math.min(1, (e.deltaX - 60) / 100);
-          if (badgeDecline) badgeDecline.style.opacity = 0;
-        } else if (e.deltaX < -60) {
-          if (badgeDecline) badgeDecline.style.opacity = Math.min(1, (-e.deltaX - 60) / 100);
-          if (badgeAccept) badgeAccept.style.opacity = 0;
+        el.style.transform = `translate(${e.deltaX}px, ${e.deltaY * 0.3}px) rotate(${e.deltaX * 0.03}deg)`;
+        if (e.deltaX < -50) {
+          if (badgeNext) badgeNext.style.opacity = Math.min(1, (-e.deltaX - 50) / 80);
+          if (badgePrev) badgePrev.style.opacity = 0;
+        } else if (e.deltaX > 50) {
+          if (badgePrev) badgePrev.style.opacity = Math.min(1, (e.deltaX - 50) / 80);
+          if (badgeNext) badgeNext.style.opacity = 0;
         } else {
-          if (badgeAccept) badgeAccept.style.opacity = 0;
-          if (badgeDecline) badgeDecline.style.opacity = 0;
+          if (badgeNext) badgeNext.style.opacity = 0;
+          if (badgePrev) badgePrev.style.opacity = 0;
         }
       });
 
       mc.on('panend', (e) => {
-        el.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.25s ease';
-        if (e.deltaX > 160) {
-          handleDecision(el, 'right');
-        } else if (e.deltaX < -160) {
-          handleDecision(el, 'left');
+        el.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.2s ease';
+        if (e.deltaX < -100) {
+          // Swiped left: go to next lead
+          nextLeadCard();
+        } else if (e.deltaX > 100) {
+          // Swiped right: go to prev lead
+          prevLeadCard();
         } else {
           el.style.transform = 'translate(0px, 0px) rotate(0deg)';
-          if (badgeAccept) badgeAccept.style.opacity = 0;
-          if (badgeDecline) badgeDecline.style.opacity = 0;
+          if (badgeNext) badgeNext.style.opacity = 0;
+          if (badgePrev) badgePrev.style.opacity = 0;
         }
       });
     }
