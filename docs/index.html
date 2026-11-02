@@ -107,6 +107,20 @@
     </div>
   </header>
 
+  <!-- GLOBAL OMNI-SEARCH INPUT (PINNED JUST BELOW HEADER) -->
+  <div class="sticky top-[57px] z-30 bg-surface/95 backdrop-blur-md px-4 py-2 border-b border-border shadow-sm">
+    <div class="max-w-md mx-auto relative">
+      <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
+      <input type="text" id="omniSearchInput" oninput="onOmniSearchChange(this.value)"
+             placeholder="🔍 Omni-Search Name, Institution, or Pitch Notes..."
+             class="w-full pl-8 pr-8 py-2 rounded-xl bg-card border border-border focus:border-indigo-500 focus:outline-none text-xs text-white placeholder-gray-500 transition shadow-inner">
+      <button id="btnOmniClear" onclick="clearOmniSearch()" title="Clear search"
+              class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-1 rounded transition">
+        <i class="fa-solid fa-xmark text-xs"></i>
+      </button>
+    </div>
+  </div>
+
   <!-- NAVIGATION PILLS -->
   <div class="max-w-md mx-auto w-full px-4 pt-3">
     <div class="grid grid-cols-4 gap-1 bg-surface p-1 rounded-xl border border-border text-[11px] font-bold">
@@ -398,6 +412,7 @@
           <button id="tabFilter-neutral" onclick="showList('neutral')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🟡 Neutral</button>
           <button id="tabFilter-deadlines" onclick="showList('deadlines')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">📅 Deadlines</button>
           <button id="tabFilter-followup" onclick="showList('followup')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">⚪ Follow-Up</button>
+          <button id="tabFilter-snoozed" onclick="showList('snoozed')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">💤 Snoozed</button>
           <button id="tabFilter-declined" onclick="showList('declined')" class="px-2.5 py-1 rounded-lg font-bold transition shrink-0">🔴 Declined</button>
         </div>
         <!-- Modal Multi-Sorting Control Bar -->
@@ -409,6 +424,137 @@
           <button id="sortBtn-deadline" onclick="setModalSort('deadline')" class="px-2 py-0.5 rounded-md font-semibold transition shrink-0 bg-surface text-gray-300 hover:text-white border border-border/40">⏳ Deadline</button>
         </div>
         <div id="listContent" class="p-3 overflow-y-auto space-y-2 text-xs text-gray-300 flex-1"></div>
+      </div>
+    </div>
+
+    <!-- INTERVIEW PREP MODE FULL-SCREEN OVERLAY -->
+    <div id="interviewPrepModal" class="hidden fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col overflow-hidden">
+      <!-- Modal Top Navigation Bar -->
+      <div class="px-4 py-3 bg-surface/90 border-b border-border/80 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+            <i class="fa-solid fa-microphone-lines text-sm animate-pulse"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-[9px] font-extrabold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                🎙️ Interview Prep Mode
+              </span>
+              <span class="text-[9px] text-gray-500 hidden sm:inline">Candidate Dossier</span>
+            </div>
+            <h2 id="prepProfName" class="text-sm font-extrabold text-white truncate mt-0.5">--</h2>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a id="prepFacultyLink" href="#" target="_blank" rel="noopener noreferrer"
+             class="px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold inline-flex items-center gap-1 transition">
+            <i class="fa-solid fa-graduation-cap text-[9px]"></i> Faculty ↗
+          </a>
+          <button onclick="closeInterviewPrep()" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface border border-border transition">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Prep Mode Scrollable Intel Content -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-3.5 max-w-2xl mx-auto w-full">
+        <!-- Institution & Status Header -->
+        <div class="flex items-center justify-between gap-2 bg-surface/60 p-2.5 rounded-xl border border-border/60">
+          <div>
+            <span class="text-[8px] uppercase tracking-wider font-bold text-gray-400 block">Target Institution & Department</span>
+            <span id="prepInstName" class="text-xs font-semibold text-gray-200">--</span>
+          </div>
+          <div class="text-right">
+            <span class="text-[8px] uppercase tracking-wider font-bold text-gray-400 block">PI Contact Email</span>
+            <span id="prepEmail" class="text-xs font-mono text-indigo-400 select-all">--</span>
+          </div>
+        </div>
+
+        <!-- 3-Card Intel Dossier -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- Card 1: Pitch Hook (What Soumitro Said) -->
+          <div class="bg-card border border-indigo-500/30 rounded-xl p-3.5 space-y-2 shadow-lg">
+            <div class="flex items-center justify-between">
+              <span class="text-[9px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-fish-fins"></i> 1. Pitch Hook (What Soumitro Said)
+              </span>
+              <button onclick="copyPrepField('prepSubject', 'Subject line copied!')" class="text-[9px] text-gray-400 hover:text-indigo-300 flex items-center gap-1">
+                <i class="fa-regular fa-copy"></i> Copy
+              </button>
+            </div>
+            <div class="bg-surface/70 p-2 rounded-lg border border-border/40">
+              <span class="text-[8px] uppercase text-gray-500 block font-bold">Subject Line</span>
+              <div id="prepSubject" class="text-[11px] font-semibold text-white select-all break-words">--</div>
+            </div>
+            <div class="bg-surface/70 p-2 rounded-lg border border-border/40">
+              <span class="text-[8px] uppercase text-gray-500 block font-bold mb-1">Outreach Pitch / Core Hook</span>
+              <div id="prepPitchBody" class="text-[10px] text-gray-300 font-sans whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed select-all">--</div>
+            </div>
+          </div>
+
+          <!-- Card 2: PI Reply Notes & Signals (What the PI Said) -->
+          <div class="bg-card border border-emerald-500/30 rounded-xl p-3.5 space-y-2 shadow-lg">
+            <div class="flex items-center justify-between">
+              <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-comments"></i> 2. PI Reply & Signals (What the PI Said)
+              </span>
+              <span id="prepStatusBadge" class="text-[9px] px-2 py-0.5 rounded font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                🟢 Positive
+              </span>
+            </div>
+            <div class="bg-surface/70 p-2.5 rounded-lg border border-border/40">
+              <span class="text-[8px] uppercase text-gray-500 block font-bold mb-1">Reply Summary & Talking Points</span>
+              <p id="prepReplyNotes" class="text-[11px] text-emerald-200/90 font-medium leading-relaxed italic select-all">--</p>
+            </div>
+            <div class="bg-purple-950/30 p-2.5 rounded-lg border border-purple-500/30 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-[8px] uppercase font-bold text-purple-400 flex items-center gap-1">
+                  <i class="fa-regular fa-calendar-check text-[9px]"></i> Deadline & Application Portal
+                </span>
+                <a id="prepPortalLink" href="#" target="_blank" rel="noopener noreferrer"
+                   class="hidden text-[9px] px-2 py-0.5 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold inline-flex items-center gap-1">
+                  Portal ↗
+                </a>
+              </div>
+              <p id="prepDeadline" class="text-[11px] text-purple-200 font-semibold leading-snug">Rolling</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Literature & Targeted Research Publications -->
+        <div class="bg-card border border-border rounded-xl p-3.5 space-y-2 shadow-lg">
+          <span class="text-[9px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-book-bookmark text-amber-400"></i> 3. Literature Alignment & Research Publications
+          </span>
+          <div id="prepPapersContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <!-- Dynamically populated papers -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Quick-Action Bar (Sticky at Bottom) -->
+      <div class="px-4 py-3 bg-surface/95 border-t border-border shrink-0 flex items-center justify-between gap-2 max-w-2xl mx-auto w-full">
+        <div class="flex items-center gap-2 flex-wrap flex-1">
+          <button onclick="launchZoom()"
+                  class="py-2 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md shadow-blue-600/30 transition active:scale-95">
+            <i class="fa-solid fa-video text-cyan-300"></i>
+            <span>Launch Zoom</span>
+          </button>
+          <a id="prepEmailBtn" href="#"
+             class="py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/30 transition active:scale-95">
+            <i class="fa-solid fa-paper-plane text-white text-[10px]"></i>
+            <span>Email PI</span>
+          </a>
+          <button onclick="copyAllPrepIntel()"
+                  class="py-2 px-3 rounded-xl bg-surface hover:bg-border text-gray-200 border border-border text-[11px] font-bold flex items-center gap-1.5 transition active:scale-95">
+            <i class="fa-regular fa-copy text-indigo-400"></i>
+            <span>Copy Cheat Sheet</span>
+          </button>
+        </div>
+        <button onclick="closeInterviewPrep()"
+                class="py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-gray-300 hover:text-white border border-zinc-700 text-[11px] font-bold transition active:scale-95">
+          Exit Prep
+        </button>
       </div>
     </div>
 
@@ -461,6 +607,29 @@
     let swipeHistory = [];
     let analyticsChart;
     let isBusy = false;
+    let currentOmniQuery = '';
+    let activePrepLead = null;
+
+    // Global Omni-Search Handler
+    function onOmniSearchChange(val) {
+      currentOmniQuery = (val || '').trim().toLowerCase();
+      const clearBtn = document.getElementById('btnOmniClear');
+      if (clearBtn) {
+        if (currentOmniQuery) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
+      }
+      renderDeck();
+      const modal = document.getElementById('listModal');
+      if (modal && !modal.classList.contains('hidden')) {
+        renderModalView();
+      }
+    }
+
+    function clearOmniSearch() {
+      const inp = document.getElementById('omniSearchInput');
+      if (inp) inp.value = '';
+      onOmniSearchChange('');
+    }
 
     // CRM Color-Coded Badges & Taxonomy Mapping
     function getStatusBadge(status) {
@@ -508,12 +677,42 @@
 
       const isDeadlineActive = deadline && deadline !== 'Rolling' && deadline !== 'N/A' && !deadline.toLowerCase().startsWith('closed') && !deadline.toLowerCase().includes('expired');
 
+      const isPositive = statusRaw.toLowerCase().includes('pos') || statusRaw.toLowerCase().includes('accept') || statusRaw.toLowerCase().includes('interview') || statusRaw.toLowerCase().includes('call');
+      const isNeutral = statusRaw.toLowerCase().includes('neut') || statusRaw.toLowerCase().includes('redir') || statusRaw.toLowerCase().includes('apply');
+      const isPositiveOrNeutral = isPositive || isNeutral;
+
       const emailBtn = email ? `
         <a href="mailto:${esc(email)}" onclick="event.stopPropagation()"
            title="Send direct email"
            class="px-2 py-0.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold inline-flex items-center gap-1 transition active:scale-95 shrink-0">
           <i class="fa-solid fa-envelope text-[9px]"></i> Email
         </a>
+      ` : '';
+
+      // 3. Glowing Enter Prep Mode button for 🟢 Positive leads, replacing Email button
+      const mainActionBtn = isPositive ? `
+        <button onclick="event.stopPropagation(); openInterviewPrep('${idx}')"
+                title="Enter Focused Interview Prep Mode"
+                class="px-2.5 py-1 rounded-lg bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-600 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-[10px] inline-flex items-center gap-1 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400/50 animate-pulse transition active:scale-95 shrink-0">
+          <i class="fa-solid fa-microphone-lines text-emerald-200 text-[9px]"></i>
+          <span>🎙️ Enter Prep</span>
+        </button>
+      ` : emailBtn;
+
+      // 2. Snooze Button for Positive/Neutral leads
+      const snoozeBtn = isPositiveOrNeutral ? `
+        <button onclick="event.stopPropagation(); snoozeLead('${idx}', '${esc(profName)}', ${p.row || idx})"
+                title="Snooze lead until a specific date"
+                class="px-2 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold inline-flex items-center gap-1 transition active:scale-95 shrink-0">
+          <i class="fa-solid fa-moon text-amber-400 text-[9px]"></i> Snooze
+        </button>
+      ` : '';
+
+      const isSnoozedActive = p.snooze_until && (!getDhakaDate() || getDhakaDate() < p.snooze_until);
+      const snoozeBadge = isSnoozedActive ? `
+        <span class="text-[9px] px-1.5 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1 shrink-0" title="Snoozed until ${esc(p.snooze_until)}">
+          <i class="fa-solid fa-bed text-[8px]"></i> Snoozed: ${esc(p.snooze_until)}
+        </span>
       ` : '';
 
       return `
@@ -537,8 +736,10 @@
               <div class="text-[10px] text-gray-400 mt-0.5 truncate">${esc(inst)}</div>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
+              ${snoozeBadge}
               <span class="text-[9px] px-2 py-0.5 rounded-md font-bold uppercase ${badge.cls}">${esc(badge.label)}</span>
-              ${emailBtn}
+              ${snoozeBtn}
+              ${mainActionBtn}
             </div>
           </div>
 
@@ -583,10 +784,20 @@
             </div>
 
             <div class="pt-1 flex items-center gap-1.5 flex-wrap">
+              ${isPositive ? `
+                <button onclick="openInterviewPrep('${idx}')" class="px-2.5 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[10px] font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/30 ring-1 ring-emerald-400/50 transition active:scale-95">
+                  <i class="fa-solid fa-microphone-lines text-emerald-200 text-[9px]"></i> 🎙️ Launch Interview Prep
+                </button>
+              ` : ''}
               ${email ? `
                 <a href="mailto:${esc(email)}" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1 transition shadow">
                   <i class="fa-solid fa-paper-plane text-[9px]"></i> Email PI
                 </a>
+              ` : ''}
+              ${isPositiveOrNeutral ? `
+                <button onclick="snoozeLead('${idx}', '${esc(profName)}', ${p.row || idx})" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1 transition active:scale-95">
+                  <i class="fa-solid fa-moon text-amber-400 text-[9px]"></i> 💤 Snooze Follow-Up
+                </button>
               ` : ''}
               <a href="${esc(safeUrl(directProfileUrl))}" target="_blank" rel="noopener noreferrer"
                  class="px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold flex items-center gap-1 transition">
@@ -805,6 +1016,145 @@ ${esc(body || '(No email body content)')}
       }
     }
 
+    // 2. The Snooze Engine Handler
+    async function snoozeLead(idx, profName, row) {
+      const today = new Date();
+      const in7Days = new Date(today.getTime() + 7 * 86400000);
+      const defaultDate = in7Days.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' });
+
+      const snoozeDate = prompt(`💤 Snooze outreach for ${profName} until what date?\nFormat: YYYY-MM-DD (e.g., ${defaultDate})`, defaultDate);
+      if (!snoozeDate || !snoozeDate.trim()) return;
+
+      const dateStr = snoozeDate.trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        alert("Invalid date format. Please use YYYY-MM-DD.");
+        return;
+      }
+
+      showToast(`💤 Snoozing ${profName} until ${dateStr}...`);
+      try {
+        await postGAS({
+          action: 'snooze',
+          row: Number(row),
+          expect_prof: profName,
+          snooze_date: dateStr
+        });
+        showToast(`✅ Snoozed ${profName} until ${dateStr}`);
+        
+        // Update local state immediately
+        const p = (globalSentProfs || []).find(item => item.row === row || item.prof === profName);
+        if (p) p.snooze_until = dateStr;
+        renderModalView();
+        fetchLiveStats();
+      } catch (err) {
+        showToast(`❌ Snooze failed: ${err.message}`);
+      }
+    }
+
+    // 3. Focused Interview Prep Mode Engine
+    function openInterviewPrep(idx) {
+      const p = (globalSentProfs || [])[idx];
+      if (!p) return;
+      activePrepLead = p;
+
+      const profName = p.prof || p.name || 'Target Professor';
+      const inst = p.inst || p.institution || 'Academic Institution';
+      const email = p.email || p.recipient_email || '';
+      const subject = p.subject || p.subject_line || 'PhD Inquiry — Mathematical Oncology & Biomathematics';
+      const body = p.body || p.full_body || p.email_body || 'Outreach focused on mathematical oncology, ODE/PDE cancer dynamics, and clinical data integration.';
+      const notes = p.notes || p.reply_notes || 'Positive response received. PI expressed interest in scheduling a discussion.';
+      const deadline = p.deadline || 'Rolling';
+      const portal = p.portal || '';
+      const scholarFallback = `https://scholar.google.com/scholar?q=${encodeURIComponent(profName + ' ' + (inst !== 'Academic Institution' ? inst.split('|')[0].trim() : ''))}`;
+      const profileUrl = p.profile_url || p.profile || scholarFallback;
+      const paper1 = p.paper_link || p.paper || p.doi || '';
+
+      document.getElementById('prepProfName').innerText = profName;
+      document.getElementById('prepInstName').innerText = inst;
+      document.getElementById('prepEmail').innerText = email || 'No email logged';
+      document.getElementById('prepSubject').innerText = subject;
+      document.getElementById('prepPitchBody').innerText = body;
+      document.getElementById('prepReplyNotes').innerText = notes;
+      document.getElementById('prepDeadline').innerText = deadline;
+
+      const facLink = document.getElementById('prepFacultyLink');
+      if (facLink) facLink.href = safeUrl(profileUrl);
+
+      const portalBtn = document.getElementById('prepPortalLink');
+      if (portalBtn) {
+        if (portal && portal !== '#' && portal !== 'https://scholar.google.com') {
+          portalBtn.href = safeUrl(portal);
+          portalBtn.classList.remove('hidden');
+        } else {
+          portalBtn.classList.add('hidden');
+        }
+      }
+
+      const emailBtn = document.getElementById('prepEmailBtn');
+      if (emailBtn) {
+        emailBtn.href = email ? `mailto:${esc(email)}?subject=Re:%20${encodeURIComponent(subject)}` : '#';
+      }
+
+      // Populate targeted papers container
+      const papersContainer = document.getElementById('prepPapersContainer');
+      if (papersContainer) {
+        papersContainer.innerHTML = `
+          <div class="p-2.5 bg-surface/70 rounded-lg border border-border/40">
+            <span class="text-[8px] uppercase font-bold text-gray-500 block mb-1">Paper 1 / Primary Target</span>
+            ${paper1 ? `
+              <a href="${esc(safeUrl(paper1))}" target="_blank" rel="noopener noreferrer"
+                 class="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-2 break-all text-[11px] block">
+                <i class="fa-solid fa-arrow-up-right-from-square text-[9px] mr-1"></i> ${esc(paper1)}
+              </a>
+            ` : '<span class="text-gray-400 text-[10px] italic">Target publication logged in Sheet dossier.</span>'}
+          </div>
+          <div class="p-2.5 bg-surface/70 rounded-lg border border-border/40">
+            <span class="text-[8px] uppercase font-bold text-gray-500 block mb-1">Scholar & Lab Research</span>
+            <a href="${esc(safeUrl(profileUrl))}" target="_blank" rel="noopener noreferrer"
+               class="text-emerald-400 hover:text-emerald-300 font-semibold underline underline-offset-2 text-[11px] block">
+              <i class="fa-solid fa-graduation-cap text-[9px] mr-1"></i> Open Google Scholar / Faculty Profile ↗
+            </a>
+          </div>
+        `;
+      }
+
+      document.getElementById('interviewPrepModal').classList.remove('hidden');
+    }
+
+    function closeInterviewPrep() {
+      document.getElementById('interviewPrepModal').classList.add('hidden');
+    }
+
+    function launchZoom() {
+      const zoomUrl = prompt("Enter or confirm Zoom / Google Meet URL to launch:", "https://zoom.us/join");
+      if (zoomUrl && zoomUrl.trim()) {
+        window.open(zoomUrl.trim(), '_blank', 'noopener');
+      }
+    }
+
+    function copyPrepField(elemId, toastMsg) {
+      const text = document.getElementById(elemId)?.innerText || '';
+      copyToClipboard(text, toastMsg || 'Copied!');
+    }
+
+    function copyAllPrepIntel() {
+      if (!activePrepLead) return;
+      const p = activePrepLead;
+      const intel = [
+        `=== INTERVIEW PREP DOSSIER ===`,
+        `Professor: ${p.prof || p.name}`,
+        `Institution: ${p.inst || p.institution}`,
+        `Email: ${p.email}`,
+        `Subject Line: ${p.subject}`,
+        `Outreach Pitch Hook: ${p.body}`,
+        `PI Reply Notes: ${p.notes || p.reply_notes}`,
+        `Application Deadline: ${p.deadline || 'Rolling'}`,
+        `Faculty Profile: ${p.profile_url || ''}`,
+        `==============================`
+      ].join('\n');
+      copyToClipboard(intel, '📋 Complete interview cheat sheet copied!');
+    }
+
     let currentModalFilter = 'sent';
     let currentModalSort = 'name';
 
@@ -831,6 +1181,7 @@ ${esc(body || '(No email body content)')}
         { id: 'neutral', key: 'neutral', title: '<i class="fa-solid fa-clock text-cyan-400 mr-2"></i> Neutral / Redirects' },
         { id: 'deadlines', key: 'deadlines', title: '<i class="fa-solid fa-calendar-days text-purple-400 mr-2"></i> Deadlines & Portals' },
         { id: 'followup', key: 'followup', title: '<i class="fa-solid fa-rotate text-amber-400 mr-2"></i> Follow-Up Queue' },
+        { id: 'snoozed', key: 'snoozed', title: '<i class="fa-solid fa-moon text-amber-400 mr-2"></i> Snoozed Leads' },
         { id: 'declined', key: 'declined', title: '<i class="fa-solid fa-ban text-rose-400 mr-2"></i> Declined Leads' }
       ];
 
@@ -858,7 +1209,17 @@ ${esc(body || '(No email body content)')}
       }
 
       if (currentModalFilter === 'drafts') {
-        const dList = (globalDraftsReady || []).slice();
+        let dList = (globalDraftsReady || []).slice();
+        if (currentOmniQuery) {
+          dList = dList.filter(p => {
+            const name = String(p.prof || p.name || '').toLowerCase();
+            const inst = String(p.inst || p.institution || '').toLowerCase();
+            const subj = String(p.subject || p.subject_line || '').toLowerCase();
+            const body = String(p.body || p.full_body || '').toLowerCase();
+            const notes = String(p.notes || '').toLowerCase();
+            return name.includes(currentOmniQuery) || inst.includes(currentOmniQuery) || subj.includes(currentOmniQuery) || body.includes(currentOmniQuery) || notes.includes(currentOmniQuery);
+          });
+        }
         title.innerHTML = `<i class="fa-solid fa-pen-to-square text-blue-400 mr-2"></i> Drafts Ready for Dispatch <span class="text-[11px] text-gray-400 font-normal">(${dList.length})</span>`;
         if (dList.length === 0) {
           content.innerHTML = `
@@ -866,7 +1227,7 @@ ${esc(body || '(No email body content)')}
               <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 mx-auto flex items-center justify-center text-xl">
                 <i class="fa-solid fa-inbox"></i>
               </div>
-              <p class="text-gray-400 text-xs font-semibold">No pending drafts ready in Tab 2.</p>
+              <p class="text-gray-400 text-xs font-semibold">No pending drafts matching filter in Tab 2.</p>
               <button onclick="triggerDrafter()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold inline-flex items-center gap-1.5 shadow transition active:scale-95">
                 <i class="fa-solid fa-bolt text-cyan-300"></i> Trigger Drafter Now
               </button>
@@ -891,6 +1252,8 @@ ${esc(body || '(No email body content)')}
       });
 
       let list = (globalSentProfs || []).slice();
+      const today = getDhakaDate();
+
       if (currentModalFilter === 'positive') {
         list = list.filter(p => {
           const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
@@ -913,12 +1276,30 @@ ${esc(body || '(No email body content)')}
       } else if (currentModalFilter === 'followup') {
         list = list.filter(p => {
           const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
+          const isSnoozed = p && p.snooze_until && today < p.snooze_until;
+          if (isSnoozed) return false;
           return !s || s === 'no reply' || s === 'pending' || s === 'sent';
+        });
+      } else if (currentModalFilter === 'snoozed') {
+        list = list.filter(p => {
+          return p && p.snooze_until && today < p.snooze_until;
         });
       } else if (currentModalFilter === 'declined') {
         list = list.filter(p => {
           const s = (typeof p === 'object' && p !== null ? (p.status || '') : '').toLowerCase();
           return s.includes('dec') || s.includes('rej');
+        });
+      }
+
+      // 1. Omni-Search Filter across Professor Name, Institution, or Notes
+      if (currentOmniQuery) {
+        list = list.filter(p => {
+          const name = String(p.prof || p.name || '').toLowerCase();
+          const inst = String(p.inst || p.institution || '').toLowerCase();
+          const notes = String(p.notes || p.reply_notes || '').toLowerCase();
+          const subj = String(p.subject || '').toLowerCase();
+          const deadline = String(p.deadline || '').toLowerCase();
+          return name.includes(currentOmniQuery) || inst.includes(currentOmniQuery) || notes.includes(currentOmniQuery) || subj.includes(currentOmniQuery) || deadline.includes(currentOmniQuery);
         });
       }
 
@@ -1182,15 +1563,42 @@ ${esc(body || '(No email body content)')}
     // Template Sanitization with Zero-Hallucination Fallbacks
     function renderDeck() {
       container.querySelectorAll('.swipe-card').forEach(c => c.remove());
-      const activeLeads = liveLeads.slice(currentCardIndex);
+      let activeLeads = liveLeads.slice(currentCardIndex);
+      if (currentOmniQuery) {
+        activeLeads = activeLeads.filter(l => {
+          const name = String(l.prof || l.name || '').toLowerCase();
+          const inst = String(l.inst || l.institution || '').toLowerCase();
+          const paper = String(l.paper_title || l.paper || '').toLowerCase();
+          const match = String(l.field_match || l.opp || l.notes || '').toLowerCase();
+          return name.includes(currentOmniQuery) || inst.includes(currentOmniQuery) || paper.includes(currentOmniQuery) || match.includes(currentOmniQuery);
+        });
+      }
       counterElem.innerText = `Remaining: ${activeLeads.length}`;
       updateUndoUI();
 
+      const emptyEl = document.getElementById('emptyDeck');
       if (activeLeads.length === 0) {
-        document.getElementById('emptyDeck').classList.remove('hidden');
+        if (emptyEl) {
+          if (currentOmniQuery) {
+            emptyEl.innerHTML = `
+              <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mx-auto flex items-center justify-center text-xl mb-2">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </div>
+              <p class="font-bold text-gray-300 text-xs">No swipe leads matching "${esc(currentOmniQuery)}"</p>
+              <button onclick="clearOmniSearch()" class="mt-2 px-3 py-1 bg-surface border border-border text-xs rounded-lg text-indigo-300 font-semibold">Clear Search</button>
+            `;
+          } else {
+            emptyEl.innerHTML = `
+              <i class="fa-solid fa-circle-check text-emerald-400 text-3xl mb-2"></i>
+              <p class="font-bold text-gray-300 text-xs">Deck Cleared!</p>
+              <p class="text-[10px] text-gray-500">Run scout or check back later.</p>
+            `;
+          }
+          emptyEl.classList.remove('hidden');
+        }
         return;
       }
-      document.getElementById('emptyDeck').classList.add('hidden');
+      if (emptyEl) emptyEl.classList.add('hidden');
 
       activeLeads.slice(0, 3).reverse().forEach((lead, idx) => {
         const card = document.createElement('div');
