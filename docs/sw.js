@@ -1,4 +1,4 @@
-const CACHE = 'phd-command-v3-cache-v10';
+const CACHE = 'phd-command-v3-cache-v11';
 const SHELL = ['./', './index.html', './manifest.json'];
 const CDN = [
   'https://cdn.tailwindcss.com',

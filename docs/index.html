@@ -79,33 +79,48 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-sm font-extrabold tracking-tight">PhD Command</h1>
-            <span class="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full uppercase">v3.1 Live</span>
+            <span class="px-2 py-0.5 text-[9px] font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full uppercase">v3.3 Live</span>
           </div>
           <p class="text-[10px] text-gray-400">Soumitro Kumar Das • Biomathematics</p>
         </div>
       </div>
 
-      <!-- Quick Actions: Run Drafter, Run Scout, Reset Credentials & Open Sheet -->
-      <div class="flex items-center gap-1.5">
-        <button onclick="triggerDrafter()" id="btnRunDrafterHeader" title="Run Drafter Manual Trigger"
-                class="px-2 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-blue-600/30 transition active:scale-95">
-          <i class="fa-solid fa-pen-nib text-cyan-300 text-[10px]"></i>
-          <span>Drafter</span>
-        </button>
-        <button onclick="triggerScout()" id="btnRunScoutHeader" title="Run Scout Manual Trigger"
-                class="px-2 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white text-[11px] font-bold flex items-center gap-1 shadow-md shadow-indigo-600/30 transition active:scale-95">
+      <!-- Quick Actions: 4 Pipeline Automation Triggers, Diagnostics, Reset Credentials & Sheet -->
+      <div class="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+        <button onclick="triggerDaemon('scout')" id="btnRunScoutHeader" title="Run Scout Manual Trigger"
+                class="px-2 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95 shrink-0">
           <i class="fa-solid fa-bolt text-amber-300 text-[10px]"></i>
           <span>Scout</span>
         </button>
+        <button onclick="triggerDaemon('drafter')" id="btnRunDrafterHeader" title="Run Drafter Manual Trigger"
+                class="px-2 py-1.5 rounded-lg bg-blue-600/30 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/40 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95 shrink-0">
+          <i class="fa-solid fa-pen-nib text-cyan-300 text-[10px]"></i>
+          <span>Drafter</span>
+        </button>
+        <button onclick="triggerDaemon('nagger')" id="btnRunNaggerHeader" title="Run Nagger Manual Trigger"
+                class="px-2 py-1.5 rounded-lg bg-amber-600/30 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/40 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95 shrink-0">
+          <i class="fa-solid fa-bell text-amber-300 text-[10px]"></i>
+          <span>Nagger</span>
+        </button>
+        <button onclick="triggerDaemon('radar')" id="btnRunRadarHeader" title="Run Radar Manual Trigger"
+                class="px-2 py-1.5 rounded-lg bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 shadow-sm transition active:scale-95 shrink-0">
+          <i class="fa-solid fa-satellite-dish text-purple-300 text-[10px]"></i>
+          <span>Radar</span>
+        </button>
+        <button onclick="runInAppDiagnostics()" id="btnRunDiagnostics" title="Run In-App Diagnostics Test (Backend v3.3, 150 Leads, Chatbot)"
+                class="px-2 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 transition active:scale-95 shrink-0">
+          <i class="fa-solid fa-stethoscope text-emerald-400 text-xs"></i>
+          <span>Test</span>
+        </button>
         <button onclick="resetCredentials()" title="Configure GAS URL & Secret"
-                class="p-2 rounded-lg bg-card hover:bg-border text-gray-300 hover:text-white border border-border transition active:scale-95">
+                class="p-1.5 sm:p-2 rounded-lg bg-card hover:bg-border text-gray-300 hover:text-white border border-border transition active:scale-95 shrink-0">
           <i class="fa-solid fa-gear text-xs text-indigo-400"></i>
         </button>
         <a href="https://docs.google.com/spreadsheets/d/18ww6rPcncVtwDNnHLborAwraY0PNqQr0wsY16gr9M1E/edit#gid=0"
            target="_blank" rel="noopener noreferrer"
-           class="px-2.5 py-1.5 rounded-lg bg-card hover:bg-border text-gray-200 text-xs font-semibold flex items-center gap-1 border border-border transition">
+           class="px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-card hover:bg-border text-gray-200 text-xs font-semibold flex items-center gap-1 border border-border transition shrink-0">
           <i class="fa-solid fa-table text-emerald-400"></i>
-          <span class="text-[11px]">Sheet</span>
+          <span class="hidden sm:inline text-[11px]">Sheet</span>
         </a>
       </div>
     </div>
@@ -672,6 +687,42 @@
       </div>
     </div>
 
+    <!-- IN-APP SELF-DIAGNOSTICS MODAL OVERLAY -->
+    <div id="diagnosticsModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+      <div class="bg-card border border-border rounded-2xl w-full max-w-lg flex flex-col shadow-2xl overflow-hidden">
+        <!-- Diagnostics Header -->
+        <div class="p-3.5 border-b border-border flex justify-between items-center bg-surface/50 shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white text-xs shadow-md shadow-emerald-600/30">
+              <i class="fa-solid fa-stethoscope"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-xs font-bold text-white">Pipeline Self-Diagnostics</h3>
+                <span class="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded uppercase">Live Probe</span>
+              </div>
+              <p class="text-[10px] text-gray-400">Verifying GAS v3.3, Leads Aggregate & Chatbot Proxy</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="runInAppDiagnostics()" title="Re-run Diagnostics" class="p-1.5 rounded-lg text-indigo-400 hover:text-white hover:bg-surface border border-border/60 transition">
+              <i class="fa-solid fa-arrows-rotate text-xs"></i>
+            </button>
+            <button onclick="closeDiagnosticsModal()" title="Close" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-surface border border-border/60 transition">
+              <i class="fa-solid fa-xmark text-xs"></i>
+            </button>
+          </div>
+        </div>
+        <!-- Diagnostics Content Area -->
+        <div id="diagResultsContent" class="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
+          <div class="text-center py-6 text-gray-400">
+            <i class="fa-solid fa-stethoscope text-2xl text-emerald-400 mb-2 block"></i>
+            <p class="text-xs">Click Run Diagnostics to test your live pipeline.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- FLOATING ACTION BUTTON (GEMINI CRM ASSISTANT) -->
     <button id="btnOpenChatbot" onclick="openChatbot()" title="Open Gemini PhD CRM Assistant"
             class="fixed bottom-20 right-4 z-40 w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 hover:from-indigo-500 hover:to-pink-400 text-white flex items-center justify-center shadow-xl shadow-indigo-600/40 ring-2 ring-indigo-400/40 animate-pulse transition active:scale-95 sm:bottom-6 sm:right-6">
@@ -1188,22 +1239,91 @@ ${esc(body || '(No email body content)')}
       }
     }
 
-    // 3. 2nd Draft (Follow-Up) Generator Engine
+    // 3. Instant Tailored 2nd Draft (Follow-Up) Generator Engine
     async function triggerFollowUpDraft(idx, profName, row) {
-      showToast("Follow-Up Draft Requested!");
+      // 1. Resolve professor record p
+      let p = null;
+      if (idx !== undefined && currentModalRenderedList && currentModalRenderedList[idx]) {
+        p = currentModalRenderedList[idx];
+      }
+      if (!p && profName) {
+        p = (globalSentProfs || []).find(x => (x.prof || x.name) === profName);
+      }
+      if (!p && row) {
+        p = (globalSentProfs || []).find(x => x.row == row);
+      }
+      if (!p && idx !== undefined && (globalSentProfs || [])[idx]) {
+        p = globalSentProfs[idx];
+      }
+      if (!p) {
+        showToast("❌ Could not locate professor record.");
+        return;
+      }
+
+      showToast(`✍️ Generating tailored 2nd Draft for ${p.prof || 'PI'}...`);
+
+      const followUpSubject = p.subject && !p.subject.startsWith('Re:') ? `Re: ${p.subject}` : `Re: Prospective PhD Student Inquiry — ${p.prof}`;
+      const pitchContext = (p.notes || p.body || '').replace(/^No Reply.*?(—|-)\s*/i, '').trim();
+      const lastName = (p.prof || 'Professor').trim().split(' ').slice(-1)[0];
+      const followUpBody = `Dear Professor ${lastName},\n\nI hope this email finds you well. I am writing to briefly follow up on my previous email sent on ${p.date || 'recently'} regarding prospective PhD supervision in your research group at ${p.inst || 'your institution'}.\n\n${pitchContext ? 'In my earlier note, I highlighted how my published Q1 work in mathematical epidemiology and fractional/compartmental modeling aligns with your research (' + pitchContext.slice(0, 180) + ').\n\n' : ''}I remain very enthusiastic about the possibility of applying to your group for the Fall 2027 intake. Please let me know if you might have any openings for doctoral candidates, or if you recommend submitting a formal application through the department portal.\n\nThank you very much for your time and consideration.\n\nBest regards,\nSoumitro Kumar Das (Shuvro)\nM.Sc. in Applied Mathematics, University of Rajshahi`;
+
+      const today = getDhakaDate();
+      const newDraftItem = {
+        date: today,
+        prof: p.prof,
+        email: p.email,
+        subject: followUpSubject,
+        body: followUpBody,
+        inst: p.inst,
+        dispatch: 'DRAFT',
+        status: 'No Reply',
+        notes: '2nd Follow-Up Draft (' + (p.date || today) + ')',
+        f1: p.f1 || '',
+        f2: p.f2 || '',
+        deadline: p.deadline || '',
+        portal: p.portal || '',
+        profile_url: p.profile_url || '',
+        last_contact: today
+      };
+
+      // Instantly inject into global drafts workbench
+      if (!Array.isArray(globalDraftsReady)) globalDraftsReady = [];
+      globalDraftsReady.unshift(newDraftItem);
+
+      if (document.getElementById('statDrafted')) {
+        document.getElementById('statDrafted').innerText = globalDraftsReady.length;
+      }
+
+      // Immediately open Drafts Ready workbench
+      showList('drafts');
+      showToast("🚀 2nd Draft Ready in Workbench!");
+
+      // Save to Google Sheet Tab 2 in background
       try {
-        const res = await postGAS({
-          action: 'trigger_drafter',
-          type: 'follow_up',
-          prof: profName,
-          row: Number(row)
+        await postGAS({
+          action: 'append_email_draft',
+          values: [
+            today,
+            p.prof,
+            p.email,
+            followUpSubject,
+            followUpBody,
+            p.inst,
+            'DRAFT',
+            'No Reply',
+            '2nd Follow-Up Draft (' + (p.date || today) + ')',
+            p.f1 || '',
+            p.f2 || '',
+            p.deadline || '',
+            p.portal || '',
+            p.profile_url || '',
+            today
+          ]
         });
-        showToast("Follow-Up Draft Requested!");
-        setTimeout(fetchLiveStats, 1200);
+        showToast("✅ 2nd Follow-Up Draft saved to Sheet!");
       } catch (err) {
-        console.error('Follow-up error:', err);
-        showToast("Follow-Up Draft Requested!");
-        setTimeout(fetchLiveStats, 1500);
+        console.error("Failed to append draft to sheet:", err);
+        showToast("⚠️ Draft ready in app, but Sheet sync failed: " + err.message);
       }
     }
 
@@ -1479,6 +1599,7 @@ ${esc(body || '(No email body content)')}
 
     let currentModalFilter = 'sent';
     let currentModalSort = 'name';
+    let currentModalRenderedList = [];
 
     function setModalSort(sortKey) {
       if (sortKey === 'lastContact') sortKey = 'last_contact';
@@ -1649,6 +1770,7 @@ ${esc(body || '(No email body content)')}
       }
 
       title.innerHTML += ` <span class="text-[11px] text-gray-400 font-normal">(${list.length})</span>`;
+      currentModalRenderedList = list;
 
       const syncCalendarHeader = currentModalFilter === 'deadlines' ? `
         <div class="p-3 bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-purple-950/40 border border-purple-500/30 rounded-xl flex items-center justify-between gap-2 shadow-sm mb-2.5">
@@ -2092,26 +2214,138 @@ ${esc(body || '(No email body content)')}
       });
     }
 
-    // Backend-Relayed Drafter Trigger (Zero-Secret, No GITHUB_PAT on frontend)
-    async function triggerDrafter() {
-      showToast("⚡ Triggering Drafter...");
+    // Backend-Relayed Daemon Triggers (Zero-Secret, No GITHUB_PAT on frontend)
+    async function triggerDaemon(daemon) {
+      const daemonNames = {
+        scout: '⚡ Scout',
+        drafter: '✍️ Drafter',
+        nagger: '🔔 Nagger',
+        radar: '📡 Radar'
+      };
+      const label = daemonNames[daemon] || daemon;
+      showToast(`🚀 Triggering ${label}...`);
       try {
-        await postGAS({ action: 'trigger_drafter' });
-        showToast("✅ Drafter triggered on GitHub! Check Actions tab.");
+        await postGAS({ action: 'trigger_' + daemon });
+        showToast(`✅ ${label} triggered on GitHub! Check Actions tab.`);
       } catch (e) {
-        showToast("❌ Drafter trigger failed: " + e.message);
+        showToast(`❌ ${label} trigger failed: ` + e.message);
       }
     }
 
-    // Backend-Relayed Scout Trigger (Zero-Secret, No GITHUB_PAT on frontend)
-    async function triggerScout() {
-      showToast("🚀 Triggering Scout...");
-      try {
-        await postGAS({ action: 'trigger_scout' });
-        showToast("✅ Scout triggered on GitHub! Check Actions tab.");
-      } catch (e) {
-        showToast("❌ Scout trigger failed: " + e.message);
+    const triggerDrafter = () => triggerDaemon('drafter');
+    const triggerScout = () => triggerDaemon('scout');
+    const triggerNagger = () => triggerDaemon('nagger');
+    const triggerRadar = () => triggerDaemon('radar');
+
+    // In-App Self-Diagnostics Suite
+    async function runInAppDiagnostics() {
+      showToast("🩺 Running In-App Self-Diagnostics...");
+      const modal = document.getElementById('diagnosticsModal');
+      const resultsDiv = document.getElementById('diagResultsContent');
+      if (modal) modal.classList.remove('hidden');
+      if (resultsDiv) {
+        resultsDiv.innerHTML = `
+          <div class="text-center py-6 text-gray-400">
+            <i class="fa-solid fa-circle-notch fa-spin text-2xl text-indigo-400 mb-2"></i>
+            <p class="text-xs">Probing live Google Apps Script backend & data integrity...</p>
+          </div>
+        `;
       }
+
+      try {
+        const listRes = await postGAS({ action: 'list' });
+        let chatRes = null;
+        let chatError = null;
+        try {
+          chatRes = await postGAS({ action: 'chat', message: 'ping', crm_data: [] });
+        } catch (ce) {
+          chatError = ce.message;
+        }
+
+        const checks = [];
+
+        // 1. Backend Version Check
+        const bVer = listRes.backend_version;
+        const isVerOk = bVer === 'v3.3';
+        checks.push({
+          title: 'Backend Version Check (v3.3)',
+          passed: isVerOk,
+          detail: isVerOk ? `Live deployment stamped as '${bVer}'` : `Mismatched: '${bVer || 'None'}'. Re-deploy New Version in Apps Script!`
+        });
+
+        // 2. Total Dispatched Count
+        const sentCount = (listRes.sentProfs || []).length;
+        const statsSent = (listRes.stats || {}).sent;
+        const isCountOk = sentCount === 150 && statsSent === 150;
+        checks.push({
+          title: 'Total Dispatched Count (150)',
+          passed: isCountOk,
+          detail: `sentProfs: ${sentCount}, stats.sent: ${statsSent} (Target: 150)`
+        });
+
+        // 3. Non-Empty Notes Audit
+        const totalSent = (listRes.sentProfs || []).length;
+        let nonEmptyNotes = 0;
+        (listRes.sentProfs || []).forEach(p => {
+          if (p.notes && String(p.notes).trim()) nonEmptyNotes++;
+        });
+        const notesRate = totalSent > 0 ? (nonEmptyNotes / totalSent) * 100 : 0;
+        const isNotesOk = notesRate >= 95;
+        checks.push({
+          title: 'Non-Empty Notes Audit (>95%)',
+          passed: isNotesOk,
+          detail: `${nonEmptyNotes}/${totalSent} records (${notesRate.toFixed(1)}%) have research hooks/notes.`
+        });
+
+        // 4. Gemini Chatbot Endpoint
+        const isChatOk = !!(chatRes && chatRes.ok);
+        checks.push({
+          title: 'Gemini Chatbot Endpoint',
+          passed: isChatOk,
+          detail: isChatOk ? `Active & Responsive (Echo: "${(chatRes.reply || '').slice(0, 45)}...")` : `Failed: ${chatError || 'No response'}`
+        });
+
+        const allPassed = checks.every(c => c.passed);
+        if (resultsDiv) {
+          resultsDiv.innerHTML = `
+            <div class="space-y-3">
+              <div class="p-3 rounded-xl ${allPassed ? 'bg-emerald-950/40 border border-emerald-500/30' : 'bg-amber-950/40 border border-amber-500/30'} flex items-center justify-between">
+                <span class="text-xs font-bold ${allPassed ? 'text-emerald-300' : 'text-amber-300'}">
+                  ${allPassed ? '✅ All Pipeline Diagnostics Passed!' : '⚠️ Attention Required'}
+                </span>
+                <span class="text-[10px] mono text-gray-400 font-bold">${checks.filter(c => c.passed).length}/${checks.length} Passed</span>
+              </div>
+              <div class="space-y-2">
+                ${checks.map(c => `
+                  <div class="p-2.5 rounded-xl bg-surface/80 border border-border flex items-start gap-2.5">
+                    <i class="fa-solid ${c.passed ? 'fa-circle-check text-emerald-400' : 'fa-circle-xmark text-rose-400'} text-sm mt-0.5 shrink-0"></i>
+                    <div class="min-w-0 flex-1">
+                      <div class="text-[11px] font-bold text-white">${c.title}</div>
+                      <div class="text-[10px] text-gray-400 break-words mt-0.5">${c.detail}</div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+        showToast(allPassed ? "🩺 Diagnostics: All 4 Checks Passed!" : "🩺 Diagnostics: Attention Required");
+      } catch (err) {
+        if (resultsDiv) {
+          resultsDiv.innerHTML = `
+            <div class="p-3 bg-red-950/40 border border-red-500/30 rounded-xl text-center text-rose-300 text-xs">
+              <i class="fa-solid fa-triangle-exclamation text-rose-400 text-base mb-1 block"></i>
+              Diagnostics Error: ${err.message}
+            </div>
+          `;
+        }
+        showToast("❌ Diagnostics failed: " + err.message);
+      }
+    }
+
+    function closeDiagnosticsModal() {
+      const modal = document.getElementById('diagnosticsModal');
+      if (modal) modal.classList.add('hidden');
     }
 
     // Smart Drop Submission with Dhaka ISO Timestamp (+06:00 offset)
