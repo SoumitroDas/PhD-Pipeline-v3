@@ -901,8 +901,16 @@ function doPost(e) {
       }
 
       if (results.length === 0) {
-        // Fallback to most recent papers in that cluster regardless of narrow 24h window
-        url = "https://api.openalex.org/works?search=" + encodeURIComponent(q) + "&per-page=12&sort=publication_date:desc";
+        // Fallback to simplified keywords sorted by publication_date:desc so the user NEVER gets an empty Radar feed
+        const fallbackKeywords = {
+          epidemiology: "compartmental model SEIR dengue",
+          parameter_estimation: "parameter estimation identifiability epidemic",
+          pinns: "Physics-Informed Neural Networks PINNs dynamical",
+          fractional: "fractional differential equations Caputo biology",
+          predator_prey: "predator-prey harvesting bifurcation"
+        };
+        const fbQ = fallbackKeywords[selectedCluster] || "compartmental model SEIR dengue";
+        url = "https://api.openalex.org/works?search=" + encodeURIComponent(fbQ) + "&per-page=12&sort=publication_date:desc";
         res = UrlFetchApp.fetch(url, {
           headers: { "User-Agent": "PhDPipeline/3.7 (mailto:dassoumitrokumar@gmail.com)" },
           muteHttpExceptions: true

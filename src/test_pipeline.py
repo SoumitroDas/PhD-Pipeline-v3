@@ -243,11 +243,47 @@ def test_sheet_direct_audit(data: Dict[str, Any]) -> Tuple[bool, str]:
 
 
 # ==========================================
+# TEST 7: Literature Radar Endpoint Check
+# ==========================================
+def test_literature_radar(gas_url: str, secret: str, data: Dict[str, Any]) -> Tuple[bool, str]:
+    """
+    Verifies that the Literature Radar feed is populated in list_data and that
+    the live fetch_literature endpoint returns active, non-empty publications.
+    """
+    radar_in_list = data.get("literatureRadar", [])
+    list_count = len(radar_in_list)
+
+    payload = {
+        "action": "fetch_literature",
+        "secret": secret,
+        "window": "7d",
+        "cluster": "epidemiology"
+    }
+    try:
+        resp = requests.post(gas_url, json=payload, headers={"Content-Type": "application/json"}, timeout=35)
+        resp.raise_for_status()
+        res_json = resp.json()
+    except Exception as e:
+        return False, f"Literature Radar endpoint HTTP POST failed: {e}"
+
+    if not res_json.get("ok"):
+        return False, f"Literature Radar returned ok=False: {res_json.get('error', 'Unknown error')}"
+
+    papers = res_json.get("papers", [])
+    paper_count = len(papers)
+    if paper_count == 0:
+        return False, f"Literature Radar endpoint returned 0 papers (in-list radar papers: {list_count})."
+
+    top_title = (papers[0].get("title") or "No title")[:60]
+    return True, f"Literature Radar active: returned {paper_count} live papers (Top: '{top_title}...', in-list: {list_count})."
+
+
+# ==========================================
 # MAIN TEST RUNNER
 # ==========================================
 def run_all_tests(gas_url: Optional[str] = None, secret: Optional[str] = None) -> bool:
     print("=" * 68)
-    print("  PhD Pipeline v3.3 - Automated End-to-End Self-Tester Suite")
+    print("  PhD Pipeline v3.7 - Automated End-to-End Self-Tester Suite (7 Checks)")
     print("=" * 68)
 
     file_env = load_env()
@@ -289,6 +325,7 @@ def run_all_tests(gas_url: Optional[str] = None, secret: Optional[str] = None) -
         ("4. Deadlines Queue Check", lambda: test_deadlines_queue(list_data)),
         ("5. Chatbot Endpoint Check", lambda: test_chatbot_endpoint(gas_url, secret)),
         ("6. Local Sheet Direct Audit", lambda: test_sheet_direct_audit(list_data)),
+        ("7. Literature Radar Endpoint Check", lambda: test_literature_radar(gas_url, secret, list_data)),
     ]
 
     results = []
@@ -316,7 +353,7 @@ def run_all_tests(gas_url: Optional[str] = None, secret: Optional[str] = None) -
     print("=" * 68)
 
     if all_passed:
-        print("🎉 ALL 6 CHECKS PASSED! The live pipeline and backend are in full sync.")
+        print("🎉 ALL 7 CHECKS PASSED! The live pipeline, literature radar, and backend are in full sync.")
     else:
         print("⚠️ SOME CHECKS FAILED. Review diagnostics above and update Apps Script deployment.")
 

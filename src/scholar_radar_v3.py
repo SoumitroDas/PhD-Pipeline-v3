@@ -126,51 +126,79 @@ class ScholarRadarV3:
             pass
         return existing
 
+    def _parse_openalex_results(self, results: List[Dict[str, Any]], cluster_cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+        papers = []
+        for w in results:
+            title = sanitize_input(w.get("title", ""), max_len=250)
+            if not title:
+                continue
+            doi = w.get("doi") or w.get("id", "")
+            pub_date = w.get("publication_date", "")
+            loc = w.get("primary_location") or {}
+            source = loc.get("source") or {}
+            venue = source.get("display_name", "OpenAlex / Academic Venue")
+
+            auths = w.get("authorships", [])
+            author_names = [a.get("author", {}).get("display_name", "") for a in auths[:3]]
+            inst_name = ""
+            if auths:
+                insts = auths[-1].get("institutions", [])
+                if insts:
+                    inst_name = insts[0].get("display_name", "")
+
+            authors_inst = f"{', '.join(filter(None, author_names))} ({inst_name})".strip(" ()")
+            abstract = AcademicVerifier._reconstruct_abstract(w.get("abstract_inverted_index"))
+
+            passed, _ = passes_hard_negative_filter(title, abstract)
+            if not passed:
+                continue
+
+            papers.append({
+                "tag": cluster_cfg["tag"],
+                "title": title,
+                "authors_inst": sanitize_input(authors_inst, max_len=200),
+                "venue": sanitize_input(venue, max_len=150),
+                "pub_date": sanitize_input(pub_date, max_len=50),
+                "doi": sanitize_input(doi, max_len=200),
+                "abstract": sanitize_input(abstract, max_len=1200)
+            })
+        return papers
+
     def _fetch_openalex(self, cluster_key: str, cluster_cfg: Dict[str, Any], from_date: str) -> List[Dict[str, Any]]:
+        # Remove type:article filter restriction to capture preprints and newly published papers
         url = (
             f"https://api.openalex.org/works?search={urllib.parse.quote(cluster_cfg['openalex'])}"
-            f"&filter=from_publication_date:{from_date},type:article&sort=publication_date:desc&per-page=5"
+            f"&filter=from_publication_date:{from_date}&sort=publication_date:desc&per-page=5"
         )
         papers = []
         try:
             resp = requests.get(url, headers=AcademicVerifier.HEADERS, timeout=20)
             if resp.status_code == 200:
-                for w in resp.json().get("results", []):
-                    title = sanitize_input(w.get("title", ""), max_len=250)
-                    if not title:
-                        continue
-                    doi = w.get("doi") or w.get("id", "")
-                    pub_date = w.get("publication_date", "")
-                    loc = w.get("primary_location") or {}
-                    source = loc.get("source") or {}
-                    venue = source.get("display_name", "OpenAlex / Academic Venue")
-
-                    auths = w.get("authorships", [])
-                    author_names = [a.get("author", {}).get("display_name", "") for a in auths[:3]]
-                    inst_name = ""
-                    if auths:
-                        insts = auths[-1].get("institutions", [])
-                        if insts:
-                            inst_name = insts[0].get("display_name", "")
-
-                    authors_inst = f"{', '.join(filter(None, author_names))} ({inst_name})".strip(" ()")
-                    abstract = AcademicVerifier._reconstruct_abstract(w.get("abstract_inverted_index"))
-
-                    passed, _ = passes_hard_negative_filter(title, abstract)
-                    if not passed:
-                        continue
-
-                    papers.append({
-                        "tag": cluster_cfg["tag"],
-                        "title": title,
-                        "authors_inst": sanitize_input(authors_inst, max_len=200),
-                        "venue": sanitize_input(venue, max_len=150),
-                        "pub_date": sanitize_input(pub_date, max_len=50),
-                        "doi": sanitize_input(doi, max_len=200),
-                        "abstract": sanitize_input(abstract, max_len=1200)
-                    })
+                papers = self._parse_openalex_results(resp.json().get("results", []), cluster_cfg)
         except Exception as e:
             print(f"[WARN] OpenAlex error for {cluster_key}: {e}")
+
+        # Fallback if 0 results returned (e.g. quiet 24h window)
+        if not papers:
+            fallback_keywords = {
+                "epidemiology": "compartmental model SEIR dengue",
+                "parameter_estimation": "parameter estimation identifiability epidemic",
+                "pinns": "Physics-Informed Neural Networks PINNs dynamical",
+                "fractional": "fractional differential equations Caputo biology",
+                "predator_prey": "predator-prey harvesting bifurcation"
+            }
+            kw = fallback_keywords.get(cluster_key, "compartmental model SEIR dengue")
+            fb_url = (
+                f"https://api.openalex.org/works?search={urllib.parse.quote(kw)}"
+                f"&sort=publication_date:desc&per-page=5"
+            )
+            try:
+                fb_resp = requests.get(fb_url, headers=AcademicVerifier.HEADERS, timeout=20)
+                if fb_resp.status_code == 200:
+                    papers = self._parse_openalex_results(fb_resp.json().get("results", []), cluster_cfg)
+            except Exception as e:
+                print(f"[WARN] OpenAlex fallback error for {cluster_key}: {e}")
+
         return papers
 
     def _fetch_arxiv(self, cluster_key: str, cluster_cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -305,7 +333,7 @@ Return strictly valid JSON:
             deposited_count += 1
 
             digest_lines.append(
-                f"🔹 *{p['title']}*\n"
+                f"📄 *{p['title']}*\n"
                 f"   _{p['authors_inst']}_ | `{p['tag']}`\n"
                 f"   *💡 Extension Hypothesis:* {sanitize_input(syn.get('mix_idea', ''), max_len=220)}\n"
                 f"   🔗 [Verified Link]({p['doi']})\n"

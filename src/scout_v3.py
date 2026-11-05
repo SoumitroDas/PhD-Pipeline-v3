@@ -383,15 +383,33 @@ class ScoutV3Guarded:
 
         url = (
             f"https://api.openalex.org/works?search={urllib.parse.quote(query)}"
-            f"&filter=from_publication_date:{from_date},type:article&per-page={min(self.max_results, 15)}"
+            f"&filter=from_publication_date:{from_date}&per-page={min(self.max_results, 15)}"
             f"&sort=publication_date:desc"
         )
         candidates = []
         try:
             resp = requests.get(url, headers=ScoutVerifier.HEADERS, timeout=20)
-            if resp.status_code == 200:
-                results = resp.json().get("results", [])
-                for work in results:
+            results = resp.json().get("results", []) if resp.status_code == 200 else []
+
+            # Guaranteed fallback if query returns 0 results
+            if not results:
+                fallback_keywords = {
+                    "epidemiology": "compartmental model SEIR dengue",
+                    "parameter_estimation": "parameter estimation identifiability epidemic",
+                    "pinns": "Physics-Informed Neural Networks PINNs dynamical",
+                    "fractional": "fractional differential equations Caputo biology",
+                    "predator_prey": "predator-prey harvesting bifurcation"
+                }
+                fb_q = fallback_keywords.get(cluster_key, "compartmental model SEIR dengue")
+                fb_url = (
+                    f"https://api.openalex.org/works?search={urllib.parse.quote(fb_q)}"
+                    f"&per-page={min(self.max_results, 15)}&sort=publication_date:desc"
+                )
+                fb_resp = requests.get(fb_url, headers=ScoutVerifier.HEADERS, timeout=20)
+                if fb_resp.status_code == 200:
+                    results = fb_resp.json().get("results", [])
+
+            for work in results:
                     title = sanitize_input(work.get("title", ""), max_len=180)
                     abstract = AcademicVerifier._reconstruct_abstract(work.get("abstract_inverted_index"))
 
