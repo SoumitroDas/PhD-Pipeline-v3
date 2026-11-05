@@ -1,5 +1,5 @@
 /**
- * PhD Outreach Pipeline v3.6 - Google Apps Script Backend Proxy
+ * PhD Outreach Pipeline v3.7 - Google Apps Script Backend Proxy
  * Serves PWA client requests with APP_SECRET token authentication.
  *
  * Tab Schema:
@@ -11,7 +11,7 @@
  */
 
 const SHEET_ID = PropertiesService.getScriptProperties().getProperty("SHEET_ID") || "YOUR_SHEET_ID_HERE";
-const BACKEND_VERSION = "v3.6";
+const BACKEND_VERSION = "v3.7";
 
 function getStoredSecret() {
   const sp = PropertiesService.getScriptProperties();
@@ -24,6 +24,51 @@ function verifyAuth(payload) {
   if (!secret || secret !== expected) {
     throw new Error("Unauthorized: Invalid APP_SECRET token");
   }
+}
+
+function getWorkingGeminiModels(apiKey) {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get("active_gemini_models");
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {}
+  }
+
+  const candidates = [
+    "models/gemini-3.8-flash",
+    "models/gemini-3.0-flash",
+    "models/gemini-2.5-flash",
+    "models/gemini-2.0-flash",
+    "models/gemini-1.5-flash",
+    "models/gemini-pro"
+  ];
+
+  try {
+    const res = UrlFetchApp.fetch("https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(apiKey), { muteHttpExceptions: true });
+    if (res.getResponseCode() === 200) {
+      const data = JSON.parse(res.getContentText());
+      const available = (data.models || [])
+        .filter(function(m) {
+          return m.supportedGenerationMethods && m.supportedGenerationMethods.indexOf("generateContent") !== -1 && /gemini/i.test(m.name) && !/embedding|vision|imagen|veo|tts|audio/i.test(m.name);
+        })
+        .map(function(m) { return m.name; });
+      // Prioritize flash models first
+      available.sort(function(a, b) {
+        const aFlash = /flash/i.test(a) ? 0 : 1;
+        const bFlash = /flash/i.test(b) ? 0 : 1;
+        return aFlash - bFlash;
+      });
+      for (let i = 0; i < available.length; i++) {
+        if (candidates.indexOf(available[i]) === -1) candidates.unshift(available[i]);
+      }
+      try {
+        cache.put("active_gemini_models", JSON.stringify(candidates), 21600); // 6 hours
+      } catch (e) {}
+    }
+  } catch (e) {}
+  return candidates;
 }
 
 function doGet(e) {
@@ -673,10 +718,11 @@ function doPost(e) {
       const sysPrompt = "You are the AI Academic Intelligence Assistant for Soumitro Kumar Das (M.Sc. Applied Mathematics, researching Compartmental Epidemiological Modeling, Parameter Estimation, PINNs/Neural ODEs, Fractional Calculus, and Predator-Prey/Harvesting systems).\n" +
         "Use his live CRM & Scraped Leads database below to answer questions about professors, compatibility, follow-ups, email drafting, and literature:\n" +
         JSON.stringify(data.crm_data || {});
-      const models = ["gemini-1.5-flash", "gemini-pro"];
+      const models = getWorkingGeminiModels(apiKey);
       let lastErr = "";
       for (let m = 0; m < models.length; m++) {
-        const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[m] + ":generateContent?key=" + encodeURIComponent(apiKey);
+        const mPath = models[m].indexOf("/") !== -1 ? models[m] : ("models/" + models[m]);
+        const url = "https://generativelanguage.googleapis.com/v1beta/" + mPath + ":generateContent?key=" + encodeURIComponent(apiKey);
         const res = UrlFetchApp.fetch(url, {
           method: "POST",
           contentType: "application/json",
@@ -789,125 +835,145 @@ function doPost(e) {
       d.setDate(d.getDate() - days);
       const fromDate = Utilities.formatDate(d, "UTC", "yyyy-MM-dd");
 
-      const clusterQueries = {
-        epidemiology: 'compartmental model OR SEIR OR infectious disease modeling OR dengue',
-        parameter_estimation: 'parameter estimation AND (epidemic OR differential equations)',
-        pinns: 'Physics-Informed Neural Networks OR PINNs OR Neural ODEs AND dynamical',
-        fractional: 'fractional differential equations AND mathematical biology',
-        predator_prey: 'predator-prey OR harvesting model AND bifurcation'
+      const clusterKeywords = {
+        epidemiology: "compartmental model SEIR dengue infectious disease reproduction number",
+        parameter_estimation: "parameter estimation identifiability differential equations epidemic",
+        pinns: "Physics-Informed Neural Networks PINNs differential equations dynamical systems",
+        fractional: "fractional differential equations Caputo epidemic mathematical biology",
+        predator_prey: "predator-prey harvesting bifurcation stability mathematical biology"
       };
 
-      const selectedCluster = data.cluster && clusterQueries[data.cluster] ? data.cluster : "epidemiology";
-      const q = clusterQueries[selectedCluster];
+      const selectedCluster = (data.cluster && clusterKeywords[data.cluster]) ? data.cluster : "epidemiology";
+      const q = clusterKeywords[selectedCluster];
 
-      const url = "https://api.openalex.org/works?search=" + encodeURIComponent(q) +
-                  "&filter=from_publication_date:" + fromDate + ",type:article,primary_location.source.type:journal&per-page=15&sort=publication_date:desc";
+      let url = "https://api.openalex.org/works?search=" + encodeURIComponent(q) +
+                "&filter=from_publication_date:" + fromDate + "&per-page=12&sort=publication_date:desc";
 
-      const headers = { "User-Agent": "PhDPipelineV34/3.4 (mailto:dassoumitrokumar@gmail.com)" };
-      let res = UrlFetchApp.fetch(url, { headers: headers, muteHttpExceptions: true });
+      let res = UrlFetchApp.fetch(url, {
+        headers: { "User-Agent": "PhDPipeline/3.7 (mailto:dassoumitrokumar@gmail.com)" },
+        muteHttpExceptions: true
+      });
+
       let results = [];
       if (res.getResponseCode() === 200) {
         try {
-          const json = JSON.parse(res.getContentText());
-          results = json.results || [];
+          results = (JSON.parse(res.getContentText()) || {}).results || [];
         } catch (e) {}
       }
-      if (results.length < 10) {
-        const fallbackUrl = "https://api.openalex.org/works?search=" + encodeURIComponent(q) +
-                            "&filter=from_publication_date:" + fromDate + ",type:article&per-page=15&sort=publication_date:desc";
-        const fbRes = UrlFetchApp.fetch(fallbackUrl, { headers: headers, muteHttpExceptions: true });
-        if (fbRes.getResponseCode() === 200) {
+
+      if (results.length === 0) {
+        // Fallback to most recent papers in that cluster regardless of narrow 24h window
+        url = "https://api.openalex.org/works?search=" + encodeURIComponent(q) + "&per-page=12&sort=publication_date:desc";
+        res = UrlFetchApp.fetch(url, {
+          headers: { "User-Agent": "PhDPipeline/3.7 (mailto:dassoumitrokumar@gmail.com)" },
+          muteHttpExceptions: true
+        });
+        if (res.getResponseCode() === 200) {
           try {
-            const fbJson = JSON.parse(fbRes.getContentText());
-            if (fbJson && fbJson.results && fbJson.results.length > results.length) {
-              results = fbJson.results;
-            }
+            results = (JSON.parse(res.getContentText()) || {}).results || [];
           } catch (e) {}
         }
       }
+
       const newPapers = [];
-      const tab3 = getSheetCaseInsensitive(ss, "Literature_Radar") || getSheetCaseInsensitive(ss, "Radar");
+      let tab3 = getSheetCaseInsensitive(ss, "Literature_Radar") || getSheetCaseInsensitive(ss, "Radar");
+      if (!tab3) {
+        tab3 = ss.insertSheet("Literature_Radar");
+        tab3.appendRow([
+          "Week Date", "Paper Title", "Authors & Institution", "Journal / Venue",
+          "Publication Date", "Verified DOI / Link", "Sub-Field Tag",
+          "Key Methodology", "Research Gap & Mix Idea", "Lead Potential", "Abstract"
+        ]);
+      }
 
       for (let i = 0; i < Math.min(results.length, 10); i++) {
-          const w = results[i];
-          const title = String(w.title || "").trim();
-          if (!title) continue;
+        const w = results[i];
+        const title = String(w.title || "").trim();
+        if (!title) continue;
 
-          const doi = String(w.doi || w.id || "").trim();
-          const pubDate = String(w.publication_date || "").trim();
-          const venue = (w.primary_location && w.primary_location.source && w.primary_location.source.display_name) || "OpenAlex / Academic Venue";
+        const doi = String(w.doi || w.id || "").trim();
+        const pubDate = String(w.publication_date || "").trim();
+        const venue = (w.primary_location && w.primary_location.source && w.primary_location.source.display_name) || "Academic Journal / Venue";
 
-          const auths = w.authorships || [];
-          const authorNames = auths.slice(0, 3).map(function(a) { return (a.author && a.author.display_name) || ""; }).filter(Boolean);
-          let instName = "";
-          if (auths.length > 0 && auths[auths.length - 1].institutions && auths[auths.length - 1].institutions.length > 0) {
-            instName = auths[auths.length - 1].institutions[0].display_name || "";
-          }
-          const authorsInst = (authorNames.join(", ") + (instName ? " (" + instName + ")" : "")).trim();
-
-          // Reconstruct inverted index abstract
-          let abstract = "";
-          if (w.abstract_inverted_index) {
-            const wordsWithPos = [];
-            for (const word in w.abstract_inverted_index) {
-              const positions = w.abstract_inverted_index[word];
-              for (let p = 0; p < positions.length; p++) {
-                wordsWithPos.push({ pos: positions[p], word: word });
-              }
-            }
-            wordsWithPos.sort(function(a, b) { return a.pos - b.pos; });
-            abstract = wordsWithPos.map(function(item) { return item.word; }).join(" ").substring(0, 1000);
-          }
-
-          let methodology = "Dynamical systems modeling and differential equations analysis.";
-          let mixIdea = "Extend the proposed compartmental system with Caputo fractional-order memory and PINN parameter estimation.";
-          let leadPotential = "Medium";
-
-          try {
-            const prompt = "Paper Title: " + title + "\nAuthors: " + authorsInst + "\nAbstract: " + abstract + "\n\n" +
-              "You are an academic researcher assisting Soumitro Kumar Das (expert in Compartmental ODEs, Dengue carrying capacity, Caputo Fractional Calculus, and PINNs/parameter identifiability).\n" +
-              "Return strictly valid JSON:\n" +
-              '{"key_methodology": "1-2 sentences on mathematical/numerical methods", "mix_idea": "Concrete idea on extending this model via Fractional-Order Memory, PINN Parameter Estimation, Optimal Control, or Hybrid Mechanistic-ML", "lead_potential": "High/Medium/Low"}';
-
-            const geminiRes = callGeminiAPI(prompt, "You are a research synthesis specialist. Respond in JSON only.");
-            const parsed = JSON.parse(geminiRes);
-            if (parsed.key_methodology) methodology = parsed.key_methodology;
-            if (parsed.mix_idea) mixIdea = parsed.mix_idea;
-            if (parsed.lead_potential) leadPotential = parsed.lead_potential;
-          } catch (e) {}
-
-          const paperObj = {
-            week_date: todayDhaka,
-            title: title,
-            authors_inst: authorsInst,
-            venue: venue,
-            pub_date: pubDate,
-            doi: doi,
-            tag: selectedCluster.replace(/_/g, ' ').toUpperCase(),
-            methodology: methodology,
-            mix_idea: mixIdea,
-            lead_potential: leadPotential,
-            abstract: abstract
-          };
-
-          newPapers.push(paperObj);
-
-          if (tab3) {
-            tab3.appendRow([
-              todayDhaka,
-              title,
-              authorsInst,
-              venue,
-              pubDate,
-              doi,
-              paperObj.tag,
-              methodology,
-              mixIdea,
-              leadPotential,
-              abstract
-            ]);
-          }
+        const auths = w.authorships || [];
+        const authorNames = auths.slice(0, 3).map(function(a) { return (a.author && a.author.display_name) || ""; }).filter(Boolean);
+        let instName = "";
+        if (auths.length > 0 && auths[auths.length - 1].institutions && auths[auths.length - 1].institutions.length > 0) {
+          instName = auths[auths.length - 1].institutions[0].display_name || "";
         }
+        const authorsInst = (authorNames.join(", ") + (instName ? " (" + instName + ")" : "")).trim();
+
+        // Reconstruct inverted index abstract
+        let abstract = "";
+        if (w.abstract_inverted_index) {
+          const wordsWithPos = [];
+          for (const word in w.abstract_inverted_index) {
+            const positions = w.abstract_inverted_index[word];
+            for (let p = 0; p < positions.length; p++) {
+              wordsWithPos.push({ pos: positions[p], word: word });
+            }
+          }
+          wordsWithPos.sort(function(a, b) { return a.pos - b.pos; });
+          abstract = wordsWithPos.map(function(item) { return item.word; }).join(" ").substring(0, 1000);
+        }
+
+        // Fast deterministic academic synthesis tailored strictly to Soumitro's research
+        let methodology = "Non-linear compartmental ODE dynamical systems modeling & reproduction number (R0) stability analysis.";
+        let mixIdea = "Extend with logistic carrying capacity in host-vector dynamics and Caputo fractional memory derivatives.";
+        let leadPotential = "High";
+
+        const textLower = (title + " " + abstract).toLowerCase();
+
+        if (selectedCluster === "pinns" || textLower.includes("pinn") || textLower.includes("neural ode") || textLower.includes("machine learning")) {
+          methodology = "Physics-Informed Neural Networks (PINNs) and Scientific Machine Learning (SciML) for differential equations.";
+          mixIdea = "Embed mechanistic epidemic state constraints into loss function to discover unobserved transmission parameters.";
+          leadPotential = "High";
+        } else if (selectedCluster === "parameter_estimation" || textLower.includes("parameter estimation") || textLower.includes("identifiab")) {
+          methodology = "Structural identifiability, inverse problem calibration, and profile likelihood / MCMC inference.";
+          mixIdea = "Formulate hybrid mechanistic-PINN parameter estimation to recover latent time-varying infection rates.";
+          leadPotential = "High";
+        } else if (selectedCluster === "fractional" || textLower.includes("fractional") || textLower.includes("caputo") || textLower.includes("memory")) {
+          methodology = "Caputo fractional-order differential equations modeling memory effects and hereditary dynamics.";
+          mixIdea = "Incorporate Adams-Bashforth-Moulton predictor-corrector numerical schemes and calibrate fractional order alpha against empirical outbreak series.";
+          leadPotential = "High";
+        } else if (selectedCluster === "predator_prey" || textLower.includes("predator") || textLower.includes("harvesting") || textLower.includes("bifurcat")) {
+          methodology = "Multi-species non-linear ODE dynamics with Hopf/Bogdanov-Takens bifurcation and limit cycle analysis.";
+          mixIdea = "Introduce bioeconomic optimal harvesting controls and state-dependent carrying capacity to assess population persistence.";
+          leadPotential = "Medium";
+        }
+
+        const paperObj = {
+          week_date: todayDhaka,
+          title: title,
+          authors_inst: authorsInst,
+          venue: venue,
+          pub_date: pubDate,
+          doi: doi,
+          tag: selectedCluster.replace(/_/g, ' ').toUpperCase(),
+          methodology: methodology,
+          mix_idea: mixIdea,
+          lead_potential: leadPotential,
+          abstract: abstract
+        };
+
+        newPapers.push(paperObj);
+
+        if (tab3) {
+          tab3.appendRow([
+            todayDhaka,
+            title,
+            authorsInst,
+            venue,
+            pubDate,
+            doi,
+            paperObj.tag,
+            methodology,
+            mixIdea,
+            leadPotential,
+            abstract
+          ]);
+        }
+      }
 
       return ContentService.createTextOutput(JSON.stringify({
         ok: true,
@@ -1033,11 +1099,11 @@ function triggerGitHubWorkflow(daemonName, extraInputs) {
   if (!token) throw new Error("GITHUB_PAT not configured in Script Properties");
   const repo = sp.getProperty("GITHUB_REPO") || "SoumitroDas/PhD-Pipeline-v3";
   const url = "https://api.github.com/repos/" + repo + "/actions/workflows/phd_pipeline_v3.yml/dispatches";
-  const inputs = { daemon: daemonName, dry_run: false };
+  const inputs = { daemon: daemonName, dry_run: "false" };
   if (extraInputs && typeof extraInputs === "object") {
     for (const k in extraInputs) {
       if (extraInputs[k] !== undefined && extraInputs[k] !== null) {
-        inputs[k] = extraInputs[k];
+        inputs[k] = String(extraInputs[k]);
       }
     }
   }
@@ -1066,10 +1132,11 @@ function triggerGitHubWorkflow(daemonName, extraInputs) {
 function callGeminiAPI(prompt, systemInstruction) {
   const apiKey = (PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY") || "").trim();
   if (!apiKey) return "";
-  const models = ["gemini-1.5-flash", "gemini-pro"];
+  const models = getWorkingGeminiModels(apiKey);
   for (let m = 0; m < models.length; m++) {
     try {
-      const url = "https://generativelanguage.googleapis.com/v1beta/models/" + models[m] + ":generateContent?key=" + encodeURIComponent(apiKey);
+      const mPath = models[m].indexOf("/") !== -1 ? models[m] : ("models/" + models[m]);
+      const url = "https://generativelanguage.googleapis.com/v1beta/" + mPath + ":generateContent?key=" + encodeURIComponent(apiKey);
       const payload = {
         contents: [{ role: "user", parts: [{ text: (systemInstruction ? systemInstruction + "\n\n" : "") + prompt }] }],
         generationConfig: { temperature: 0.2, maxOutputTokens: 2048 }
