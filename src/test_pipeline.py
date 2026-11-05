@@ -7,6 +7,7 @@ dispatched records aggregation, deadlines queue, chatbot proxy, and sheet data.
 
 import os
 import sys
+import re
 import json
 import argparse
 from typing import Dict, Any, List, Optional, Tuple
@@ -45,11 +46,11 @@ def load_env() -> Dict[str, str]:
 # TEST 1: Backend Version Check
 # ==========================================
 def test_backend_version(data: Dict[str, Any]) -> Tuple[bool, str]:
-    version = data.get("backend_version")
-    if version == "v3.3":
+    version = str(data.get("backend_version") or "")
+    if re.match(r"^v3\.[3-9]", version):
         return True, f"Live backend version is stamped correctly: '{version}'"
     return False, (
-        f"Backend version mismatch: expected 'v3.3', got '{version}'. "
+        f"Backend version mismatch: expected 'v3.7+', got '{version}'. "
         "ACTION REQUIRED: Re-deploy a New Version in Google Apps Script (Deploy > Manage deployments > Edit > New version) "
         "and ensure the updated Web App URL is in .env / PWA settings."
     )

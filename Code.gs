@@ -26,49 +26,112 @@ function verifyAuth(payload) {
   }
 }
 
-function getWorkingGeminiModels(apiKey) {
+function getRankedGeminiModels(apiKey) {
   const cache = CacheService.getScriptCache();
-  const cached = cache.get("active_gemini_models");
-  if (cached) {
-    try {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch (e) {}
-  }
+  const cachedWinner = cache.get("BEST_GEMINI_MODEL");
 
-  const candidates = [
+  const defaultPriority = [
     "models/gemini-3.8-flash",
-    "models/gemini-3.0-flash",
-    "models/gemini-2.5-flash",
+    "models/gemini-3.6-flash",
+    "models/gemini-3.5-flash-lite",
+    "models/gemini-3.1-flash-lite",
     "models/gemini-2.0-flash",
     "models/gemini-1.5-flash",
-    "models/gemini-pro"
+    "models/gemini-1.5-pro"
   ];
 
+  let discovered = [];
   try {
     const res = UrlFetchApp.fetch("https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(apiKey), { muteHttpExceptions: true });
     if (res.getResponseCode() === 200) {
       const data = JSON.parse(res.getContentText());
-      const available = (data.models || [])
-        .filter(function(m) {
-          return m.supportedGenerationMethods && m.supportedGenerationMethods.indexOf("generateContent") !== -1 && /gemini/i.test(m.name) && !/embedding|vision|imagen|veo|tts|audio/i.test(m.name);
-        })
-        .map(function(m) { return m.name; });
-      // Prioritize flash models first
-      available.sort(function(a, b) {
-        const aFlash = /flash/i.test(a) ? 0 : 1;
-        const bFlash = /flash/i.test(b) ? 0 : 1;
-        return aFlash - bFlash;
+      (data.models || []).forEach(function(m) {
+        const name = m.name || "";
+        const methods = m.supportedGenerationMethods || [];
+        if (
+          methods.indexOf("generateContent") !== -1 &&
+          name.indexOf("models/gemini-") === 0 &&
+          !/embedding|imagen|veo|tts|audio|live|vision|banana|robotics|computer-use/i.test(name)
+        ) {
+          discovered.push(name);
+        }
       });
-      for (let i = 0; i < available.length; i++) {
-        if (candidates.indexOf(available[i]) === -1) candidates.unshift(available[i]);
-      }
-      try {
-        cache.put("active_gemini_models", JSON.stringify(candidates), 21600); // 6 hours
-      } catch (e) {}
+
+      discovered.sort(function(a, b) {
+        const mVerA = a.match(/gemini-(\d+(?:\.\d+)?)/i);
+        const mVerB = b.match(/gemini-(\d+(?:\.\d+)?)/i);
+        const verA = mVerA ? parseFloat(mVerA[1]) : 0;
+        const verB = mVerB ? parseFloat(mVerB[1]) : 0;
+        if (verA !== verB) return verB - verA;
+
+        const tierA = (a.indexOf("-flash") !== -1 && a.indexOf("-flash-lite") === -1) ? 3 : (a.indexOf("flash") !== -1 ? 2 : 1);
+        const tierB = (b.indexOf("-flash") !== -1 && b.indexOf("-flash-lite") === -1) ? 3 : (b.indexOf("flash") !== -1 ? 2 : 1);
+        return tierB - tierA;
+      });
     }
   } catch (e) {}
-  return candidates;
+
+  const ordered = [];
+  if (cachedWinner) {
+    ordered.push(cachedWinner);
+  }
+  const combined = discovered.concat(defaultPriority);
+  for (let i = 0; i < combined.length; i++) {
+    const candidate = combined[i];
+    if (ordered.indexOf(candidate) === -1) {
+      ordered.push(candidate);
+    }
+  }
+  return ordered;
+}
+
+function getWorkingGeminiModels(apiKey) {
+  return getRankedGeminiModels(apiKey);
+}
+
+function invokeBestAvailableGemini(apiKey, promptText, temperature, systemInstruction) {
+  if (!apiKey) return { ok: false, error: "GEMINI_API_KEY is missing." };
+  const models = getRankedGeminiModels(apiKey);
+  let lastErr = "No models available";
+  const temp = (typeof temperature === "number") ? temperature : 0.2;
+  const fullPrompt = systemInstruction ? (systemInstruction + "\n\n" + promptText) : promptText;
+
+  for (let m = 0; m < models.length; m++) {
+    const modelName = models[m];
+    const mPath = modelName.indexOf("/") !== -1 ? modelName : ("models/" + modelName);
+    const url = "https://generativelanguage.googleapis.com/v1beta/" + mPath + ":generateContent?key=" + encodeURIComponent(apiKey);
+    try {
+      const res = UrlFetchApp.fetch(url, {
+        method: "POST",
+        contentType: "application/json",
+        payload: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+          generationConfig: { temperature: temp, maxOutputTokens: 2048 }
+        }),
+        muteHttpExceptions: true
+      });
+      const status = res.getResponseCode();
+      const txt = res.getContentText();
+      let json = {};
+      try { json = JSON.parse(txt); } catch (e) {}
+
+      if (status === 200 && json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts) {
+        const parts = json.candidates[0].content.parts;
+        const answer = parts.filter(function(p) { return !p.thought && p.text; }).map(function(p) { return p.text; }).join("\n").trim();
+        if (answer) {
+          try {
+            CacheService.getScriptCache().put("BEST_GEMINI_MODEL", modelName, 21600); // 6 hours
+          } catch (ce) {}
+          return { ok: true, reply: answer, model: modelName };
+        }
+      }
+
+      lastErr = (json.error && json.error.message) ? json.error.message : ("HTTP " + status + ": " + txt.slice(0, 200));
+    } catch (netErr) {
+      lastErr = netErr.message || String(netErr);
+    }
+  }
+  return { ok: false, error: "Gemini API Error: " + lastErr };
 }
 
 function doGet(e) {
@@ -718,33 +781,9 @@ function doPost(e) {
       const sysPrompt = "You are the AI Academic Intelligence Assistant for Soumitro Kumar Das (M.Sc. Applied Mathematics, researching Compartmental Epidemiological Modeling, Parameter Estimation, PINNs/Neural ODEs, Fractional Calculus, and Predator-Prey/Harvesting systems).\n" +
         "Use his live CRM & Scraped Leads database below to answer questions about professors, compatibility, follow-ups, email drafting, and literature:\n" +
         JSON.stringify(data.crm_data || {});
-      const models = getWorkingGeminiModels(apiKey);
-      let lastErr = "";
-      for (let m = 0; m < models.length; m++) {
-        const mPath = models[m].indexOf("/") !== -1 ? models[m] : ("models/" + models[m]);
-        const url = "https://generativelanguage.googleapis.com/v1beta/" + mPath + ":generateContent?key=" + encodeURIComponent(apiKey);
-        const res = UrlFetchApp.fetch(url, {
-          method: "POST",
-          contentType: "application/json",
-          payload: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: sysPrompt + "\n\nUser Question: " + String(data.message || "") }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
-          }),
-          muteHttpExceptions: true
-        });
-        const txt = res.getContentText();
-        let json = {};
-        try { json = JSON.parse(txt); } catch (e) {}
-        if (res.getResponseCode() === 200 && json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts) {
-          const parts = json.candidates[0].content.parts;
-          const answer = parts.filter(function(p) { return !p.thought && p.text; }).map(function(p) { return p.text; }).join("\n").trim();
-          if (answer) {
-            return ContentService.createTextOutput(JSON.stringify({ ok: true, reply: answer, model: models[m] })).setMimeType(ContentService.MimeType.JSON);
-          }
-        }
-        lastErr = (json.error && json.error.message) ? json.error.message : ("HTTP " + res.getResponseCode() + ": " + txt.slice(0, 200));
-      }
-      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Gemini API Error: " + lastErr })).setMimeType(ContentService.MimeType.JSON);
+      const userQ = String(data.message || "");
+      const result = invokeBestAvailableGemini(apiKey, "User Question: " + userQ, 0.3, sysPrompt);
+      return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
     }
 
     // 11. ACTION: set_priority (Updates Priority Classification P1-P4 in Column I)
@@ -1132,30 +1171,6 @@ function triggerGitHubWorkflow(daemonName, extraInputs) {
 function callGeminiAPI(prompt, systemInstruction) {
   const apiKey = (PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY") || "").trim();
   if (!apiKey) return "";
-  const models = getWorkingGeminiModels(apiKey);
-  for (let m = 0; m < models.length; m++) {
-    try {
-      const mPath = models[m].indexOf("/") !== -1 ? models[m] : ("models/" + models[m]);
-      const url = "https://generativelanguage.googleapis.com/v1beta/" + mPath + ":generateContent?key=" + encodeURIComponent(apiKey);
-      const payload = {
-        contents: [{ role: "user", parts: [{ text: (systemInstruction ? systemInstruction + "\n\n" : "") + prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 2048 }
-      };
-      const res = UrlFetchApp.fetch(url, {
-        method: "POST",
-        contentType: "application/json",
-        payload: JSON.stringify(payload),
-        muteHttpExceptions: true
-      });
-      if (res.getResponseCode() === 200) {
-        const json = JSON.parse(res.getContentText());
-        if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts) {
-          const parts = json.candidates[0].content.parts;
-          const answer = parts.filter(function(p) { return !p.thought && p.text; }).map(function(p) { return p.text; }).join("\n").trim();
-          if (answer) return answer;
-        }
-      }
-    } catch (e) {}
-  }
-  return "";
+  const result = invokeBestAvailableGemini(apiKey, prompt, 0.2, systemInstruction);
+  return result.ok ? result.reply : "";
 }

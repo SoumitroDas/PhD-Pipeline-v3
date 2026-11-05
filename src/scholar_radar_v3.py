@@ -36,7 +36,9 @@ from cloud_shared_core import (
     CloudModelRouter,
     GoogleWorkspaceClient,
     AcademicVerifier,
-    sanitize_input
+    sanitize_input,
+    get_ranked_gemini_models,
+    generate_with_auto_fallback
 )
 from scout_v3 import passes_hard_negative_filter
 
