@@ -54,7 +54,12 @@ class DrafterV3Guarded:
     def __init__(self, dry_run: bool = False):
         self.dry_run = dry_run
         self.llm = CloudModelRouter()
-        self.ws = None if dry_run else GoogleWorkspaceClient()
+        self.ws = None
+        if not dry_run:
+            try:
+                self.ws = GoogleWorkspaceClient()
+            except Exception as e:
+                print(f"[WARN] GoogleWorkspaceClient OAuth unavailable: {e}")
         self.cv_ground_truth = load_candidate_cv_ground_truth()
 
     def _violations(self, body: str, structure: str = "S1") -> List[str]:

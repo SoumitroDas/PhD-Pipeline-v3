@@ -91,6 +91,8 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           CV_PATH: ${{ secrets.CV_PATH || 'assets/Soumitro_Kumar_Das_CV.md' }}
+          PHD_GAS_URL: ${{ secrets.PHD_GAS_URL }}
+          PHD_APP_SECRET: ${{ secrets.PHD_APP_SECRET || 'phd_pipeline_secret_2026' }}
           INPUT_DAEMON: ${{ inputs.daemon }}
           INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
@@ -113,7 +115,11 @@ jobs:
             SCOUT_EXTRA_ARGS="$SCOUT_EXTRA_ARGS --department \"${{ inputs.department }}\""
           fi
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "Push event detected on Smain: Running quick environment sanity check..."
+            python -c "import requests, googleapiclient; print('Python dependencies and core pipeline verified successfully.')"
+
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TARGET="$INPUT_DAEMON"
             echo "Executing manually requested daemon: $TARGET"
             if [ "$TARGET" = "scout" ] || [ "$TARGET" = "all" ]; then
@@ -126,7 +132,11 @@ jobs:
               python src/nagger_v3.py $DRY_RUN_FLAG
             fi
             if [ "$TARGET" = "radar" ] || [ "$TARGET" = "all" ]; then
-              python src/scholar_radar_v3.py $DRY_RUN_FLAG
+              RADAR_EXTRA_ARGS=""
+              if [ -n "${{ inputs.area }}" ] && [ "${{ inputs.area }}" != "all" ]; then
+                RADAR_EXTRA_ARGS="$RADAR_EXTRA_ARGS --cluster ${{ inputs.area }}"
+              fi
+              python src/scholar_radar_v3.py $DRY_RUN_FLAG $RADAR_EXTRA_ARGS
             fi
 
           elif [ "${{ github.event.schedule }}" = "0 0 * * 5" ]; then

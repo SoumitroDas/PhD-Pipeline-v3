@@ -330,7 +330,13 @@ class ScoutV3Guarded:
         self.max_results = max_results
 
         self.llm = CloudModelRouter()
-        self.ws = None if dry_run else GoogleWorkspaceClient()
+        self.ws = None
+        if not dry_run:
+            try:
+                self.ws = GoogleWorkspaceClient()
+            except Exception as e:
+                print(f"[WARN] GoogleWorkspaceClient OAuth unavailable: {e}")
+                print("[INFO] Running Scout in candidate discovery mode (skipping direct Sheet mutations).")
 
     def _load_existing_keys(self) -> Tuple[set, set, set]:
         """Loads existing PI names, posting links, and emails across Tab 1, Tab 2, and Tab 4 for deduplication."""

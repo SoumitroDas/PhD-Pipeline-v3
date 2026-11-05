@@ -92,7 +92,13 @@ class ScholarRadarV3:
         self.cluster = cluster.lower().strip()
         self.max_papers = max_papers
         self.llm = CloudModelRouter()
-        self.ws = None if dry_run else GoogleWorkspaceClient()
+        self.ws = None
+        if not dry_run:
+            try:
+                self.ws = GoogleWorkspaceClient()
+            except Exception as e:
+                print(f"[WARN] GoogleWorkspaceClient OAuth unavailable: {e}")
+                print("[INFO] Running Literature Radar in cloud intelligence / discovery mode.")
 
     def _get_lookback_days(self) -> int:
         if self.window == "24h":

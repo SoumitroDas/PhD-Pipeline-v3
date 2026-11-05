@@ -227,22 +227,31 @@ class GoogleWorkspaceClient:
         if Credentials is None:
             raise RuntimeError("google-api-python-client is not installed.")
 
-        token_b64 = os.getenv("GOOGLE_TOKEN_JSON_B64")
+        token_b64 = (os.getenv("GOOGLE_TOKEN_JSON_B64") or "").strip()
         token_path = os.getenv("GOOGLE_TOKEN_PATH", "token.json")
 
-        if token_b64:
+        creds = None
+        if token_b64 and token_b64 != "null":
             try:
                 token_info = json.loads(base64.b64decode(token_b64).decode("utf-8"))
                 creds = Credentials.from_authorized_user_info(token_info, self.SCOPES)
-            except Exception:
-                raise RuntimeError("Failed to decode GOOGLE_TOKEN_JSON_B64 secret.")
+            except Exception as e:
+                print(f"[WARN] Failed to decode GOOGLE_TOKEN_JSON_B64 secret: {e}")
         elif os.path.exists(token_path):
-            creds = Credentials.from_authorized_user_file(token_path, self.SCOPES)
-        else:
-            raise RuntimeError("No Google OAuth token available in runtime environment.")
+            try:
+                creds = Credentials.from_authorized_user_file(token_path, self.SCOPES)
+            except Exception as e:
+                print(f"[WARN] Failed to load credentials from {token_path}: {e}")
 
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"[WARN] Failed to refresh Google OAuth token: {e}")
+                creds = None
+
+        if creds is None:
+            raise RuntimeError("No valid Google OAuth token available in runtime environment.")
         return creds
 
     def ensure_three_tabs(self) -> None:

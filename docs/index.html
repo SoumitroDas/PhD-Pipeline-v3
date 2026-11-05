@@ -3836,25 +3836,38 @@ ${esc(body || '(No email body content)')}
       }
     }
 
-    async function fetchLiveRadar() {
+    async function fetchLiveRadar(windowStr) {
+      if (windowStr && ['24h', '7d', '30d', 'all', 'saved'].includes(windowStr)) {
+        currentRadarWindow = windowStr;
+        document.querySelectorAll('.radar-win-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.window === windowStr);
+        });
+      }
       const btn = document.getElementById('btnRadarLiveFetch');
       const originalText = btn ? btn.innerHTML : '';
       if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-amber-300 text-[9px]"></i> <span>Fetching...</span>';
       }
-      showToast("📡 Fetching live papers across OpenAlex & arXiv...");
+      const reqWindow = currentRadarWindow === 'saved' ? '7d' : currentRadarWindow;
+      const targetCluster = currentRadarTopic === 'all' ? 'epidemiology' : currentRadarTopic;
+      showToast(`📡 Fetching live ${reqWindow} papers for ${targetCluster}...`);
       try {
         const res = await postGAS({
           action: 'fetch_literature',
-          window: currentRadarWindow === 'saved' ? '7d' : currentRadarWindow,
-          cluster: currentRadarTopic === 'all' ? 'epidemiology' : currentRadarTopic
+          window: reqWindow,
+          cluster: targetCluster
         });
         if (res.ok && res.papers && res.papers.length > 0) {
-          const existingDois = new Set(globalLiteratureRadar.map(p => (p.doi || '').toLowerCase()));
-          const fresh = res.papers.filter(p => !existingDois.has((p.doi || '').toLowerCase()));
+          const todayDhaka = getDhakaDate();
+          res.papers.forEach(p => {
+            p._isFreshFetch = true;
+            if (!p.week_date) p.week_date = todayDhaka;
+          });
+          const existingDois = new Set(globalLiteratureRadar.map(p => (p.doi || p.title || '').toLowerCase()));
+          const fresh = res.papers.filter(p => !existingDois.has((p.doi || p.title || '').toLowerCase()));
           globalLiteratureRadar = [...fresh, ...globalLiteratureRadar];
-          showToast(`✅ Discovered ${fresh.length} fresh paper(s)!`);
+          showToast(`✅ Discovered ${res.papers.length} paper(s) (${fresh.length} fresh)!`);
         } else {
           showToast("✅ Radar query up to date.");
         }
@@ -3868,6 +3881,8 @@ ${esc(body || '(No email body content)')}
         }
       }
     }
+    window.fetchLiveLiterature = fetchLiveRadar;
+    window.renderRadarFeed = renderRadarView;
 
     function renderRadarView() {
       const feed = document.getElementById('radarFeedContainer');
@@ -3884,18 +3899,22 @@ ${esc(body || '(No email body content)')}
         list = list.filter(p => savedRadarDois.includes(p.doi));
       } else if (currentRadarWindow === '24h') {
         list = list.filter(p => {
+          if (p._isFreshFetch) return true;
+          if (p.week_date === getDhakaDate()) return true;
           if (!p.pub_date && !p.week_date) return true;
           const dMs = new Date(p.pub_date || p.week_date).getTime();
           return isNaN(dMs) || (nowMs - dMs) <= 1 * 86400000;
         });
       } else if (currentRadarWindow === '7d') {
         list = list.filter(p => {
+          if (p._isFreshFetch) return true;
           if (!p.pub_date && !p.week_date) return true;
           const dMs = new Date(p.pub_date || p.week_date).getTime();
           return isNaN(dMs) || (nowMs - dMs) <= 7 * 86400000;
         });
       } else if (currentRadarWindow === '30d') {
         list = list.filter(p => {
+          if (p._isFreshFetch) return true;
           if (!p.pub_date && !p.week_date) return true;
           const dMs = new Date(p.pub_date || p.week_date).getTime();
           return isNaN(dMs) || (nowMs - dMs) <= 30 * 86400000;
@@ -4167,9 +4186,9 @@ Dhaka, Bangladesh`;
 
         // 1. Backend Version Check
         const bVer = listRes.backend_version;
-        const isVerOk = !!(bVer && /^v3\.[3-9]/.test(bVer));
+        const isVerOk = !!(bVer && /^v3\.[6789]/.test(bVer));
         checks.push({
-          title: `Backend Version Check (${bVer || 'v3.6+'})`,
+          title: `Backend Version Check (${bVer || 'v3.6 or v3.7'})`,
           passed: isVerOk,
           detail: isVerOk ? `Live deployment stamped as '${bVer}'` : `Mismatched: '${bVer || 'None'}'. Re-deploy New Version in Apps Script!`
         });
