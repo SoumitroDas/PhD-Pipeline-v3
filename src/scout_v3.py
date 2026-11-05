@@ -200,7 +200,7 @@ class ScoutVerifier:
             raw_id = author_id.split("/")[-1]
             url = f"{cls.OPENALEX_BASE}/authors/{raw_id}"
             try:
-                resp = requests.get(url, headers=cls.HEADERS, timeout=15)
+                resp = requests.get(url, headers=cls.HEADERS, timeout=10)
                 if resp.status_code == 200:
                     author_data = resp.json()
                     identity = "ID-LINKED"
@@ -212,7 +212,7 @@ class ScoutVerifier:
             search_q = f"{clean_name} {clean_inst}".strip()
             url = f"{cls.OPENALEX_BASE}/authors?search={urllib.parse.quote(search_q)}&per-page=5"
             try:
-                resp = requests.get(url, headers=cls.HEADERS, timeout=15)
+                resp = requests.get(url, headers=cls.HEADERS, timeout=10)
                 if resp.status_code == 200:
                     candidates = resp.json().get("results", [])
                     if candidates:
@@ -274,7 +274,7 @@ class ScoutVerifier:
                 f"&sort=publication_date:desc&per-page=5"
             )
             try:
-                w_resp = requests.get(works_url, headers=cls.HEADERS, timeout=15)
+                w_resp = requests.get(works_url, headers=cls.HEADERS, timeout=10)
                 if w_resp.status_code == 200:
                     for w in w_resp.json().get("results", [])[:2]:
                         title = sanitize_input(w.get("title", ""), max_len=250)
@@ -383,12 +383,12 @@ class ScoutV3Guarded:
 
         url = (
             f"https://api.openalex.org/works?search={urllib.parse.quote(query)}"
-            f"&filter=from_publication_date:{from_date}&per-page={min(self.max_results, 15)}"
+            f"&filter=from_publication_date:{from_date}&per-page={min(self.max_results, 5)}"
             f"&sort=publication_date:desc"
         )
         candidates = []
         try:
-            resp = requests.get(url, headers=ScoutVerifier.HEADERS, timeout=20)
+            resp = requests.get(url, headers=ScoutVerifier.HEADERS, timeout=10)
             results = resp.json().get("results", []) if resp.status_code == 200 else []
 
             # Guaranteed fallback if query returns 0 results
@@ -403,9 +403,9 @@ class ScoutV3Guarded:
                 fb_q = fallback_keywords.get(cluster_key, "compartmental model SEIR dengue")
                 fb_url = (
                     f"https://api.openalex.org/works?search={urllib.parse.quote(fb_q)}"
-                    f"&per-page={min(self.max_results, 15)}&sort=publication_date:desc"
+                    f"&per-page={min(self.max_results, 5)}&sort=publication_date:desc"
                 )
-                fb_resp = requests.get(fb_url, headers=ScoutVerifier.HEADERS, timeout=20)
+                fb_resp = requests.get(fb_url, headers=ScoutVerifier.HEADERS, timeout=10)
                 if fb_resp.status_code == 200:
                     results = fb_resp.json().get("results", [])
 
@@ -467,12 +467,12 @@ class ScoutV3Guarded:
         query = cluster_cfg["crossref"]
         url = (
             f"https://api.crossref.org/works?query={urllib.parse.quote(query)}"
-            f"&filter=from-pub-date:2024-01-01&rows={min(self.max_results, 8)}&sort=published&order=desc"
+            f"&filter=from-pub-date:2024-01-01&rows={min(self.max_results, 5)}&sort=published&order=desc"
         )
         headers = {"User-Agent": "PhDPipelineV34/3.4 (mailto:dassoumitrokumar@gmail.com)"}
         candidates = []
         try:
-            resp = requests.get(url, headers=headers, timeout=15)
+            resp = requests.get(url, headers=headers, timeout=10)
             if resp.status_code == 200:
                 items = resp.json().get("message", {}).get("items", [])
                 for it in items:
@@ -532,11 +532,11 @@ class ScoutV3Guarded:
         query = cluster_cfg["arxiv"]
         url = (
             f"http://export.arxiv.org/api/query?search_query={urllib.parse.quote(query)}"
-            f"&max_results={min(self.max_results, 8)}&sortBy=submittedDate&sortOrder=descending"
+            f"&max_results={min(self.max_results, 5)}&sortBy=submittedDate&sortOrder=descending"
         )
         candidates = []
         try:
-            resp = requests.get(url, timeout=15)
+            resp = requests.get(url, timeout=10)
             if resp.status_code == 200:
                 root = ET.fromstring(resp.text)
                 ns = {"atom": "http://www.w3.org/2005/Atom"}
@@ -582,10 +582,10 @@ class ScoutV3Guarded:
     # SOURCE 4: DENGUE PAPER CITING AUTHORS (WORK W4418659114) - HIGH-YIELD WARM RADAR
     # --------------------------------------------------------------------------
     def _discover_citing_authors(self) -> List[Dict[str, Any]]:
-        url = "https://api.openalex.org/works?filter=cites:W4418659114&per-page=50"
+        url = "https://api.openalex.org/works?filter=cites:W4418659114&per-page=15"
         candidates = []
         try:
-            resp = requests.get(url, headers=AcademicVerifier.HEADERS, timeout=20)
+            resp = requests.get(url, headers=AcademicVerifier.HEADERS, timeout=10)
             if resp.status_code == 200:
                 results = resp.json().get("results", [])
                 for work in results:
@@ -642,7 +642,7 @@ class ScoutV3Guarded:
                 f"&cx={GOOGLE_CSE_CX}&q={urllib.parse.quote(q)}&dateRestrict=d14&num=5"
             )
             try:
-                resp = requests.get(url, timeout=15)
+                resp = requests.get(url, timeout=10)
                 if resp.status_code == 200:
                     for item in resp.json().get("items", []):
                         raw_items.append({

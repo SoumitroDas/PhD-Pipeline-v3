@@ -172,7 +172,7 @@ class ScholarRadarV3:
         )
         papers = []
         try:
-            resp = requests.get(url, headers=AcademicVerifier.HEADERS, timeout=20)
+            resp = requests.get(url, headers=AcademicVerifier.HEADERS, timeout=10)
             if resp.status_code == 200:
                 papers = self._parse_openalex_results(resp.json().get("results", []), cluster_cfg)
         except Exception as e:
@@ -193,7 +193,7 @@ class ScholarRadarV3:
                 f"&sort=publication_date:desc&per-page=5"
             )
             try:
-                fb_resp = requests.get(fb_url, headers=AcademicVerifier.HEADERS, timeout=20)
+                fb_resp = requests.get(fb_url, headers=AcademicVerifier.HEADERS, timeout=10)
                 if fb_resp.status_code == 200:
                     papers = self._parse_openalex_results(fb_resp.json().get("results", []), cluster_cfg)
             except Exception as e:
@@ -209,7 +209,7 @@ class ScholarRadarV3:
         )
         papers = []
         try:
-            resp = requests.get(url, timeout=15)
+            resp = requests.get(url, timeout=10)
             if resp.status_code == 200:
                 root = ET.fromstring(resp.text)
                 ns = {"atom": "http://www.w3.org/2005/Atom"}
@@ -262,8 +262,8 @@ class ScholarRadarV3:
             print(f"[RADAR V3.4] Fetching recent works in {c_cfg['name']}...")
             oa_p = self._fetch_openalex(c_key, c_cfg, from_date)
             arx_p = self._fetch_arxiv(c_key, c_cfg)
-            raw_papers.extend(oa_p)
-            raw_papers.extend(arx_p)
+            cluster_papers = (oa_p + arx_p)[:5]
+            raw_papers.extend(cluster_papers)
 
         print(f"[RADAR V3.4] Total raw papers gathered: {len(raw_papers)}")
 
@@ -272,6 +272,8 @@ class ScholarRadarV3:
         digest_lines = [f"📡 *Research Intelligence & Literature Radar ({today_str})*\n"]
 
         for p in raw_papers:
+            if deposited_count >= self.max_papers:
+                break
             doi_key = p["doi"].lower().strip()
             title_key = p["title"].lower().strip()
             if doi_key in existing_keys or title_key in existing_keys:

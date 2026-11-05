@@ -63,6 +63,7 @@ on:
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -123,7 +124,7 @@ jobs:
             TARGET="$INPUT_DAEMON"
             echo "Executing manually requested daemon: $TARGET"
             if [ "$TARGET" = "scout" ] || [ "$TARGET" = "all" ]; then
-              python src/scout_v3.py $DRY_RUN_FLAG $SCOUT_EXTRA_ARGS
+              python src/scout_v3.py --max-results 5 $DRY_RUN_FLAG $SCOUT_EXTRA_ARGS
             fi
             if [ "$TARGET" = "drafter" ] || [ "$TARGET" = "all" ]; then
               python src/drafter_v3.py $DRY_RUN_FLAG
@@ -136,12 +137,12 @@ jobs:
               if [ -n "${{ inputs.area }}" ] && [ "${{ inputs.area }}" != "all" ]; then
                 RADAR_EXTRA_ARGS="$RADAR_EXTRA_ARGS --cluster ${{ inputs.area }}"
               fi
-              python src/scholar_radar_v3.py $DRY_RUN_FLAG $RADAR_EXTRA_ARGS
+              python src/scholar_radar_v3.py --max-papers 5 $DRY_RUN_FLAG $RADAR_EXTRA_ARGS
             fi
 
           elif [ "${{ github.event.schedule }}" = "0 0 * * 5" ]; then
             echo "Cron Trigger: Weekly Friday Scout (06:00 AM Dhaka / 00:00 UTC)"
-            python src/scout_v3.py
+            python src/scout_v3.py --max-results 5
 
           elif [ "${{ github.event.schedule }}" = "0 2 * * *" ]; then
             echo "Cron Trigger: Daily Gmail Drafter (08:00 AM Dhaka / 02:00 UTC)"
@@ -153,7 +154,7 @@ jobs:
 
           elif [ "${{ github.event.schedule }}" = "0 1 * * 0" ]; then
             echo "Cron Trigger: Sunday Literature Radar (07:00 AM Dhaka / 01:00 UTC)"
-            python src/scholar_radar_v3.py
+            python src/scholar_radar_v3.py --max-papers 5
           fi
 
       - name: Local Privacy Guard
