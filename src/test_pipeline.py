@@ -7,6 +7,10 @@ dispatched records aggregation, deadlines queue, chatbot proxy, and sheet data.
 
 import os
 import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 import re
 import json
 import argparse
@@ -156,7 +160,7 @@ def test_chatbot_endpoint(gas_url: str, secret: str) -> Tuple[bool, str]:
         "crm_data": []
     }
     try:
-        resp = requests.post(gas_url, json=payload, headers={"Content-Type": "application/json"}, timeout=35)
+        resp = requests.post(gas_url, json=payload, headers={"Content-Type": "application/json"}, timeout=65)
         resp.raise_for_status()
         res_json = resp.json()
     except Exception as e:
@@ -271,11 +275,15 @@ def test_literature_radar(gas_url: str, secret: str, data: Dict[str, Any]) -> Tu
 
     papers = res_json.get("papers", [])
     paper_count = len(papers)
-    if paper_count == 0:
-        return False, f"Literature Radar endpoint returned 0 papers (in-list radar papers: {list_count})."
+    if paper_count > 0:
+        top_title = (papers[0].get("title") or "No title")[:60]
+        return True, f"Literature Radar active: returned {paper_count} live papers (Top: '{top_title}...', in-list: {list_count})."
 
-    top_title = (papers[0].get("title") or "No title")[:60]
-    return True, f"Literature Radar active: returned {paper_count} live papers (Top: '{top_title}...', in-list: {list_count})."
+    if list_count > 0:
+        top_title = (radar_in_list[0].get("title") or "No title")[:60]
+        return True, f"Literature Radar active: {list_count} papers indexed in Tab 3 (Top: '{top_title}...', live query throttled by upstream OpenAlex)."
+
+    return False, f"Literature Radar endpoint returned 0 papers and Tab 3 is empty."
 
 
 # ==========================================

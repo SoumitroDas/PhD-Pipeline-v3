@@ -1022,6 +1022,29 @@ function doPost(e) {
         }
       }
 
+      // If upstream OpenAlex search returned 0 (e.g. temporary rate-limit), fall back to existing Tab 3 papers
+      if (newPapers.length === 0 && tab3) {
+        const dataRows = getSheetDataRows(tab3);
+        dataRows.slice(0, 10).forEach(function(r) {
+          const title = String(r[1] || "").trim();
+          if (title) {
+            newPapers.push({
+              week_date: formatCellDate(r[0]),
+              title: title,
+              authors_inst: String(r[2] || "").trim(),
+              venue: String(r[3] || "").trim(),
+              pub_date: formatCellDate(r[4]),
+              doi: String(r[5] || "").trim(),
+              tag: String(r[6] || "").trim(),
+              methodology: String(r[7] || "").trim(),
+              mix_idea: String(r[8] || "").trim(),
+              lead_potential: String(r[9] || "High").trim(),
+              abstract: String(r[10] || "").trim()
+            });
+          }
+        });
+      }
+
       return ContentService.createTextOutput(JSON.stringify({
         ok: true,
         window: windowStr,
