@@ -672,7 +672,7 @@ class ScoutV3Guarded:
             status = r[2].strip() if len(r) > 2 else ""
             if status == "PROCESSED":
                 continue
-            text_cells = [sanitize_input(cell, max_len=3000, keep_newlines=True) for cell in r[:2] if str(cell).strip()]
+            text_cells = [sanitize_input(cell, max_len=30000, keep_newlines=True) for cell in r[:2] if str(cell).strip()]
             combined = "\n".join(text_cells).strip()
             if combined:
                 pending_items.append((i, combined))
