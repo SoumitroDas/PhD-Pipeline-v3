@@ -1104,7 +1104,7 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // 16. ACTION: fix_profile_url (Updates Col N: Direct Profile URL)
+    // 16. ACTION: fix_profile_url (Updates Col M for Scraped_Leads, Col N for Email_Drafts/Archive_History)
     if (data.action === "fix_profile_url") {
       const tabName = data.tab || "Email_Drafts";
       const tab = getSheetCaseInsensitive(ss, tabName);
@@ -1119,8 +1119,86 @@ function doPost(e) {
         }
       }
 
-      tab.getRange(row, 14).setValue(String(data.profile_url || "").trim()); // Col N (Col 14): Direct Profile URL
-      return ContentService.createTextOutput(JSON.stringify({ ok: true, row: row, profile_url: data.profile_url })).setMimeType(ContentService.MimeType.JSON);
+      const isScraped = tabName.toLowerCase().indexOf("scraped") !== -1;
+      const targetCol = isScraped ? 13 : 14; // Col 13 (Col M) for Scraped_Leads, Col 14 (Col N) for Email_Drafts & Archive_History
+      tab.getRange(row, targetCol).setValue(String(data.profile_url || "").trim());
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, row: row, col: targetCol, profile_url: data.profile_url })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 17. ACTION: raw_sheet_op (Universal bridge for Python daemons without direct OAuth credentials)
+    if (data.action === "raw_sheet_op") {
+      const op = String(data.op || "").trim();
+      const tabName = String(data.tab || "").trim();
+      const tab = tabName ? (getSheetCaseInsensitive(ss, tabName) || ss.getSheetByName(tabName)) : null;
+
+      if (op === "get_all_rows") {
+        if (!tab) return ContentService.createTextOutput(JSON.stringify({ ok: true, result: [] })).setMimeType(ContentService.MimeType.JSON);
+        const lastRow = tab.getLastRow();
+        const lastCol = tab.getLastColumn();
+        if (lastRow < 1 || lastCol < 1) {
+          return ContentService.createTextOutput(JSON.stringify({ ok: true, result: [] })).setMimeType(ContentService.MimeType.JSON);
+        }
+        const vals = tab.getRange(1, 1, lastRow, lastCol).getValues();
+        return ContentService.createTextOutput(JSON.stringify({ ok: true, result: vals })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      if (op === "append_row") {
+        if (!tab) throw new Error("Tab not found: " + tabName);
+        const rowVals = Array.isArray(data.values) ? data.values : [];
+        tab.appendRow(rowVals);
+        return ContentService.createTextOutput(JSON.stringify({ ok: true, result: "Appended 1 row" })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      if (op === "append_rows") {
+        if (!tab) throw new Error("Tab not found: " + tabName);
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+        if (rows.length > 0) {
+          const startRow = tab.getLastRow() + 1;
+          const numCols = rows[0].length;
+          tab.getRange(startRow, 1, rows.length, numCols).setValues(rows);
+        }
+        return ContentService.createTextOutput(JSON.stringify({ ok: true, result: "Appended " + rows.length + " rows" })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      if (op === "update_cell_range") {
+        if (!tab) throw new Error("Tab not found: " + tabName);
+        const rangeStr = String(data.range || "").trim();
+        const vals = Array.isArray(data.values) ? data.values : [];
+        if (rangeStr && vals.length > 0) {
+          tab.getRange(rangeStr).setValues(vals);
+        }
+        return ContentService.createTextOutput(JSON.stringify({ ok: true, result: "Updated " + rangeStr })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      if (op === "clear_tab") {
+        if (!tab) throw new Error("Tab not found: " + tabName);
+        const keepHeader = data.keep_header !== false;
+        const lastRow = tab.getLastRow();
+        const lastCol = tab.getLastColumn();
+        if (lastRow > (keepHeader ? 1 : 0) && lastCol > 0) {
+          const startR = keepHeader ? 2 : 1;
+          const numR = keepHeader ? (lastRow - 1) : lastRow;
+          tab.getRange(startR, 1, numR, lastCol).clearContent();
+        }
+        return ContentService.createTextOutput(JSON.stringify({ ok: true, result: "Cleared " + tabName })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      if (op === "ensure_tabs") {
+        const headersMap = data.tab_headers || {};
+        for (const tName in headersMap) {
+          let s = getSheetCaseInsensitive(ss, tName) || ss.getSheetByName(tName);
+          if (!s) {
+            s = ss.insertSheet(tName);
+            const hdrs = headersMap[tName];
+            if (Array.isArray(hdrs) && hdrs.length > 0) {
+              s.appendRow(hdrs);
+            }
+          }
+        }
+        return ContentService.createTextOutput(JSON.stringify({ ok: true, result: "Tabs ensured" })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      throw new Error("Unsupported op: " + op);
     }
 
     throw new Error("Unknown action: " + data.action);

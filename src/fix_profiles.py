@@ -154,17 +154,36 @@ class ProfileLinkFixer:
     def fix_tab(self, tab_name: str) -> Dict[str, Any]:
         """
         Scans a given tab, identifies rows needing profile URL remediation,
-        queries OpenAlex, and updates Col N (index 13, 1-indexed column 14).
+        queries OpenAlex, and updates Col M (Col 13 for Scraped_Leads) or Col N (Col 14 for Email_Drafts/Archive_History).
         """
+        is_scraped = ("scraped" in tab_name.lower())
+        inst_col_idx = 2 if is_scraped else 5      # Col C (2) for Scraped_Leads; Col F (5) for Email_Drafts
+        prof_col_idx = 12 if is_scraped else 13    # Col M (12) for Scraped_Leads; Col N (13) for Email_Drafts
+        col_letter = "M" if is_scraped else "N"
+
         print(f"\n=======================================================")
-        print(f"  Processing Tab: {tab_name}")
+        print(f"  Processing Tab: {tab_name} (Profile Col: {col_letter})")
         print(f"=======================================================")
 
-        rows: List[List[str]] = []
+        # Item records to inspect: list of dicts with {row, prof, inst, profile_url, tab}
+        records: List[Dict[str, Any]] = []
 
         if self.ws:
             try:
-                rows = self.ws.get_all_rows(tab_name)
+                sheet_rows = self.ws.get_all_rows(tab_name)
+                for idx, row in enumerate(sheet_rows[1:], start=2):
+                    p_name = row[1].strip() if len(row) > 1 else ""
+                    if not p_name:
+                        continue
+                    i_name = row[inst_col_idx].strip() if len(row) > inst_col_idx else ""
+                    c_url = row[prof_col_idx].strip() if len(row) > prof_col_idx else ""
+                    records.append({
+                        "row": idx,
+                        "prof": p_name,
+                        "inst": i_name,
+                        "profile_url": c_url,
+                        "tab": tab_name
+                    })
             except Exception as e:
                 print(f"[ERROR] Failed to fetch rows from tab '{tab_name}': {e}")
                 return {"tab": tab_name, "total": 0, "fixed": 0, "skipped": 0, "errors": 1}
@@ -173,15 +192,24 @@ class ProfileLinkFixer:
                 payload = {"action": "list", "secret": self.app_secret}
                 res = requests.post(self.gas_url, json=payload, timeout=25)
                 data = res.json()
-                items = data.get("draftsReady" if tab_name == "Email_Drafts" else "sentProfs", [])
-                # Reconstruct table from items
-                rows = [["Header"]]
+                if is_scraped:
+                    items = data.get("allScrapedLeads", [])
+                elif tab_name == "Email_Drafts":
+                    items = data.get("draftsReady", []) + [p for p in data.get("sentProfs", []) if p.get("tab") == "Email_Drafts"]
+                else:
+                    items = [p for p in data.get("sentProfs", []) if p.get("tab") == "Archive_History"]
+
                 for it in items:
-                    r_arr = [""] * 16
-                    r_arr[1] = it.get("prof", "")
-                    r_arr[5] = it.get("inst", "")
-                    r_arr[13] = it.get("profile_url", "")
-                    rows.append(r_arr)
+                    p_name = it.get("prof", "").strip()
+                    if not p_name:
+                        continue
+                    records.append({
+                        "row": it.get("row", 2),
+                        "prof": p_name,
+                        "inst": it.get("inst", "").strip(),
+                        "profile_url": it.get("profile_url", "").strip(),
+                        "tab": it.get("tab", tab_name)
+                    })
             except Exception as e:
                 print(f"[ERROR] Failed to fetch rows via GAS: {e}")
                 return {"tab": tab_name, "total": 0, "fixed": 0, "skipped": 0, "errors": 1}
@@ -189,25 +217,23 @@ class ProfileLinkFixer:
             print(f"[SKIP] No client available to read tab '{tab_name}'.")
             return {"tab": tab_name, "total": 0, "fixed": 0, "skipped": 0, "errors": 0}
 
-        if len(rows) <= 1:
-            print(f"[INFO] Tab '{tab_name}' is empty or has only a header row.")
+        if not records:
+            print(f"[INFO] Tab '{tab_name}' has 0 active records.")
             return {"tab": tab_name, "total": 0, "fixed": 0, "skipped": 0, "errors": 0}
 
-        total_rows = len(rows) - 1
+        total_rows = len(records)
         fixed_count = 0
         skipped_count = 0
 
-        print(f"[INFO] Found {total_rows} data rows in '{tab_name}'. Scanning Col N...")
+        print(f"[INFO] Found {total_rows} records in '{tab_name}'. Scanning Col {col_letter}...")
 
-        for idx, row in enumerate(rows[1:], start=2):
-            prof_name = row[1].strip() if len(row) > 1 else ""
-            if not prof_name:
-                continue
+        for item in records:
+            idx = item["row"]
+            prof_name = item["prof"]
+            inst = item["inst"]
+            cur_profile = item["profile_url"]
+            target_tab = item.get("tab", tab_name)
 
-            inst = row[5].strip() if len(row) > 5 else ""
-            cur_profile = row[13].strip() if len(row) > 13 else ""
-
-            # Condition: If Col N contains scholar.google.com/scholar?q= or is empty/invalid
             needs_fix = (
                 not cur_profile
                 or cur_profile == "#"
@@ -221,7 +247,7 @@ class ProfileLinkFixer:
                 continue
 
             print(f"\n[SCAN] Row {idx}: '{prof_name}' ({inst})")
-            print(f"       Current Col N: '{cur_profile or '(empty)'}' -> Querying OpenAlex...")
+            print(f"       Current Col {col_letter}: '{cur_profile or '(empty)'}' -> Querying OpenAlex...")
 
             openalex_url = self.search_openalex_author(prof_name, inst)
             time.sleep(0.5)  # Respect OpenAlex rate limit (0.5s)
@@ -231,8 +257,8 @@ class ProfileLinkFixer:
                 if not self.dry_run:
                     if self.ws:
                         try:
-                            self.ws.update_cell_range(f"N{idx}:N{idx}", [[openalex_url]], tab_name)
-                            print(f"       -> [UPDATED] Col N on row {idx} set to {openalex_url}")
+                            self.ws.update_cell_range(f"{col_letter}{idx}:{col_letter}{idx}", [[openalex_url]], target_tab)
+                            print(f"       -> [UPDATED] Col {col_letter} on row {idx} set to {openalex_url}")
                             fixed_count += 1
                         except Exception as e:
                             print(f"       -> [ERROR] Failed to update row {idx}: {e}")
@@ -241,14 +267,14 @@ class ProfileLinkFixer:
                             p_load = {
                                 "action": "fix_profile_url",
                                 "secret": self.app_secret,
-                                "tab": tab_name,
+                                "tab": target_tab,
                                 "row": idx,
                                 "profile_url": openalex_url,
                                 "expect_prof": prof_name
                             }
                             res = requests.post(self.gas_url, json=p_load, timeout=15)
                             if res.json().get("ok"):
-                                print(f"       -> [UPDATED via GAS] Col N on row {idx} set to {openalex_url}")
+                                print(f"       -> [UPDATED via GAS] Col {col_letter} on row {idx} set to {openalex_url}")
                                 fixed_count += 1
                             else:
                                 print(f"       -> [ERROR via GAS] {res.text}")
@@ -270,7 +296,7 @@ class ProfileLinkFixer:
         return summary
 
     def run(self, target_tabs: Optional[List[str]] = None) -> List[Dict[str, Any]]:
-        tabs = target_tabs or ["Email_Drafts", "Archive_History"]
+        tabs = target_tabs or ["Scraped_Leads", "Email_Drafts", "Archive_History"]
         summaries = []
         for tab in tabs:
             res = self.fix_tab(tab)
@@ -280,7 +306,7 @@ class ProfileLinkFixer:
 
 def main():
     parser = argparse.ArgumentParser(description="Retroactive Profile Link Extraction via OpenAlex API")
-    parser.add_argument("--tabs", nargs="+", default=["Email_Drafts", "Archive_History"], help="Tabs to scan and fix")
+    parser.add_argument("--tabs", nargs="+", default=["Scraped_Leads", "Email_Drafts", "Archive_History"], help="Tabs to scan and fix")
     parser.add_argument("--dry-run", action="store_true", help="Perform scan without writing updates")
     parser.add_argument("--gas-url", default=os.getenv("PHD_GAS_URL", ""), help="Google Apps Script Web App URL")
     parser.add_argument("--app-secret", default=os.getenv("PHD_APP_SECRET", "phd_pipeline_secret_2026"), help="APP_SECRET token")

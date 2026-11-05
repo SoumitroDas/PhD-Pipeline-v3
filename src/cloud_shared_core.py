@@ -301,6 +301,32 @@ class CloudModelRouter:
         )
 
 
+def _find_env_val(key: str, default: str = "") -> str:
+    """Finds an environment variable from os.environ or .env / .env.local files."""
+    val = os.getenv(key, "")
+    if val:
+        return val
+    candidates = [
+        ".env",
+        ".env.local",
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env.local"),
+    ]
+    for p in candidates:
+        if os.path.isfile(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            if k.strip() == key:
+                                return v.strip().strip("'\"")
+            except Exception:
+                pass
+    return default
+
+
 class GoogleWorkspaceClient:
     """
     Manages spreadsheet tabs securely with least-privilege spreadsheets scope:
@@ -309,6 +335,7 @@ class GoogleWorkspaceClient:
     - Tab 3: Literature_Radar
     - Tab 4: Archive_History
     - Tab 5: Manual_Ingest
+    Includes universal GAS Web App proxy fallback when OAuth tokens are absent.
     """
 
     SCOPES = [
@@ -316,8 +343,19 @@ class GoogleWorkspaceClient:
     ]
 
     def __init__(self):
-        self.creds = self._load_credentials()
-        self.sheets = build("sheets", "v4", credentials=self.creds)
+        self.gas_url = _find_env_val("PHD_GAS_URL", "")
+        self.app_secret = _find_env_val("PHD_APP_SECRET", "phd_pipeline_secret_2026")
+        self.creds = None
+        self.sheets = None
+        try:
+            self.creds = self._load_credentials()
+            if self.creds:
+                self.sheets = build("sheets", "v4", credentials=self.creds)
+        except Exception as e:
+            if not self.gas_url:
+                raise RuntimeError(f"Google Workspace OAuth failed ({e}) and no PHD_GAS_URL configured.")
+            print(f"[INFO] Google Workspace OAuth unavailable ({e}). Falling back to GAS Web App proxy: {self.gas_url[:35]}...")
+            self.sheets = None
 
     def _load_credentials(self):
         if Credentials is None:
@@ -350,93 +388,134 @@ class GoogleWorkspaceClient:
             raise RuntimeError("No valid Google OAuth token available in runtime environment.")
         return creds
 
-    def ensure_three_tabs(self) -> None:
-        """Guarantees Scraped_Leads, Email_Drafts, Literature_Radar, and Manual_Ingest tabs exist."""
-        meta = self.sheets.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-        existing_tabs = {s["properties"]["title"] for s in meta.get("sheets", [])}
-        requests_body = []
+    def _call_gas(self, op: str, **kwargs) -> Any:
+        if not self.gas_url:
+            raise RuntimeError("Cannot execute sheet op: both OAuth and PHD_GAS_URL are missing.")
+        payload = {
+            "action": "raw_sheet_op",
+            "secret": self.app_secret,
+            "op": op,
+            **kwargs
+        }
+        resp = requests.post(self.gas_url, json=payload, headers={"Content-Type": "application/json"}, timeout=45)
+        resp.raise_for_status()
+        data = resp.json()
+        if not data.get("ok"):
+            raise RuntimeError(f"GAS raw_sheet_op '{op}' failed: {data.get('error', 'Unknown error')}")
+        return data.get("result")
 
+    def ensure_three_tabs(self) -> None:
+        """Guarantees Scraped_Leads, Email_Drafts, Literature_Radar, Archive_History, and Manual_Ingest tabs exist with exact schema."""
         tab_headers = {
             "Scraped_Leads": [
                 "Date Found", "PI Name", "Institution", "Department", "Opportunity Title",
                 "Posting Link", "OpenAlex Verified Paper 1 & DOI", "OpenAlex Verified Paper 2 & DOI",
-                "Fit Score", "Deadline", "Status"
+                "Fit Score", "Deadline", "Status", "Verified Email", "Direct Profile URL"
             ],
             "Email_Drafts": [
                 "Date Drafted", "PI Name", "Email", "Subject Line", "Full Email Body",
-                "Pre-Send Checklist & CV Advice", "Dispatch Status", "PI Reply Status",
-                "Reply Summary / Notes", "F1 Due", "F2 Due"
+                "Institution & Dept", "Dispatch Status", "PI Reply Status",
+                "Reply Summary / Notes", "F1 Due", "F2 Due", "Application Deadline & Reqs",
+                "Dept / Portal Link", "Direct Profile URL", "Last Contact Date", "Snooze Until Date"
             ],
             "Literature_Radar": [
                 "Week Date", "Paper Title", "Authors & Institution", "Journal / Venue",
                 "Publication Date", "Verified DOI / Link", "Sub-Field Tag",
-                "Key Methodology", "Research Gap & Mix Idea", "Lead Potential"
+                "Key Methodology", "Research Gap & Mix Idea", "Lead Potential", "Abstract / Personal Notes"
+            ],
+            "Archive_History": [
+                "Date Drafted", "PI Name", "Email", "Subject Line", "Full Email Body",
+                "Institution & Dept", "Dispatch Status", "PI Reply Status",
+                "Reply Summary / Notes", "F1 Due", "F2 Due", "Application Deadline & Reqs",
+                "Dept / Portal Link", "Direct Profile URL", "Last Contact Date"
             ],
             "Manual_Ingest": [
                 "Timestamp", "Raw Paste / Lead Context", "Notes"
             ]
         }
 
-        for tab_name, headers in tab_headers.items():
-            if tab_name not in existing_tabs:
-                requests_body.append({"addSheet": {"properties": {"title": tab_name}}})
-
-        if requests_body:
-            self.sheets.spreadsheets().batchUpdate(
-                spreadsheetId=SPREADSHEET_ID,
-                body={"requests": requests_body}
-            ).execute()
-
+        if self.sheets:
+            meta = self.sheets.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+            existing_tabs = {s["properties"]["title"] for s in meta.get("sheets", [])}
+            requests_body = []
             for tab_name, headers in tab_headers.items():
                 if tab_name not in existing_tabs:
-                    self.append_row(headers, tab_name=tab_name)
+                    requests_body.append({"addSheet": {"properties": {"title": tab_name}}})
+
+            if requests_body:
+                self.sheets.spreadsheets().batchUpdate(
+                    spreadsheetId=SPREADSHEET_ID,
+                    body={"requests": requests_body}
+                ).execute()
+
+                for tab_name, headers in tab_headers.items():
+                    if tab_name not in existing_tabs:
+                        self.append_row(headers, tab_name=tab_name)
+        else:
+            self._call_gas("ensure_tabs", tab_headers=tab_headers)
 
     def get_all_rows(self, tab_name: str, raw: bool = False) -> List[List[str]]:
-        kwargs: Dict[str, Any] = {
-            "spreadsheetId": SPREADSHEET_ID,
-            "range": f"{tab_name}!A1:Z2500"
-        }
-        if raw:
-            kwargs["valueRenderOption"] = "UNFORMATTED_VALUE"
-        res = self.sheets.spreadsheets().values().get(**kwargs).execute()
-        return res.get("values", [])
+        if self.sheets:
+            kwargs: Dict[str, Any] = {
+                "spreadsheetId": SPREADSHEET_ID,
+                "range": f"{tab_name}!A1:Z2500"
+            }
+            if raw:
+                kwargs["valueRenderOption"] = "UNFORMATTED_VALUE"
+            res = self.sheets.spreadsheets().values().get(**kwargs).execute()
+            return res.get("values", [])
+        else:
+            res = self._call_gas("get_all_rows", tab=tab_name, raw=raw)
+            return res if isinstance(res, list) else []
 
     def append_row(self, values: List[Any], tab_name: str) -> None:
         safe_values = [sanitize_for_sheet(v) for v in values]
-        self.sheets.spreadsheets().values().append(
-            spreadsheetId=SPREADSHEET_ID,
-            range=f"{tab_name}!A1",
-            valueInputOption="RAW",
-            insertDataOption="INSERT_ROWS",
-            body={"values": [safe_values]}
-        ).execute()
+        if self.sheets:
+            self.sheets.spreadsheets().values().append(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"{tab_name}!A1",
+                valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS",
+                body={"values": [safe_values]}
+            ).execute()
+        else:
+            self._call_gas("append_row", tab=tab_name, values=safe_values)
 
     def append_rows(self, rows: List[List[Any]], tab_name: str) -> None:
         safe_rows = [[sanitize_for_sheet(c) for c in r] for r in rows]
-        self.sheets.spreadsheets().values().append(
-            spreadsheetId=SPREADSHEET_ID,
-            range=f"{tab_name}!A1",
-            valueInputOption="RAW",
-            insertDataOption="INSERT_ROWS",
-            body={"values": safe_rows}
-        ).execute()
+        if self.sheets:
+            self.sheets.spreadsheets().values().append(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"{tab_name}!A1",
+                valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS",
+                body={"values": safe_rows}
+            ).execute()
+        else:
+            self._call_gas("append_rows", tab=tab_name, rows=safe_rows)
 
     def update_cell_range(self, cell_range: str, values: List[List[Any]], tab_name: str) -> None:
         safe_values = [[sanitize_for_sheet(c) for c in row] for row in values]
-        self.sheets.spreadsheets().values().update(
-            spreadsheetId=SPREADSHEET_ID,
-            range=f"{tab_name}!{cell_range}",
-            valueInputOption="RAW",
-            body={"values": safe_values}
-        ).execute()
+        if self.sheets:
+            self.sheets.spreadsheets().values().update(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"{tab_name}!{cell_range}",
+                valueInputOption="RAW",
+                body={"values": safe_values}
+            ).execute()
+        else:
+            self._call_gas("update_cell_range", tab=tab_name, range=cell_range, values=safe_values)
 
     def clear_tab(self, tab_name: str, keep_header: bool = True) -> None:
         """Clears rows from a tab, optionally preserving the header row (A1:Z1)."""
-        range_to_clear = f"{tab_name}!A2:Z2500" if keep_header else f"{tab_name}!A1:Z2500"
-        self.sheets.spreadsheets().values().clear(
-            spreadsheetId=SPREADSHEET_ID,
-            range=range_to_clear
-        ).execute()
+        if self.sheets:
+            range_to_clear = f"{tab_name}!A2:Z2500" if keep_header else f"{tab_name}!A1:Z2500"
+            self.sheets.spreadsheets().values().clear(
+                spreadsheetId=SPREADSHEET_ID,
+                range=range_to_clear
+            ).execute()
+        else:
+            self._call_gas("clear_tab", tab=tab_name, keep_header=keep_header)
 
     def ensure_literature_tab(self) -> None:
         """Alias to ensure backward compatibility with literature radar."""
