@@ -292,7 +292,19 @@ def run_all_tests(gas_url: Optional[str] = None, secret: Optional[str] = None) -
 
     if not gas_url:
         print("[FAIL] Missing PHD_GAS_URL in environment or .env file.")
-        print("ACTION: Configure PHD_GAS_URL in your .env file or pass via --gas-url.")
+        print("\nACTION REQUIRED:")
+        print("1. If you haven't deployed Code.gs yet:")
+        print("   - Open your Google Apps Script project.")
+        print("   - Paste the latest Code.gs (v3.7).")
+        print("   - Click Deploy > Manage deployments > Edit > New version > Deploy.")
+        print("   - Copy the Web App URL (starts with https://script.google.com/macros/s/...).")
+        print("\n2. Execute the tester with your deployed URL:")
+        print("   Option A (Direct CLI):")
+        print('     python src/test_pipeline.py --gas-url "https://script.google.com/macros/s/.../exec"')
+        print("   Option B (Save to .env):")
+        print("     Create a .env file with:")
+        print("     PHD_GAS_URL=https://script.google.com/macros/s/.../exec")
+        print("     PHD_APP_SECRET=phd_pipeline_secret_2026")
         return False
 
     print(f"Target GAS URL : {gas_url[:50]}...")

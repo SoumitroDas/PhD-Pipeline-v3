@@ -8,6 +8,7 @@ __pycache__/
 *.key
 .env
 .env.*
+!.env.example
 .DS_Store
 Thumbs.db
 token.json
